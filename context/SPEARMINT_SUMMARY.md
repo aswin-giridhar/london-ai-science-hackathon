@@ -12,18 +12,30 @@ the benchmark with similarity-aware splits, and show a protein language model be
 honestly. They then show published half-lives aren't comparable across lab assays, and fix that by
 conditioning the model on which assay produced the number.
 
-## Why this paper is the centre of our track
-Serova's brief asks: *"can we use existing protein foundation models to better predict the stability
-of peptide-HLA complexes?"* — **this paper is that question, already answered.** Assume the judges
-know it. Our dataset is its Stage-2 training corpus (below), so its Table 2 is effectively our
-scoreboard.
+## How this paper relates to our track — read this before using its numbers
+Serova's brief asks the same question this paper answers, so assume the judges know it. **But the
+brief is explicit that this is not a leaderboard** ("we are not looking for an approach that tops an
+arbitrary leaderboard"; "negative results are just as good as positive results where well
+supported"). So treat Table 2 as **calibration, not a target**.
 
-## Our dataset IS their stability set
+Three concrete mismatches with our task:
+- **Different HLA input.** The paper deliberately uses the *full-length MHC-I heavy chain*. Our
+  `hla_seq` is only the **α1/α2 domain** (182 aa). Not a like-for-like reproduction.
+- **MINT is not on Serova's model list.** The brief names twelve models across structure prediction,
+  inverse folding and protein language models; MINT is in none of them.
+- **The brief wants breadth of method, not one tuned pipeline** — embeddings, log-likelihoods,
+  confidence metrics, masking and seed variation. This paper only does embeddings + fine-tuning.
+
+## Our dataset is the same corpus (with caveats)
 They describe the NetMHCstabpan corpus as **27,034 measurements, 72 HLA-I alleles, 9-mers, all from
 scintillation proximity assay (SPA) at 37 °C**. Ours is 28,166 rows / 75 alleles / all 9-mers.
 The ~1,100-row gap is almost certainly their "allele normalization and MHC sequence mapping" step
-dropping unmappable entries — ours still contains mutants like `HLA-B*14:01(C67S)`.
-**Implication: we can reproduce their setup directly, and their numbers are the right yardstick.**
+dropping unmappable entries — ours still contains the three `(C67S)` engineered constructs.
+Both trace to Rasmussen et al. 2016, which Serova asks us to cite.
+
+**But the HLA column differs**: they map each allele to its full-length heavy chain from
+IPD-IMGT/HLA; our file supplies only the α1/α2 groove domain. Any comparison to their numbers is
+approximate for that reason alone.
 
 ## The three design choices we should copy
 1. **Target transform:** `BS_score = log(1 + t½)`, MSE loss in log space, invert with `exp(ŷ) − 1`.
@@ -108,7 +120,10 @@ cohorts. Framing: **affinity gates candidacy, stability ranks persistence within
 
 ## What this means for a 24-hour build
 - Reproducing MINT Transfer end-to-end (two stages, 650M params, 200 epochs) is **not** a
-  weekend-sized job on $150 of Modal credit. Don't promise it.
+  weekend-sized job on $150 of Modal credit. Don't promise it — and the brief doesn't ask for it.
 - A frozen-embedding + head baseline is a few hours and lands near ρ 0.57.
-- The defensible, demo-able wedge is **the honest split + calibrated uncertainty + the censoring
-  fix**, reported against their published numbers. That is a contribution, not a reimplementation.
+- The gaps this paper leaves (uncertainty, the 0.0 censoring floor) line up almost exactly with what
+  Serova's §5 asks us to explore (confidence metrics, log-likelihoods, masking and seed variation).
+  That overlap is the opening: not a better score, but methods the published work didn't try.
+- Keep the paper's *discipline* — identity-clustered splits, rank metrics, honest reporting of what
+  leaked — and drop its *goal*, which was topping a benchmark.
