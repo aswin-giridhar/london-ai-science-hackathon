@@ -79,7 +79,7 @@ Start there rather than from a blank file.
 | 000 | [Baselines — B0 / B1 / B1′](000-supervised-baseline.md) | Claude | **done** | **B0b scores 0.563 pooled with no peptide information** — the floor every pooled figure must be read against. B1 0.780 / 0.633 |
 | 001 | [ESM-2 — F150 / X150 / L150](001-esm2-embeddings-head.md) | Claude | **F150/X150 done, L150 running** | **The head beat the model.** Mean-pool → cross-attention is +0.161 pooled / +0.280 within. X150 0.754 / 0.558 ties B1′ and still loses to B1 |
 | 002 | [Zero-training likelihood scoring](002-likelihood-scoring.md) | Claude | **partial** | **Clean null: ESM-2's own likelihood predicts stability at rho +0.002.** Its per-position profile is flat and rank-correlates -0.03 with what the trained model actually uses. Conditioned variants not run |
-| 003 | Hurdle model for the zero class — a *declared experiment*, not an assumed correction | — | proposed | — |
+| 003 | [Hurdle model for the zero class](003-hurdle-model.md) | Claude | **done — negative** | **No gain: −0.001 pooled on both framings**, despite the zero/non-zero classifier reaching AUC 0.886. The plain regressor already absorbs what the classifier knows. Decision closed: no censored head |
 
 Status: `proposed` → `running` → `done` / `abandoned` / `inconclusive`.
 

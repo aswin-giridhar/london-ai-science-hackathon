@@ -1,0 +1,55 @@
+{
+  "all__PLAIN_regressor_all_rows": {
+    "n": 2817,
+    "spearman_pooled": 0.7802190587503978,
+    "spearman_within_allele": 0.632849663354059,
+    "alleles_supported": 68,
+    "pearson_log": 0.791107733742048,
+    "rmse_log": 0.6657662502068254,
+    "mae_log": 0.49731585125934286,
+    "mae_hours": 3.4488104949826646
+  },
+  "all__HURDLE_clf_x_regressor": {
+    "n": 2817,
+    "spearman_pooled": 0.7793887714938825,
+    "spearman_within_allele": 0.6210341449577331,
+    "alleles_supported": 68,
+    "pearson_log": 0.7908648225847152,
+    "rmse_log": 0.6673898567925078,
+    "mae_log": 0.49165116575005613,
+    "mae_hours": 3.5510694659579323
+  },
+  "nonzero__PLAIN_regressor_all_rows": {
+    "n": 2238,
+    "spearman_pooled": 0.7298047458309397,
+    "spearman_within_allele": 0.6181104745997207,
+    "alleles_supported": 65,
+    "pearson_log": 0.752252811780772,
+    "rmse_log": 0.6917521984249317,
+    "mae_log": 0.5230088910433736,
+    "mae_hours": 4.176834492217778
+  },
+  "nonzero__HURDLE_regressor_nonzero_only": {
+    "n": 2238,
+    "spearman_pooled": 0.728778563819233,
+    "spearman_within_allele": 0.5997708787098794,
+    "alleles_supported": 65,
+    "pearson_log": 0.7541874092614769,
+    "rmse_log": 0.6931755156725625,
+    "mae_log": 0.5299470243114569,
+    "mae_hours": 4.2920345240461515
+  },
+  "classifier_auc_per_seed": [
+    0.8893,
+    0.8852,
+    0.8825
+  ],
+  "classifier_auc_mean": 0.8856598719042982,
+  "seeds": [
+    42,
+    43,
+    44
+  ],
+  "n_val": 2817,
+  "n_val_zero": 579
+}

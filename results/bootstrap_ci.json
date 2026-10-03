@@ -1,0 +1,137 @@
+{
+  "reps": 2000,
+  "seed": 2026,
+  "n_rows": 2817,
+  "n_clusters": 540,
+  "resampled": "peptide clusters",
+  "per_rung": {
+    "B0b_per_allele_median": {
+      "pooled": [
+        0.5631530561989255,
+        0.5216587622441039,
+        0.5976043283287187
+      ],
+      "within": null
+    },
+    "F150_pooled_head": {
+      "pooled": [
+        0.592924790832193,
+        0.5560134454058098,
+        0.625140040412039
+      ],
+      "within": [
+        0.27841744910036187,
+        0.22172022708091102,
+        0.3203224486369399
+      ]
+    },
+    "X150_interaction_head": {
+      "pooled": [
+        0.7537633127709604,
+        0.7269297987050212,
+        0.777040314390119
+      ],
+      "within": [
+        0.5583888390775488,
+        0.5081381762188897,
+        0.5846793408886811
+      ]
+    },
+    "B1prime_peptide_allele_only": {
+      "pooled": [
+        0.7484657885390985,
+        0.7194414179794019,
+        0.7750375415690504
+      ],
+      "within": [
+        0.5571161561478135,
+        0.5084232206294772,
+        0.5853992973428686
+      ]
+    },
+    "B1_peptide_pseudoseq_allele": {
+      "pooled": [
+        0.7802190587503978,
+        0.7559581524971526,
+        0.8015908446285602
+      ],
+      "within": [
+        0.632849663354059,
+        0.588000007441282,
+        0.654455242111462
+      ]
+    }
+  },
+  "comparisons": {
+    "B1prime_peptide_allele_only_minus_X150_interaction_head": {
+      "question": "does a one-hot allele lookup match the frozen PLM?",
+      "pooled": {
+        "mean": -0.005437733780256819,
+        "lo": -0.025721070188523536,
+        "hi": 0.014188447517184856,
+        "spans_zero": true
+      },
+      "within_allele": {
+        "mean": -0.0007561759649485926,
+        "lo": -0.04496316429288326,
+        "hi": 0.041278027522921416,
+        "spans_zero": true
+      }
+    },
+    "B1_peptide_pseudoseq_allele_minus_X150_interaction_head": {
+      "question": "does the one-hot baseline beat the frozen PLM?",
+      "pooled": {
+        "mean": 0.026270010755515466,
+        "lo": 0.010514356353174442,
+        "hi": 0.04193093622099183,
+        "spans_zero": false
+      },
+      "within_allele": {
+        "mean": 0.07350463007826,
+        "lo": 0.041620605630368665,
+        "hi": 0.1060859069505026,
+        "spans_zero": false
+      }
+    },
+    "X150_interaction_head_minus_F150_pooled_head": {
+      "question": "H2 -- does the residue head beat mean pooling?",
+      "pooled": {
+        "mean": 0.16140644981799135,
+        "lo": 0.13664430489069362,
+        "hi": 0.18837987757139857,
+        "spans_zero": false
+      },
+      "within_allele": {
+        "mean": 0.2759977668567106,
+        "lo": 0.22249391647018738,
+        "hi": 0.3301287062952615,
+        "spans_zero": false
+      }
+    },
+    "B1_peptide_pseudoseq_allele_minus_B1prime_peptide_allele_only": {
+      "question": "does the HLA sequence add over the allele label?",
+      "pooled": {
+        "mean": 0.031707744535772284,
+        "lo": 0.01648291775259348,
+        "hi": 0.04769479549354058,
+        "spans_zero": false
+      },
+      "within_allele": {
+        "mean": 0.07426080604320857,
+        "lo": 0.04168368299510118,
+        "hi": 0.10686124797847928,
+        "spans_zero": false
+      }
+    },
+    "B1_peptide_pseudoseq_allele_minus_B0b_per_allele_median": {
+      "question": "does peptide information add over an allele median?",
+      "pooled": {
+        "mean": 0.2174357363884814,
+        "lo": 0.18497948811760284,
+        "hi": 0.2513416219624683,
+        "spans_zero": false
+      },
+      "within_allele": null
+    }
+  }
+}

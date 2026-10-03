@@ -37,6 +37,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from scipy.stats import rankdata
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "scripts"))
@@ -49,36 +50,63 @@ SEED = 2026          # the seed ARCHITECTURE.md section 7 pins for every reporte
 MIN_ROWS_PER_ALLELE = 12
 
 
-def within_allele_metric(allele):
-    """Mean Spearman inside each allele with enough rows -- the clinically relevant ranking.
+def fast_spearman(a, b):
+    """Spearman via scipy rankdata. Verified identical to power_analysis.spearman to 2.2e-16.
 
-    Returned as a closure so it has the same (y, pred) signature paired_bootstrap expects.
-    Alleles that fall below the row floor *in a given draw* are skipped for that draw, which is
-    why this is computed per replicate rather than once.
+    Worth the duplication: the pandas version costs 2.2 ms a call and this one 1.5 ms, but the
+    real saving is downstream -- it lets the within-allele grouping below stay in numpy.
+    Average ranks are not optional here: 2,466 of the 2,817 validation rows are tied, mostly on
+    the t-half = 0 point mass, so a naive argsort rank would quietly give a different statistic.
+    """
+    ra = rankdata(a)
+    rb = rankdata(b)
+    ra = ra - ra.mean()
+    rb = rb - rb.mean()
+    d = np.sqrt((ra @ ra) * (rb @ rb))
+    return float(ra @ rb / d) if d else np.nan
+
+
+def within_from_codes(y, pred, codes):
+    """Mean Spearman inside each allele with at least MIN_ROWS_PER_ALLELE rows.
+
+    Integer allele codes, sorted and split, instead of a per-draw pandas groupby on strings.
+    That one change takes a paired within-allele draw from 156 ms to a few ms -- the earlier
+    version could not finish 2,000 draws inside a 30 minute budget.
+    """
+    order = np.argsort(codes, kind="stable")
+    c = codes[order]
+    vals = []
+    for g in np.split(order, np.flatnonzero(np.diff(c)) + 1):
+        if len(g) < MIN_ROWS_PER_ALLELE:
+            continue
+        yy, pp = y[g], pred[g]
+        if yy.min() != yy.max() and pp.min() != pp.max():
+            vals.append(fast_spearman(yy, pp))
+    return float(np.mean(vals)) if vals else np.nan
+
+
+def within_allele_metric(allele):
+    """(y, pred) -> within-allele Spearman, reading allele codes from an attribute.
+
+    paired_bootstrap only passes (y, pred), so the resampled allele view travels on the function
+    object. Set `metric.allele_view` to the codes for the current draw before calling.
     """
 
     def metric(y, pred):
-        # the resampler returns positional indices, so `allele` must be indexed the same way;
-        # paired_bootstrap hands us y[i] and pred[i], so we rebuild the grouping from a frame
-        df = pd.DataFrame({"y": y, "p": pred, "a": metric.allele_view})
-        vals = []
-        for _, g in df.groupby("a", sort=False):
-            if len(g) >= MIN_ROWS_PER_ALLELE and g.y.nunique() > 1 and g.p.nunique() > 1:
-                vals.append(pa.spearman(g.y.values, g.p.values))
-        return float(np.mean(vals)) if vals else np.nan
+        return within_from_codes(y, pred, metric.allele_view)
 
     metric.allele_view = allele
     return metric
 
 
-def paired_within(y, pred_a, pred_b, clusters, allele, reps=REPS, seed=SEED):
+def paired_within(y, pred_a, pred_b, clusters, codes, reps=REPS, seed=SEED):
     """Paired CI on within-allele Spearman. Needs its own loop so `allele` is resampled too."""
     draw = pa.cluster_resampler(clusters, np.random.default_rng(seed))
     m = within_allele_metric(None)
     diffs = []
     for _ in range(reps):
         i = draw()
-        m.allele_view = allele[i]
+        m.allele_view = codes[i]
         d = m(y[i], pred_b[i]) - m(y[i], pred_a[i])
         if not np.isnan(d):
             diffs.append(d)
@@ -90,13 +118,13 @@ def paired_within(y, pred_a, pred_b, clusters, allele, reps=REPS, seed=SEED):
     return float(np.mean(diffs)), float(lo), float(hi)
 
 
-def single_within(y, pred, clusters, allele, reps=REPS, seed=SEED):
+def single_within(y, pred, clusters, codes, reps=REPS, seed=SEED):
     draw = pa.cluster_resampler(clusters, np.random.default_rng(seed))
     m = within_allele_metric(None)
     vals = []
     for _ in range(reps):
         i = draw()
-        m.allele_view = allele[i]
+        m.allele_view = codes[i]
         v = m(y[i], pred[i])
         if not np.isnan(v):
             vals.append(v)
@@ -136,6 +164,8 @@ def load():
 
 def main():
     y, allele, clusters, preds, _ = load()
+    # integer codes once, so no draw ever groups on strings
+    codes = pd.factorize(allele)[0]
     n_clusters = len(np.unique(clusters))
     print(f"{len(y):,} validation rows in {n_clusters:,} peptide clusters")
     print(f"{REPS:,} paired draws, seed {SEED}, percentile bounds 2.5/97.5")
@@ -151,9 +181,8 @@ def main():
     for k in order:
         lo, hi = pa.single_metric_ci(y, preds[k], clusters, reps=REPS, seed=SEED)
         point = pa.spearman(y, preds[k])
-        w = single_within(y, preds[k], clusters, allele)
-        wm = within_allele_metric(allele)
-        wpoint = wm(y, preds[k])
+        w = single_within(y, preds[k], clusters, codes)
+        wpoint = within_from_codes(y, preds[k], codes)
         wtxt = "undefined" if np.isnan(wpoint) else (
             f"{wpoint:.3f} [{w[0]:.3f}, {w[1]:.3f}]" if w else f"{wpoint:.3f} [unavailable]")
         print(f"  {k:<30} {point:.3f} [{lo:.3f}, {hi:.3f}]    {wtxt}")
@@ -182,7 +211,7 @@ def main():
         if a not in preds or b not in preds:
             continue
         mean, lo, hi = pa.paired_bootstrap(y, preds[a], preds[b], clusters, reps=REPS, seed=SEED)
-        wres = paired_within(y, preds[a], preds[b], clusters, allele)
+        wres = paired_within(y, preds[a], preds[b], clusters, codes)
         spans = lo <= 0 <= hi
         print(f"\n  {question}")
         print(f"    {b}  -  {a}")

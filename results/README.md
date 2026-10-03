@@ -298,6 +298,115 @@ README already carries). A genuine conditional test needs a model that takes two
   per-position drops is not run.
 - **Validation rows only.** The test split remains unread.
 
+## Run 6 - hurdle model for the zero class: a declared test that came back negative - 2026-10-04 00:23
+
+`python src/hurdle.py`, 287 s on CPU, seeds 42/43/44, B1 feature set throughout.
+
+20.6% of validation rows (579 of 2,817) sit on t-half = 0. ARCHITECTURE.md section 6 required this
+to be tested rather than assumed: the CSV never establishes a detection limit, so adding a censored
+head by default would be correcting for a mechanism nobody has shown exists.
+
+| scored on | model | rho pooled | rho within | RMSE log |
+|---|---|---|---|---|
+| all 2,817 rows | PLAIN single regressor | **0.780** | **0.633** | 0.666 |
+| all 2,817 rows | HURDLE classifier x regressor | 0.779 | 0.621 | 0.667 |
+| 2,238 non-zero rows | PLAIN single regressor | **0.730** | **0.618** | 0.692 |
+| 2,238 non-zero rows | HURDLE regressor, fitted on non-zero only | 0.729 | 0.600 | 0.693 |
+
+Zero vs non-zero classifier: **AUC 0.886** (0.889 / 0.885 / 0.882 per seed).
+
+### What this establishes
+
+**The hurdle structure buys nothing: -0.001 pooled on both framings.** Not a small gain, not a
+small loss - no difference, on either the full set or the measurable subset, and the within-allele
+figures are slightly *worse*.
+
+The informative part is that this sits next to **AUC 0.886**. The features separate the point mass
+from the measurable rows very well, so the zeros are far from unpredictable. Yet modelling them as
+a separate regime adds nothing. The reading is that the single regressor has already absorbed
+whatever the classifier knows, and the two-part model adds machinery without adding information.
+
+That is a stronger conclusion than "the hurdle did not help": it is evidence the zeros are **not a
+separate regime the plain model was failing to represent**. Which in turn means the plan was right
+not to assume censoring - and we can now say so from a measurement rather than from caution.
+
+**Decision: do not add a censored or hurdle head.** Reported because the negative is the result.
+
+### What it does NOT establish
+
+- **Nothing about the mechanism.** Whether those rows are an assay floor or genuine non-binders is
+  still undetermined. This tests whether modelling them separately helps *prediction*, not what
+  they are.
+- **No confidence interval on the delta.** -0.001 is well inside any plausible interval, so the
+  conclusion is safe, but `bootstrap_ci.py` has not been pointed at these predictions.
+- **Only the B1 feature set.** A hurdle built on X150 embeddings was not tried.
+- Validation rows; the test split remains unread.
+
+## Run 7 - confidence intervals on every claim - 2026-10-04 00:28
+
+`python scripts/bootstrap_ci.py`. **2,000 paired draws, seed 2026, percentile bounds 2.5/97.5,
+resampling the 540 peptide clusters** - not rows. Rows inside a cluster are within 2 substitutions
+of each other, so resampling rows would treat near-duplicates as fresh information and give an
+interval narrower than the evidence supports.
+
+Every comparison is **paired**: each draw scores both models on the same resampled rows, so "this
+draw happened to contain easy peptides" affects both equally and cancels.
+
+### Per-rung 95% CI
+
+| rung | pooled rho | within-allele rho |
+|---|---|---|
+| B0b per-allele median | 0.563 [0.522, 0.598] | undefined |
+| F150 mean-pooled | 0.593 [0.556, 0.625] | 0.278 [0.222, 0.320] |
+| X150 cross-attention | 0.754 [0.727, 0.777] | 0.558 [0.508, 0.585] |
+| B1' one-hot + allele id | 0.748 [0.719, 0.775] | 0.557 [0.508, 0.585] |
+| B1 one-hot + pseudoseq + allele | **0.780 [0.756, 0.802]** | **0.633 [0.588, 0.654]** |
+
+X150 and B1' have within-allele intervals that are **identical to three decimal places**.
+
+### Paired comparisons, 95% CI on (B - A)
+
+| question | comparison | pooled | within-allele | verdict |
+|---|---|---|---|---|
+| Does a one-hot allele lookup match the frozen PLM? | B1' - X150 | -0.005 [-0.026, +0.014] | -0.001 [-0.045, +0.041] | **spans zero** |
+| Does the one-hot baseline beat the frozen PLM? | B1 - X150 | +0.026 [+0.011, +0.042] | +0.074 [+0.042, +0.106] | **survives** |
+| H2: does the residue head beat mean pooling? | X150 - F150 | +0.161 [+0.137, +0.188] | +0.276 [+0.222, +0.330] | **survives** |
+| Does the HLA sequence add over the allele label? | B1 - B1' | +0.032 [+0.016, +0.048] | +0.074 [+0.042, +0.107] | **survives** |
+| Does peptide information add over an allele median? | B1 - B0b | +0.217 [+0.185, +0.251] | unavailable | **survives** |
+
+### What the intervals change
+
+**1. "X150 ties B1-prime" is now a bounded null, not an eyeball.** The interval
+[-0.026, +0.014] rules out any advantage to the frozen protein language model larger than about
+0.026 Spearman **in either direction**. That is different from, and much stronger than, "we could
+not tell them apart" - we are not short of resolution, the effect is simply smaller than 0.03.
+
+**2. "B1 beats X150" survives, and by more than the pooled number suggests.** +0.026 pooled looks
+marginal; +0.074 within-allele with an interval of [+0.042, +0.106] does not. On the metric that
+matters clinically, a one-hot encoding with no protein language model beats frozen ESM-2 by a
+margin that excludes zero comfortably.
+
+**3. H2 is the largest effect measured anywhere in this project.** +0.276 within-allele,
+[+0.222, +0.330]. The head design moves the result an order of magnitude more than the choice to
+use a foundation model at all.
+
+**4. One interval is reported unavailable rather than invented.** B1 - B0b within-allele: B0b
+predicts a constant inside each allele, so most draws produce no defined statistic. Fewer than 95%
+of draws were valid, and ARCHITECTURE.md section 7 requires reporting the interval unavailable
+rather than silently resampling until enough succeed. It does.
+
+### A correctness note on the implementation
+
+The first version of this script could not finish 2,000 draws inside 30 minutes - it rebuilt a
+pandas DataFrame and grouped on an object-dtype string column on every draw, at 156 ms each. The
+vectorised replacement groups integer allele codes in numpy.
+
+**The substitution was verified before it was trusted.** 2,466 of the 2,817 validation rows are
+tied, overwhelmingly on the t-half = 0 point mass, so a naive argsort rank would silently compute a
+*different statistic* under the same name. `scipy.stats.rankdata` was checked against
+`power_analysis.spearman` to 2.2e-16 across 200 random subsets, and the vectorised within-allele
+metric against `metrics.evaluate` - the function that produced every published number - to 1.1e-16.
+
 ## Files
 
 | File | What |
@@ -307,6 +416,9 @@ README already carries). A genuine conditional test needs a model that takes two
 | `esm_heads_val_metrics.json` | F150 / X150 metrics, per-seed values and spread |
 | `esm_heads_val_predictions.json` | F150 / X150 validation predictions, same alignment |
 | `anchors.json` | Per-position ablation drops (per seed) and ESM-2 masked-position log-probabilities |
+| `hurdle_val_metrics.json` | Hurdle vs plain, scored on all rows and on non-zero rows, plus classifier AUC |
+| `hurdle_val_predictions.json` | Predictions for both arms, with an `is_nonzero` flag |
+| `bootstrap_ci.json` | Per-rung and paired 95% intervals, with `spans_zero` flags |
 
 ## How to reproduce
 
@@ -316,6 +428,8 @@ README already carries). A genuine conditional test needs a model that takes two
 | 3 | `python src/embed.py` (writes `cache/esm2_150m.npz`; needs `SSL_CERT_FILE` set to the local bundle) |
 | 4 | `python -m modal run modal_app.py` (GPU), or `python src/esm_heads.py` (CPU, ~65 min) |
 | 5 | `python -m modal run modal_app.py::anchors` |
+| 6 | `python src/hurdle.py` |
+| 7 | `python scripts/bootstrap_ci.py` (~17 min, CPU) |
 
 `src/features.py` asserts the frozen split's sha256 before reading any label, so a run against a
 changed split fails immediately rather than reporting a number against different data.
