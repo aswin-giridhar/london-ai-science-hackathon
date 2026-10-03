@@ -174,8 +174,15 @@ in which feature blocks are concatenated — so each gap attributes a gain to a 
 
 Every row is reported with **within-allele and pooled Spearman**, because pooled alone is inflated by
 between-allele differences on this dataset: unrelated pairs score 0.335 pooled against 0.027
-within-allele. **A gap that survives within-allele is real; one that only appears pooled is an
-artefact.**
+within-allele.
+
+**A gap that survives within-allele is strong evidence. The converse does not hold** — with roughly
+38 test rows per allele that check is underpowered, so a gap appearing only in the pooled number is
+*unresolved*, not disproved. Settle it with `paired_bootstrap()` on real residuals rather than
+discarding it. (An earlier version of this line said such a gap was "an artefact"; that was based on
+a power analysis that did not reproduce and is retracted — see `POWER_ANALYSIS.md`.)
+
+Every ablation row carries **Δ with its confidence interval**, never a bare number.
 
 ---
 
