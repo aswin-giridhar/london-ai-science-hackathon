@@ -33,6 +33,7 @@ Stability Lens asks a practical scientific question: given a nine-residue peptid
 | [Split generator](scripts/make_splits.py) and [independent audit](scripts/audit_splits.py) | Existing code for constructing assignments and checking distances, coverage, and representativeness |
 | [Distance diagnostic](scripts/measure_leakage_by_distance.py) | Exploratory label-agreement analysis used when revising the grouping threshold; not a half-life model benchmark |
 | [Experiment index](experiments/README.md) and [template](experiments/TEMPLATE.md) | Hypotheses, ownership, time boxes, and eventual result write-ups |
+| **[Architecture](ARCHITECTURE.md)** | **What we are building** — the pipeline, the two tracks, the caching, the two heads, and the ablation table, with diagrams |
 | **[Merged plan and decision](PLAN.md)** | **Start here.** The three proposals evaluated against the brief, the best idea identified, conflicts resolved, and one ordered path with kill criteria |
 | [Reconciliation notes](RECONCILIATION.md) | Per-plan review with the measured evidence behind each resolution |
 | [Track 3 Build Plan](Track%203%20Build%20Plan%20%E2%80%94%20Structure-Aware%20pHLA%20Stability%20Prediction.pdf) | Threading-based structure ensemble, variance-as-kinetic-signal hypothesis, kill gates |
