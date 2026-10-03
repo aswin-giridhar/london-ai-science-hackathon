@@ -108,6 +108,47 @@ def esm_heads_gpu() -> dict:
 SEEDS = (42, 43, 44)
 
 
+# anchors needs the embedding cache (probe A) and the MLM head (probe B), so it gets the
+# cache-carrying image, not the L150 one.
+@app.function(gpu="A10G", timeout=3600, image=image)
+def anchors_gpu() -> dict:
+    """Position ablation on trained X150, plus ESM-2 masked-position likelihood."""
+    import os
+    import subprocess
+    import sys
+
+    import torch
+
+    if not torch.cuda.is_available():
+        raise RuntimeError("no CUDA device in the container; refusing to report a GPU result")
+    print(f"anchors on {torch.cuda.get_device_name(0)}", flush=True)
+
+    out = Path("/tmp/results")
+    out.mkdir(exist_ok=True)
+    env = {**os.environ, "RESULTS_DIR": str(out)}
+    t0 = time.time()
+    r = subprocess.run([sys.executable, "-u", f"{REMOTE}/src/anchors.py"], env=env)
+    f = out / "anchors.json"
+    if r.returncode != 0 or not f.exists():
+        raise RuntimeError(
+            f"anchors failed: returncode {r.returncode}, "
+            f"output {'missing' if not f.exists() else 'present'}"
+        )
+    return {"seconds": round(time.time() - t0, 1), "gpu": torch.cuda.get_device_name(0),
+            "payload": json.loads(f.read_text(encoding="utf-8"))}
+
+
+@app.local_entrypoint()
+def anchors():
+    res = anchors_gpu.remote()
+    dest = REPO / "results" / "anchors.json"
+    dest.write_text(json.dumps(res["payload"]), encoding="utf-8")
+    print(f"\ngpu    {res['gpu']}")
+    print(f"remote {res['seconds']}s")
+    print(f"wrote  {dest}")
+
+
+
 @app.function(gpu="A100", timeout=10800, image=l150_image)
 def l150_gpu(seed: int) -> dict:
     """One L150 seed: LoRA r=8 on K/V, encoder trains, X150 head.
@@ -161,7 +202,16 @@ def l150():
     import metrics
 
     t0 = time.time()
-    runs = sorted(l150_gpu.map(SEEDS), key=lambda r: r["seed"])
+    # Persist each seed the moment it lands, before any merging. The seeds cost ~30 min of A100
+    # each and the merge below is cheap; a bug in the cheap part must not destroy the expensive
+    # part. Re-merging from these files needs no GPU.
+    runs = []
+    for r in l150_gpu.map(SEEDS, order_outputs=False):
+        raw = REPO / "results" / f"l150_seed{r['seed']}.json"
+        raw.write_text(json.dumps(r["payload"]), encoding="utf-8")
+        print(f"  seed {r['seed']} returned in {r['seconds']:.0f}s -> {raw.name}", flush=True)
+        runs.append(r)
+    runs.sort(key=lambda r: r["seed"])
 
     first = runs[0]["payload"]
     y = np.array(first["y_true_log"])

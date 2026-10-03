@@ -123,7 +123,7 @@ trusted**: torch matmul vs numpy max abs diff **0.0**, a seeded X150 forward rep
 and 4-thread vs 1-thread differs by **8.2e-08** (float32 reduction order). Recorded so the result is
 reproducible and the risk is visible rather than buried in a shell variable.
 
-## Run 4 - F150 / X150, frozen ESM-2 150M, two heads - 2026-10-03 22:53 - CURRENT
+## Run 4 - F150 / X150, frozen ESM-2 150M, two heads - 2026-10-03 22:53
 
 `python -m modal run modal_app.py` on an **NVIDIA A10**, seeds 42/43/44, reported model is the
 seed-ensemble mean. The encoder is frozen throughout; only the heads train.
@@ -209,6 +209,95 @@ different order, so early stopping selects a different epoch (CPU 30, GPU 26 for
   position-purity may suit an anchor-driven endpoint with 22,532 training rows. That is a
   **hypothesis**, untested.
 
+## Run 5 - anchor probes: where the signal lives - 2026-10-03 23:33 - CURRENT
+
+`python -m modal run modal_app.py::anchors` on an NVIDIA A10, **91.5 s**. Two probes that measure
+deliberately different things and are reported separately.
+
+Run 4 explained X150 beating F150 by appealing to anchors: mean-pooling destroys position, and
+P2/P9 dock into the B and F pockets. That was a story that fit the numbers. Run 5 tests it. The
+prediction - "P2 and P9 should drop most" - was written into `src/anchors.py` **before** the probe
+ran, as an assertion the script checks and prints a verdict on.
+
+### Probe A - position ablation on the trained X150
+
+Zero the peptide residue embedding at position k, re-score validation, measure the loss of skill.
+Three seeds; intact X150 scores 0.715 / 0.710 / 0.690 pooled.
+
+| position | drop in pooled rho | drop in within-allele rho |
+|---|---|---|
+| P1 | +0.063 +- 0.033 | +0.082 +- 0.008 |
+| **P2** | **+0.084 +- 0.004** | **+0.077 +- 0.022** |
+| P3 | +0.025 +- 0.007 | +0.041 +- 0.028 |
+| P4 | +0.004 +- 0.010 | +0.015 +- 0.009 |
+| P5 | +0.002 +- 0.005 | +0.004 +- 0.014 |
+| P6 | +0.006 +- 0.013 | +0.020 +- 0.016 |
+| P7 | +0.006 +- 0.007 | +0.011 +- 0.013 |
+| P8 | +0.007 +- 0.009 | +0.004 +- 0.012 |
+| **P9** | **+0.195 +- 0.136** | **+0.135 +- 0.051** |
+
+**The pre-registered prediction was correct, and it holds seed by seed rather than only on
+average** - which matters, because an average can be carried by one lucky run:
+
+| seed | P2 | P9 | best of P4-P8 |
+|---|---|---|---|
+| 42 | +0.083 | +0.271 | +0.013 |
+| 43 | +0.087 | +0.179 | +0.010 |
+| 44 | +0.083 | +0.135 | +0.013 |
+
+In all three, both anchors clear the entire P4-P8 core by roughly an order of magnitude. The
+script also checks whether the across-position range exceeds the worst seed spread, and prints a
+warning if the profile cannot separate positions at all. It did not fire.
+
+The profile is **P9 > P2 > P1 > P3 >> P4-P8 ~ 0**, which is the textbook pMHC class I picture
+arrived at from data alone: P2 and P9 are the canonical B- and F-pocket anchors, P1 contacts the A
+pocket, and P4-P8 bulge into solvent. The model learned where the pockets are without being told.
+
+One honest caveat: **P9's magnitude is unstable** (0.135 to 0.271 across seeds) even though its
+rank never is. Quote the rank, not the number. And zeroing an embedding puts the input off the
+manifold the encoder was trained on, so this measures *reliance*, not strict causal necessity.
+
+### Probe B - ESM-2 masked-position pseudo-log-likelihood (no training at all)
+
+Mask position k, ask ESM-2 for the log-probability of the residue actually there. No labels, no
+fitting, so no leakage surface anywhere.
+
+| | P1 | P2 | P3 | P4 | P5 | P6 | P7 | P8 | P9 |
+|---|---|---|---|---|---|---|---|---|---|
+| mean log P | -3.98 | -2.91 | -2.97 | -2.97 | -2.93 | -2.91 | -2.94 | -2.92 | -2.93 |
+
+**Essentially flat.** Every position except P1 sits within 0.06 nats of every other, and P1 is
+merely the *least* predictable, not the most important.
+
+### The finding that connects Runs 4 and 5
+
+Rank correlation between the two profiles: **-0.03**. Zero.
+
+**What ESM-2 finds predictable has no relationship to what predicts half-life.** The ablation
+profile is strongly peaked at the anchors; the likelihood profile is flat. They are measuring
+different things, and the project's headline follows directly: a frozen protein language model
+underperforms one-hot encoding here because its internal notion of which residue matters is
+*orthogonal* to the one this endpoint needs. X150 recovers the anchors only because the head is
+given per-residue access and supervised labels to learn from - not because the embeddings
+foreground them.
+
+That is a mechanism for the Run 4 result, not a restatement of it.
+
+**Caveat on Probe B.** This scores a bare 9-mer with no HLA context, so ESM-2 has very little to
+condition on - which may itself be why the profile is flat. Concatenating peptide and HLA was not
+done, because concatenation does not establish biological conditioning (the same caution the repo
+README already carries). A genuine conditional test needs a model that takes two chains.
+
+### What Run 5 does NOT establish
+
+- **Not a causal claim.** Ablation measures what the trained model leans on, not what physically
+  governs off-rate.
+- **Nothing about L150.** This ablates the frozen-encoder model. An adapted encoder could relocate
+  the signal.
+- **No confidence intervals on the drops.** Seed spread is reported; a cluster bootstrap on the
+  per-position drops is not run.
+- **Validation rows only.** The test split remains unread.
+
 ## Files
 
 | File | What |
@@ -217,6 +306,7 @@ different order, so early stopping selects a different epoch (CPU 30, GPU 26 for
 | `baselines_val_predictions.json` | Validation predictions per rung, aligned with peptide / allele / cluster_id — the input `paired_bootstrap()` needs |
 | `esm_heads_val_metrics.json` | F150 / X150 metrics, per-seed values and spread |
 | `esm_heads_val_predictions.json` | F150 / X150 validation predictions, same alignment |
+| `anchors.json` | Per-position ablation drops (per seed) and ESM-2 masked-position log-probabilities |
 
 ## How to reproduce
 
@@ -225,6 +315,7 @@ different order, so early stopping selects a different epoch (CPU 30, GPU 26 for
 | 1, 2 | `python src/baselines.py` |
 | 3 | `python src/embed.py` (writes `cache/esm2_150m.npz`; needs `SSL_CERT_FILE` set to the local bundle) |
 | 4 | `python -m modal run modal_app.py` (GPU), or `python src/esm_heads.py` (CPU, ~65 min) |
+| 5 | `python -m modal run modal_app.py::anchors` |
 
 `src/features.py` asserts the frozen split's sha256 before reading any label, so a run against a
 changed split fails immediately rather than reporting a number against different data.
