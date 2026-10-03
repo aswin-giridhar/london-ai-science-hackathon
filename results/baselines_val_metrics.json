@@ -1,0 +1,87 @@
+{
+  "B0a_global_median": {
+    "n": 2817,
+    "spearman_pooled": null,
+    "spearman_within_allele": null,
+    "alleles_supported": 0,
+    "pearson_log": null,
+    "rmse_log": 1.1430499073734595,
+    "mae_log": 0.8771121956978809,
+    "mae_hours": 4.95517571884984
+  },
+  "B0b_per_allele_median": {
+    "n": 2817,
+    "spearman_pooled": 0.5631530561989255,
+    "spearman_within_allele": null,
+    "alleles_supported": 0,
+    "pearson_log": 0.4988525461817042,
+    "rmse_log": 0.9774051692893928,
+    "mae_log": 0.6824242889860446,
+    "mae_hours": 4.430166939479009
+  },
+  "B1_peptide_pseudoseq_allele": {
+    "n": 2817,
+    "spearman_pooled": 0.7802190587503978,
+    "spearman_within_allele": 0.632849663354059,
+    "alleles_supported": 68,
+    "pearson_log": 0.791107733742048,
+    "rmse_log": 0.6657662502068254,
+    "mae_log": 0.49731585125934286,
+    "mae_hours": 3.4488104949826646,
+    "features": [
+      "peptide",
+      "pseudoseq",
+      "allele"
+    ],
+    "n_features": 935,
+    "seeds": [
+      42,
+      43,
+      44
+    ],
+    "spearman_pooled_per_seed": [
+      0.7505,
+      0.7595,
+      0.7551
+    ],
+    "spearman_pooled_seed_spread": 0.009,
+    "spearman_within_allele_per_seed": [
+      0.5796,
+      0.5884,
+      0.5892
+    ],
+    "spearman_within_allele_seed_spread": 0.0096
+  },
+  "B1prime_peptide_allele_only": {
+    "n": 2817,
+    "spearman_pooled": 0.7484657885390985,
+    "spearman_within_allele": 0.5571161561478136,
+    "alleles_supported": 68,
+    "pearson_log": 0.7579873072655192,
+    "rmse_log": 0.7124468167203741,
+    "mae_log": 0.5392966802777747,
+    "mae_hours": 3.829722201907126,
+    "features": [
+      "peptide",
+      "allele"
+    ],
+    "n_features": 255,
+    "seeds": [
+      42,
+      43,
+      44
+    ],
+    "spearman_pooled_per_seed": [
+      0.6876,
+      0.6919,
+      0.7015
+    ],
+    "spearman_pooled_seed_spread": 0.014,
+    "spearman_within_allele_per_seed": [
+      0.4647,
+      0.4742,
+      0.4745
+    ],
+    "spearman_within_allele_seed_spread": 0.0097
+  }
+}
