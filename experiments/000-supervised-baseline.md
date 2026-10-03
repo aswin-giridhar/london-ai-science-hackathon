@@ -1,4 +1,8 @@
-# 000 — Simple supervised baseline
+# 000 — Simple supervised baseline  ·  rungs B0 / B1 / B1′
+
+> **B0** training-only median, **B1** positional one-hot MLP (180 peptide + 680 pseudosequence values)
+> **+ allele identity**, **B1′** the same with HLA replaced by a one-hot over 75 alleles.
+> Naming follows `../ARCHITECTURE.md` §3.
 
 **Owner:** — · **Status:** proposed · **Time box:** 2h · **Compute:** CPU or one small GPU, ~free
 

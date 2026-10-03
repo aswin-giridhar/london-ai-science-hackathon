@@ -1,218 +1,162 @@
-# Architecture — what we are building
+# Architecture — GeoStab-FT
 
-A sequence model that is guaranteed to work, a structure branch that can be killed at any point,
-and one evaluation both report into. Merged from the three plans; see `PLAN.md` for the evaluation
-and `RECONCILIATION.md` for the conflicts and their evidence.
+The build spec for the plan of record, **`docs/GeoStab-FT-build-plan.pdf`**. That document governs;
+this one is its diagram and first-stage checklist. Where they disagree, it wins.
 
-**Status at 16:45 Saturday.** The split and its audits are built and frozen. Everything downstream
-is designed but not trained. Markers below: ✅ built · ○ proposed · ✂ killable.
+**Status.** The split and its audits are built and frozen. Everything downstream is specified but not
+trained. Markers: ✅ built · ○ specified, not built · ✂ killable.
 
 ---
 
-## 1. The shape of it
+## 1. The shape — a ladder, not parallel tracks
+
+Each rung is frozen before the next is fitted. That ordering is the design: a small structural cohort
+can never overwrite the full-data adapter, and the fallback for a missing structure is **exact**.
 
 ```mermaid
 flowchart TD
-    D["dataset.csv<br/>28,166 pairs · 5,633 peptides · 75 alleles"]
-    S["✅ frozen split + audit<br/>clustered at Hamming ≤ 2"]
-    A["○ TRACK A — sequence, the floor<br/>one-hot + BLOSUM + allele id<br/>ESM-2 35M frozen, cached<br/>+ affinity pre-training<br/>likelihood · confidence · masks"]
-    B["✂ TRACK B — structure, killable 20:00<br/>thread onto PDB template<br/>repack ×3 → pose ensemble<br/>9×20 contact tensor<br/>mean AND std ← the hypothesis<br/>inverse-folding score"]
-    J["join on (peptide, allele)"]
-    H["○ two heads → prediction + interval"]
-    E["one ablation table · one demo · one locked test"]
+    D["dataset.csv · 28,166 pairs"]
+    S["✅ frozen split, Hamming ≤ 2"]
+    B["○ B0 / B1 — supervised baselines<br/>median, then positional one-hot + allele id"]
+    X["○ F150 / X150 — frozen ESM-2 150M<br/>pooled head vs residue interaction head"]
+    L["○ L150 — LoRA r=8 on K/V<br/>the encoder actually adapts"]
+    FR["freeze the selected sequence model S*"]
+    G["✂ Boltz-2 frozen → coordinates<br/>D[9,182] → 6 RBFs → attention bias"]
+    R["○ matched residual: G_conf vs G_pair"]
+    O["point prediction + exact sequence fallback<br/>+ provenance and measured cost"]
 
-    D --> S
-    S --> A
-    S -.-> B
-    A --> J
-    B -.-> J
-    J --> H
-    H --> E
-```
-
-Track B is dashed because it is **designed to be deleted**. If threading is not producing valid
-structures by 20:00 it is killed and Track A ships alone — which is why Track A carries no dependency
-on it. Both write a parquet keyed on `(peptide, allele)`, so the merge is a join and neither track
-blocks the other.
-
-## 2. Layer 1 — the frozen split ✅
-
-Rows are (peptide, allele) pairs, and **94% of rows involve a peptide measured against more than one
-allele**. Splitting rows at random puts the same fragment on both sides. So we split by peptide
-cluster.
-
-| Partition | Rows | Peptides | Purpose |
-|---|---|---|---|
-| train | 22,532 | 4,514 | fitting |
-| **calibration** | **carve ~10% out of train** | — | **conformal intervals only** |
-| val | 2,817 | 563 | model selection, early stopping |
-| test | 2,817 | 556 | opened once, at the end |
-
-- No eval peptide is within 2 substitutions of any training peptide — verified by brute force.
-- A memorisation-only predictor scores **0.000** here, against **0.337** on a random row split.
-
-**The calibration slice is the one structural change still needed.** Conformal prediction gives a
-distribution-free coverage guarantee only if the calibration residuals are exchangeable with the test
-ones. Validation is simultaneously being used to pick models, so its residuals are not. Taking those
-rows from **train** costs ~10% of training data and keeps the guarantee. Empirical coverage can be
-reported either way; it is the *guarantee* that needs clean rows.
-
-## 3. Layer 2 — Track A, the sequence floor ○
-
-Four rungs, each a row in the ablation table. The point is not the top rung; it is **the gap between
-rungs**, because that is what attributes a gain to a cause.
-
-| Rung | What it is | What its gap proves |
-|---|---|---|
-| B0 | Global median, then per-allele median | How much is allele identity alone, with no peptide information |
-| B1 | **Simple supervised neural net** on one-hot/BLOSUM peptide + pseudosequence + explicit allele id | The honest bar. The brief asks for this by name, so the MLP is required — LightGBM is an addition, not a substitute |
-| B1′ | Same, but HLA replaced by a **one-hot over 75 alleles** | **The sharpest control.** If this matches the embedding, the model memorised allele identity rather than using protein knowledge |
-| F0 | Frozen ESM-2 35M embeddings + head | Does a general protein model add anything? Don't anchor on the paper's 0.574 — that was **650M**, on a different split, with a different HLA input |
-| F1 | F0 + affinity pre-training transfer | Largest published single jump: 0.574 → 0.745 |
-
-### Why the embeddings are cheap
-
-```mermaid
-flowchart LR
-    N["naive: encode each row<br/>28,166 forward passes"]
-    P["5,633 distinct peptides"]
-    Q["75 distinct HLA domains"]
-    C["5,708 encodes<br/>joined by lookup<br/><b>4.9× fewer</b>"]
-    P --> C
-    Q --> C
-```
-
-The HLA is 182 of the 191 residues in a row, so **95% of the input is one of just 75 strings**. Also
-cache the 9 per-residue peptide vectors, so anchor-position work needs no recompute.
-
-**The caveat matters:** the moment the two chains attend to each other, the HLA's representation
-depends on which peptide it is paired with and the cache is invalid. The thing that would make the
-model more accurate is the thing that makes it expensive.
-
-## 4. Layer 3 — six ways to use a foundation model ○
-
-The brief names six routes and encourages exploring "under the hood". Using only embeddings answers
-one sixth of it. **Five of the six need no training at all.**
-
-```mermaid
-flowchart LR
-    M["frozen protein LM"]
-    M --> E1["embeddings → head<br/><i>trains a head</i>"]
-    M --> E2["log-likelihood / perplexity<br/><i>no training at all</i>"]
-    M --> E3["internal confidence<br/><i>uncertainty for free</i>"]
-    M --> E4["masked-input scoring<br/><i>also gives anchor attribution</i>"]
-    M --> E5["seed ensemble<br/><i>spread = epistemic uncertainty</i>"]
-    M -.-> E6["fine-tuning<br/><i>declined, budget stated</i>"]
-```
-
-Declining to fine-tune **is itself an answer** when the question is "are these models worth their
-cost". The zero-shot likelihood route is especially clean: no training stage means no leakage surface
-anywhere, and the entire dataset becomes an evaluation set.
-
-## 5. Layer 4 — the structure branch and its one claim ✂
-
-Every prior structural method for peptide-HLA scores a **single static pose**, which approximates a
-*thermodynamic* quantity. Half-life is *kinetic*. The claim is that the **spread** across a pose
-ensemble carries the kinetic signal the *mean* cannot.
-
-```mermaid
-flowchart LR
-    X["peptide + HLA<br/>one pair"] -->|thread| P1["pose 1"]
-    X -->|thread| P2["pose 2"]
-    X -->|thread| P3["pose 3"]
-    P1 --> T["9×20 contact tensor, ×3"]
-    P2 --> T
-    P3 --> T
-    T --> ME["mean<br/><i>ordinary signal</i>"]
-    T --> SD["<b>std</b><br/><b>the claim — kinetic</b>"]
-```
-
-This is the one genuinely novel claim in the project and it is **falsifiable in a single ablation
-row**: mean-only vs mean-and-std, same head, same split.
-
-> **Gate before the overnight run.** Repacking three times samples the *packing algorithm's
-> stochasticity*, which is not a thermal ensemble. On ~200 pairs, generate ensemble A with seeds
-> {1,2,3} and B with {4,5,6}, then correlate per-pair std across them. If std is not reproducible it
-> is measuring solver noise, and the branch should die at this gate rather than at 02:00.
-
-### Which complexes are eligible for this arm
-
-From `archive/plans/HACKATHON_PLAN.md`, which did the mapping work (reported there, not re-verified
-here — we do not hold their consensus reference file):
-
-- The supplied 182-aa domain is an **exact substring of the full heavy chain at offset 24**, and
-  72/75 alleles map to a full sequence. That de-risks construct building considerably.
-- The 3 unmapped names are exactly the engineered `(C67S)` constructs.
-- Three further alleles — `HLA-B*08:03`, `HLA-A*02:50`, `HLA-A*24:19` — have **non-identical**
-  182-aa domains against that reference, so folding their full chains would model a different input.
-
-Quarantining all six from the structure arm costs **2,238 of 28,166 rows (7.9%)** — verified against
-our data. Their measurements stay in the sequence experiment; only the structural arm excludes them.
-
-### Open fork: how the poses are generated
-
-This section assumes **threading onto PDB templates**. `HACKATHON_PLAN.md` specifies **Boltz-2
-co-folding** instead. They are different pipelines with different costs, and the choice is not yet
-made. The relevant asymmetry: threading reuses a template backbone, so peptides on the same allele
-differ mainly in side-chain placement — enough for anchor packing, not for peptide-specific backbone
-bulging. Co-folding predicts a peptide-specific backbone but costs far more per pair.
-
-Decide it with two cheap measurements, not argument: **template coverage across our 75 alleles**
-(free, minutes — thin coverage kills threading outright) and **measured cost per pair for each**
-(five pairs through each pipeline). Neither has been measured.
-
-## 6. Layer 5 — two heads, because of the floor ○
-
-A fifth of all labels are exactly `0.0`. That is **not** a complex with zero lifetime — the reporting
-scale is 0.1 h, so `0.0` means **below 0.05 hours**, a left-censored value. Feeding it to a regressor
-as a point observation, which the published work does, teaches the model a number the experiment
-never measured.
-
-```mermaid
-flowchart LR
-    F["feature matrix<br/>all blocks joined"]
-    F --> C["classifier P(t½ &lt; 0.05 h)<br/>all 28,166 rows"]
-    F --> R["regressor E[log1p t½]<br/>22,487 measurable rows only"]
-    C --> O["(1 − P₀) · (exp(ŷ) − 1)<br/>± conformal interval"]
+    D --> S --> B --> X --> L --> FR
+    FR --> R
+    FR -.-> G -.-> R
     R --> O
 ```
 
-Reports three things: classifier AUROC, regression metrics on measurable rows, and the combined
-metric on everything. Because the censoring threshold is **known** — 0.05 h, derived from the
-reporting grid rather than assumed — a Tobit likelihood is also directly implementable. The two-head
-form is simpler and gives a second metric axis for free: "will this bind at all" is a useful output
-on its own.
+**Why freeze-then-residual.** `G_conf` (confidence only) and `G_pair` (confidence + geometry) share an
+identical architecture, initialisation, training rows and selection budget. Their difference is
+therefore attributable to geometry alone. Any pair whose structure is missing or invalid falls back to
+exactly the frozen sequence prediction — the same number in both arms.
 
-## 7. What the system actually outputs
+## 2. The frozen split ✅
 
-Not a number. An ablation table where every row is the same head on the same split, differing only
-in which feature blocks are concatenated — so each gap attributes a gain to a cause.
+| Partition | Rows | Peptides |
+|---|---|---|
+| train | 22,532 | 4,514 |
+| val | 2,817 | 563 |
+| test | 2,817 | 556 |
 
-| Feature blocks | What the gap from the row above proves |
+Rows are (peptide, allele) pairs and **94% involve a peptide measured against more than one allele**,
+so a random row split puts the same fragment on both sides. Clustered at Hamming ≤ 2; no eval peptide
+is within 2 substitutions of any training peptide.
+
+**Two known gaps, both flagged P0 by the plan of record.** `audit_splits.py` currently asserts
+distance ≤ 1 while the contract is ≤ 2, so a distance-2 violation would pass. And
+`measure_leakage_by_distance.py` fits its per-allele normalisation over **all** rows, which
+contaminates the analysis that claims to be train-only. Neither is fixed yet; see §7.
+
+Separate **calibration** rows (carved from train, never val) are required before any per-prediction
+interval is shown. Metric confidence intervals are not prediction intervals.
+
+## 3. The sequence ladder ○
+
+| Rung | What | What its gap proves |
+|---|---|---|
+| **B0** | Training-only global, then per-allele median | How much is allele identity alone |
+| **B1** | Positional one-hot MLP: 180 peptide + 680 pseudosequence values **+ allele identity** | The honest bar. The brief asks for a supervised neural net by name |
+| **B1′** | Same, HLA replaced by a **one-hot over 75 alleles** | If this matches the embedding, the model memorised allele identity rather than using protein knowledge |
+| **F150** | Frozen ESM-2 150M, **mean-pooled** head | The cheap control |
+| **X150** | Frozen ESM-2 150M, **residue interaction head** | H2 — does the head design help? Mean-pooling a 9-mer discards exactly the positional information anchors live in |
+| **L150** | **LoRA r=8, α=16, dropout 0.05 on K/V** | H1 — does genuine adaptation help? `W_eff = W + (α/r)·BA`. This is the brief's question |
+| U150 | Partial unfreeze of original weights | H3 — is the extra cost justified? Optional |
+
+Don't anchor on the paper's 0.574 — that was ESM-2 **650M** on a different split with a different HLA
+input. No borrowed number is an expected value here.
+
+**On caching.** 28,166 rows contain only 5,633 distinct peptides and 75 distinct HLA domains, so the
+frozen rungs need 5,708 encodes rather than 28,166 — **4.9× fewer**. This holds **only while the
+encoder and adapters are unchanged**. Once LoRA trains, the cache is void.
+
+## 4. Six ways to use a foundation model ○
+
+*Ported from the earlier architecture: the plan of record covers heads and fine-tuning but not the
+zero-training routes, and the brief names all of them.*
+
+| Route | Status | Cost |
+|---|---|---|
+| Embeddings → head | F150 / X150 above | core |
+| **Log-likelihood / perplexity** | **Not in the plan of record. Add it.** Score the peptide in HLA context, and context-minus-no-context to isolate what the groove explains | no training at all |
+| **Internal confidence** | Feeds `G_conf` as a feature; also an uncertainty estimate | ~1h |
+| **Masked-input scoring** | Mask each of P1–P9 in turn — doubles as anchor attribution | ~2h |
+| **Seed ensemble** | Spread as epistemic uncertainty | ~1h |
+| Fine-tuning | **L150, core.** The brief explicitly permits it | core |
+
+The likelihood route has no training stage, so no leakage surface anywhere and the whole dataset is
+an evaluation set.
+
+## 5. Geometry as a learned attention bias ✂
+
+Boltz-2 is a **frozen coordinate generator**. Its small-molecule affinity head is not usable here —
+the docs require a ligand chain, and a 9-mer is a protein chain. No gradient enters Boltz.
+
+```mermaid
+flowchart LR
+    C["verified construct + peptide"] --> BZ["frozen Boltz-2"]
+    BZ --> DM["D[9,182]<br/>min heavy-atom distance"]
+    DM --> RB["6 Gaussian RBFs<br/>centres 3,4,5,6,8,10 Å · width 1.5"]
+    RB --> GB["G_h = 2·tanh(Σ w·RBF)<br/>w:[4,6] <b>init zero</b>"]
+    GB --> AT["A_h = softmax(QKᵀ/√32 + G_h + mask)"]
+```
+
+Geometry **modulates attention** rather than decorating a feature vector, and starts as a no-op, so
+only 24 parameters have to earn their place. Masked/missing pairs contribute exactly zero.
+
+**Comparators:** the 9×20 fixed contact tensor survives as a cheap control against the learned bias
+(H5). A K=3 pose ensemble is a **later ablation, not core throughput** — and its spread is
+model/template sensitivity, **not** measured physical entropy or an off-rate.
+
+**Cohort:** pilot alleles `HLA-A*02:01` and `HLA-B*15:01`, capped at 512 train / 64 val / 128 test,
+whole peptide components, seed 42, frozen before inference. Never swap a failed test case for an
+easier one.
+
+**Construct eligibility.** The 182-aa domain is an exact substring of the full heavy chain at offset
+24, and 72/75 alleles map. Quarantine the three `(C67S)` constructs and the three domain-mismatch
+alleles (`HLA-B*08:03`, `HLA-A*02:50`, `HLA-A*24:19`) — **2,238 of 28,166 rows, 7.9%**. They stay in
+the sequence experiment; only the structural arm excludes them.
+
+## 6. The zero labels — a declared experiment, not a default ○
+
+**Do not add a censored head by default.** The CSV does not establish a detection limit, and a hurdle
+model is a separate empirical experiment rather than an automatic correction.
+
+What we did measure: `0.0` holds **5,679 rows against 443 at 0.1 and 1,297 at 0.2** — 13× its
+neighbour and non-monotonic, so it is a distinct point mass rather than the rounded tail of a
+continuum. The reporting grid is 0.1 h, so any value below 0.05 h lands there. The *mechanism* —
+assay floor or genuine non-binders — is undetermined.
+
+That justifies running a hurdle model **as a declared, falsifiable comparison** (classifier for the
+zero class + regressor on the 22,487 measurable rows, against a plain regressor on the same rows),
+and reporting whichever wins. It does not justify assuming censoring.
+
+## 7. What gets reported
+
+Primary: **Spearman with paired peptide-component bootstrap** — 2,000 draws, seed 2026, percentile
+bounds 2.5/97.5, keeping all rows of each drawn component. Report the interval **unavailable** if
+fewer than 95% of draws are valid; never silently resample.
+
+Alongside: log-MAE/RMSE, operational hours-MAE, supported within-allele metrics, counts, seed
+variation, GPU cost, latency, coverage and failures. Spearman does not establish absolute hours;
+Pearson alone does not establish calibration. An interval spanning zero is **inconclusive**, not
+equivalence.
+
+### Open P0 fixes before any result is trusted
+
+| ID | Gap |
 |---|---|
-| peptide only | the dumbest possible floor |
-| + allele one-hot | how much is just knowing which groove |
-| + ESM-2 frozen | **does a general protein model add anything at all** |
-| + affinity transfer | does related-task pre-training help |
-| + inverse-folding score | zero-shot structural signal |
-| + contacts, mean | ordinary structural signal |
-| + contacts, mean & std | **the claim — does spread add kinetic signal** |
-
-Every row is reported with **within-allele and pooled Spearman**, because pooled alone is inflated by
-between-allele differences on this dataset: unrelated pairs score 0.335 pooled against 0.027
-within-allele.
-
-**A gap that survives within-allele is strong evidence. The converse does not hold** — with roughly
-38 test rows per allele that check is underpowered, so a gap appearing only in the pooled number is
-*unresolved*, not disproved. Settle it with `paired_bootstrap()` on real residuals rather than
-discarding it. (An earlier version of this line said such a gap was "an artefact"; that was based on
-a power analysis that did not reproduce and is retracted — see `POWER_ANALYSIS.md`.)
-
-Every ablation row carries **Δ with its confidence interval**, never a bare number.
+| **A1** | `audit_splits.py` enforces Hamming ≤1 while the contract is ≤2 |
+| **M1** | `peptide_lookup_score` returns `0.0` as a sentinel on low coverage — our reported "Spearman 0.000" is that sentinel, not a measurement. The **0% coverage** is the real evidence |
+| **D1** | `measure_leakage_by_distance.py` normalises over all rows, so its "train-only" analysis is not train-only |
+| **D4** | The split detector plants a 1-edit positive; the contract boundary is 2 edits |
 
 ---
 
-Split counts and the 4.9× caching figure measured from `context/dataset.csv` and
-`splits/peptide_split.csv`. Published Spearman figures from Karthikeyan, Vincent & Rubinsteyn,
-bioRxiv 2026. A styled HTML version of this page is at `docs/architecture.html` — open it in a
-browser; it renders the same diagrams with more detail in the captions.
+Start here: **B0 → B1 → B1′ → F150/X150.** Common to every plan, needs no GPU beyond a small card,
+and blocks everything downstream. Split counts measured from `splits/peptide_split.csv`.

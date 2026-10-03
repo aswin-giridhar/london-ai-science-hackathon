@@ -76,9 +76,10 @@ Start there rather than from a blank file.
 
 | # | Experiment | Owner | Status | Headline result |
 |---|---|---|---|---|
-| 000 | [Simple supervised baseline](000-supervised-baseline.md) | — | proposed | — |
-| 001 | [ESM-2 embeddings + head](001-esm2-embeddings-head.md) | — | proposed | — |
+| 000 | [Baselines — B0 / B1 / B1′](000-supervised-baseline.md) | — | proposed | — |
+| 001 | [ESM-2 — F150 / X150 / L150](001-esm2-embeddings-head.md) | — | proposed | — |
 | 002 | [Zero-training likelihood scoring](002-likelihood-scoring.md) | — | proposed | — |
+| 003 | Hurdle model for the zero class — a *declared experiment*, not an assumed correction | — | proposed | — |
 
 Status: `proposed` → `running` → `done` / `abandoned` / `inconclusive`.
 

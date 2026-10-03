@@ -16,6 +16,10 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parent.parent
 rng = np.random.default_rng(0)
 
+# Must match CLUSTER_MAX_DIST in make_splits.py. The audit enforces the real contract, not a
+# looser one -- a guard that passes a split it was meant to reject is worse than no guard.
+CONTRACT_MAX_DIST = 2
+
 df = pd.read_csv(ROOT / "context" / "dataset.csv")
 pep = pd.read_csv(ROOT / "splits" / "peptide_split.csv")
 m = df.merge(pep, on="peptide", validate="many_to_one")
@@ -45,11 +49,11 @@ for s in ("val", "test"):
         d = (chunk[:, None, :] != A[None, :, :]).sum(axis=2)  # exact Hamming, every pair
         best[i : i + 128] = d.min(axis=1)
     worst[s] = int(best.min())
-    n_le1 = int((best <= 1).sum())
+    n_violating = int((best <= CONTRACT_MAX_DIST).sum())
     check(
-        f"no {s} peptide within Hamming<=1 of ANY train peptide",
-        n_le1 == 0,
-        f"closest is {best.min()} edits away; {int((best<=2).sum())} peptides sit at <=2",
+        f"no {s} peptide within Hamming<={CONTRACT_MAX_DIST} of ANY train peptide",
+        n_violating == 0,
+        f"closest is {best.min()} edits away",
     )
 
 print("\n2. Leakage paths other than train<->eval")
@@ -77,7 +81,9 @@ def peptide_lookup_score(train_df, eval_df):
     lut = train_df.groupby("peptide").thalf_hours.mean()
     hit = eval_df.peptide.isin(lut.index)
     if hit.sum() < 10:
-        return 0.0, float(hit.mean())
+        # Not a measured zero correlation -- there is nothing to correlate. Returning 0.0 here
+        # would report a sentinel as a result, so return None and let the caller say "undefined".
+        return None, float(hit.mean())
     pred = eval_df.loc[hit, "peptide"].map(lut)
     rho = pd.Series(pred.values).corr(
         pd.Series(eval_df.loc[hit, "thalf_hours"].values), method="spearman"
@@ -89,15 +95,16 @@ def peptide_lookup_score(train_df, eval_df):
 shuf = df.sample(frac=1.0, random_state=0).reset_index(drop=True)
 cut = int(0.9 * len(shuf))
 rho_rand, cov_rand = peptide_lookup_score(shuf.iloc[:cut], shuf.iloc[cut:])
-print(f"   random row split : peptide found in train for {cov_rand:6.1%} of eval rows, Spearman {rho_rand:.3f}")
+fmt = lambda r: "undefined (no overlap)" if r is None else f"Spearman {r:.3f}"
+print(f"   random row split : peptide found in train for {cov_rand:6.1%} of eval rows, {fmt(rho_rand)}")
 
 # (b) ours
 rho_ours, cov_ours = peptide_lookup_score(m[m.split == "train"], m[m.split == "test"])
-print(f"   our peptide split: peptide found in train for {cov_ours:6.1%} of eval rows, Spearman {rho_ours:.3f}")
+print(f"   our peptide split: peptide found in train for {cov_ours:6.1%} of eval rows, {fmt(rho_ours)}")
 check(
     "memorisation-only model gets no traction on our split",
     cov_ours == 0.0,
-    f"vs {cov_rand:.0%} coverage on a random split, where it scores {rho_rand:.3f}",
+    f"vs {cov_rand:.0%} coverage on a random split, where it scores {fmt(rho_rand)}",
 )
 
 print("\n4. Representativeness")

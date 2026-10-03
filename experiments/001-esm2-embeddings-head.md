@@ -1,4 +1,8 @@
-# 001 — ESM-2 embeddings + regression head
+# 001 — ESM-2 embeddings + head  ·  rungs F150 / X150 / L150
+
+> **Retargeted to the plan of record.** This is now three rungs, not one: **F150** (mean-pooled
+> head), **X150** (residue interaction head) and **L150** (LoRA r=8 on K/V). The F150→X150 gap tests
+> the head design; X150→L150 tests whether genuine adaptation helps. See `../ARCHITECTURE.md` §3.
 
 **Owner:** — · **Status:** proposed · **Time box:** 4h · **Compute:** 1 GPU for embedding extraction; head trains on CPU
 
@@ -17,7 +21,7 @@ the embedding, the model is not using protein knowledge at all — it is memoris
 This is the single most informative control in the whole folder.
 
 ## Method
-- Model: ESM-2 650M (`esm2_t33_650M_UR50D`). Note the brief also lists ESMC, ProtT5 and SaProt —
+- Model: ESM-2 **150M** (`facebook/esm2_t30_150M_UR50D`), per the plan of record. Note the brief also lists ESMC, ProtT5 and SaProt —
   if someone wants to compare backbones, that is a separate experiment.
 - Encode peptide and HLA separately, mean-pool residue embeddings over each, concatenate.
 - **Cache the HLA embeddings.** There are only 75 distinct α1/α2 sequences, so compute them once.

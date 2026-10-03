@@ -40,6 +40,21 @@ ask an organiser. The project README discloses it as reference material not clai
 work, which is honest, but the safest reading of the rule is removal. Do not leave this until Sunday
 afternoon.
 
+
+## `superseded-decisions/` — our own working documents, now resolved
+
+The plan of record is **`../docs/GeoStab-FT-build-plan.pdf`**, and `../ARCHITECTURE.md` is its build
+spec. These three did the work of getting there and are kept for the audit trail, not for guidance.
+
+| File | What it was for | Why it is here |
+|---|---|---|
+| `PLAN.md` | Evaluated three competing plans and chose a path | Its job — choosing between plans — is done. GeoStab-FT is adopted |
+| `RECONCILIATION.md` | Recorded every conflict between the plans with the evidence behind each resolution | Still the best record of *why* the split threshold, the zero-label reading and the Boltz/threading fork were decided as they were |
+| `POWER_ANALYSIS.md` | Minimum detectable effect on the test split | Contains a **retraction**: a per-metric sensitivity table that did not reproduce, kept with its diagnosis rather than deleted. The surviving finding — a single Spearman has a CI ~0.05 wide — moved into `../ARCHITECTURE.md` |
+
+`docs/architecture.html` was removed rather than archived: it was a styled copy of the old
+parallel-track architecture, and a stale duplicate of a superseded diagram is worse than none.
+
 ## What deliberately stayed out of the archive
 
 | Kept where it is | Why |
