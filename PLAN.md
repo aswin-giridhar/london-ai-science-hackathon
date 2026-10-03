@@ -26,6 +26,24 @@ Plus the event-wide rubric, 20 points each: technicality, creativity, usefulness
 **Consequence:** the deliverable is an *argument*, and the ablation table is the evidence. A higher
 Spearman with a weaker argument scores worse than a lower one with a clean one.
 
+§10 maps every clause of §5 and §6 to where this repo addresses it, including the clauses it does
+**not** yet address.
+
+### The hypothesis our split embodies
+
+The brief asks for splits established early *"with a sensible hypothesis"*. Ours, stated plainly:
+
+> **H₀ (primary, `peptide_split`):** a model that has never seen a peptide — nor any peptide within
+> two substitutions of it — must predict its half-life from sequence and HLA context alone. This
+> measures generalisation to **new fragments**, which is the clinical use case: a neoantigen from a
+> patient's tumour has no measured neighbours.
+>
+> **H₁ (secondary, `allele_split`):** a model that has never seen an *allele* must still predict for
+> it. A one-hot allele encoding cannot represent an unseen allele at all, so this is the sharpest
+> available test of whether a protein foundation model contributes anything beyond a lookup table.
+
+Both splits are frozen, audited, and committed before any model was trained.
+
 ## 2. The three plans
 
 | | **Stability Lens** (`HACKATHON_PLAN.md`, `SCIENCE_SKILLS_PLAN.md`) | **Track 3 Build Plan** (`Track 3 Build Plan — ….pdf`) | **Repo infrastructure** (`splits/`, `scripts/`, `experiments/`) |
@@ -140,6 +158,28 @@ Nothing here needs structure, GPUs beyond one small card, or any unresolved deci
 | D4 | **Inverse-folding zero-shot score** (ESM-IF / ProteinMPNN), peptide given pocket | Zero-shot, no training, runs early, uses the brief's third model family |
 | D5 | **Held-out-allele evaluation** on `splits/allele_split.csv` | Where a foundation model should beat one-hot. Only 5–6 alleles held out, so report intervals and call it directional |
 
+### Under the hood — the brief asks for these by name
+*"These models … produce embeddings, log-likelihoods/perplexities, and both internal and external
+confidence metrics. They can be run with different inputs masked and different seeds, fine-tuned or
+have prediction heads built on top of their embeddings. We encourage you to explore under the hood!"*
+
+That is a list of six routes. Using only embeddings answers one sixth of it. Each below is cheap and
+needs no structure branch:
+
+| Route | What | Cost |
+|---|---|---|
+| Embeddings → head | F4 above | the standard route |
+| **Log-likelihood / perplexity** | Pseudo-log-likelihood of the peptide in HLA context; also *context minus no-context*, which isolates how much the groove explains the peptide. **No training at all**, so no leakage surface and the whole dataset is an evaluation set | ~3h (`experiments/002`) |
+| **Internal confidence** | The model's own per-residue confidence as a feature *and* as an uncertainty estimate. Distinct from conformal, which is ours not the model's | ~1h |
+| **Masked inputs** | Score with each peptide position masked in turn — doubles as the anchor-rediscovery result below | ~2h |
+| **Different seeds** | 5-member deep ensemble. Mean is the prediction, spread is epistemic uncertainty. Also a free accuracy gain | ~1h on cached features |
+| Fine-tuning | **Deliberately not done** — and we say so, with the compute reason. "We chose not to, here is the budget" is a legitimate answer to a cost-benefit question | vetoed |
+
+**Compute discipline the brief asks for explicitly** (*"data subsetting or careful choice of which
+model(s) to evaluate"*): we choose ESM-2 35M over 650M, cache all 5,633 peptide and 75 HLA
+embeddings once rather than re-encoding per row, and subset the structure branch rather than folding
+28k pairs. Record measured wall-clock and cost per route — that record is itself a deliverable.
+
 ### Free wins — hours, not days, and each is a slide
 - **Position occlusion**: mask each of P1–P9, measure the prediction change. Does the model
   rediscover the anchors from sequence alone? Cheap, visual, and it is §6's biology criterion.
@@ -153,6 +193,48 @@ Nothing here needs structure, GPUs beyond one small card, or any unresolved deci
 Write up every result including the failures; a clean negative on a leakage-free split is a
 legitimate finding and the brief says so explicitly. Build the demo from whatever exists at the time
 rather than waiting for the best model.
+
+## 6b. Chosen metrics, and why each one
+
+§6 judges *"chosen evaluation metrics"* — so the choice needs a reason, not a default.
+
+| Metric | Why this one |
+|---|---|
+| **Spearman ρ — within-allele *and* pooled** | Primary. Assays disagree on absolute hours but rank consistently. **Pooled alone is misleading here**: unrelated pairs score 0.335 pooled against 0.027 within-allele, because alleles differ systematically in stability. Reporting only the pooled number inflates it with a between-allele effect |
+| **Pearson r on `log1p`** | Catches the NetMHCstabpan failure mode: it ranks at 0.876 while its Pearson is 0.532, so its absolute hours are badly calibrated. Rank alone would hide that |
+| **RMSE / MAE in log space** | Absolute accuracy, in the space the model is trained in |
+| **Precision@10 within a supported allele** | The clinical use is re-ranking a shortlist of candidate neoantigens, so top-k matches the application. Within-allele, because a per-patient shortlist is single-allele |
+| **Interval coverage at 90%** | No published stability model reports uncertainty. If we claim 90% and observe 89%, that is a calibration result; if we observe 60%, we say so |
+| **Per-allele ρ against training support** | Exposes whether we are only fitting the data-rich alleles |
+| **Classifier AUROC for the zero head** | The `t½ < 0.05 h` class is 20% of rows; "will this bind at all" is a usable output in its own right |
+| **Paired bootstrap over peptide *clusters*** | Resample clusters, not rows, or the interval is too narrow. A CI spanning zero is inconclusive, not equivalence |
+
+## 6c. Biological background, and where it changes the modelling
+
+§6 lists *"incorporation of the biological background"* as a scoring criterion. Each item below
+changed a concrete decision rather than decorating the write-up.
+
+- **Stability is kinetic; affinity is thermodynamic.** The brief: affinity depends on both the
+  association and dissociation rates, while stability *"is largely a function of the dissociation
+  rate"*. → Affinity is excellent *pre-training* (0.574 → 0.745 published) but not a substitute, and
+  it is why a static predicted pose may carry no kinetic signal at all.
+- **Anchor positions are allele-specific.** Usually P2 and PΩ, but there are P3-dominant alleles.
+  → Keep features for all nine positions; do **not** hard-code P2/P9. The primer gives only P2/PΩ
+  with no exceptions, so anchor features built from it alone would bake in a simplification across
+  all 75 alleles. Finding the exceptions is the better result.
+- **The groove is conserved; the trench residues are not.** Two α-helices over a β-sheet floor, with
+  34 contact positions. → This is why a 34-residue pseudosequence characterises an allele — and why
+  it still fails for two engineered mutants that share one (§5 conflict table).
+- **Each person carries a different allele set.** → Generalisation to unseen alleles is the clinically
+  meaningful axis, not a curiosity. Hence `allele_split`.
+- **A complex that dissociates before reaching the surface is never inspected.** → The `t½ < 0.05 h`
+  class is not a nuisance to be dropped; it is the biologically meaningful "never presented" label.
+- **The three `(C67S)` constructs are engineered, not natural**, and are 75–92% zeros. → Their
+  measurements may reflect the construct rather than the biology; quarantine them from the structural
+  arm and report them separately.
+- **Why structure might legitimately fail.** A co-folded pose is a single *bound* snapshot, while
+  dissociation is an escape process with its own barrier and possibly several pathways. → Stated up
+  front as the falsification condition for the structure branch, not as an excuse afterwards.
 
 ## 7. Vetoes — agreed across the plans
 
@@ -178,7 +260,53 @@ rather than waiting for the best model.
 3. **Who owns what.** The build plan's workstream split (data/splits · sequence model · structure ·
    featurisation · demo) is sensible; it needs names against it.
 
-## 9. Where everything lives
+## 9. Coverage of the brief, clause by clause
+
+Checked against the brief text, not from memory. **Gaps are marked as gaps.**
+
+### §5 — Notes on the challenge
+
+| Clause (brief) | Addressed? | Where |
+|---|---|---|
+| "not looking for an approach that tops an arbitrary leaderboard" | ✅ | §1; NetMHCstabpan demoted to reference in §5 #4; veto #5 |
+| "NetMHCstabpan … unfair to use as a direct comparator" | ✅ | §5 #4 — and noted that it trained on the whole corpus, so our test peptides are in its training data *however* we split |
+| "establishing splits early on **with a sensible hypothesis**" | ✅ | §1 "The hypothesis our split embodies"; built, audited and frozen before any training |
+| "a **simple supervised neural network** trained on peptide and HLA pairs … to contextualise" | ✅ | F2. **Note:** the brief says *neural network*, so the MLP is required, not optional — LightGBM is an addition, not a substitute |
+| "data subsetting or careful choice of which model(s) to evaluate" | ✅ | §6 "Compute discipline"; 35M over 650M; structure branch subset |
+| "embeddings" | ✅ | F4 |
+| "**log-likelihoods / perplexities**" | ✅ | §6 Under the hood; `experiments/002` |
+| "**internal and external confidence metrics**" | ⚠️ *partial* | Internal confidence listed in §6 Under the hood but not yet owned by anyone. External = our conformal (D2) |
+| "run with **different inputs masked**" | ✅ | §6 Under the hood; doubles as anchor occlusion |
+| "**different seeds**" | ✅ | §6 Under the hood — 5-member deep ensemble |
+| "fine-tuned" | ✅ *by decision* | Vetoed with the compute reason stated. A justified "no" answers a cost-benefit question |
+| "prediction heads built on top of their embeddings" | ✅ | F4, and the two-head zero formulation |
+| "negative results are just as good … **Are they useful**, not **prove they are useful**" | ✅ | §1, §6 "Always", D3 kill criterion, §5 #4 |
+
+### §6 — Evaluation criteria
+
+| Clause | Addressed? | Where |
+|---|---|---|
+| "how you tackle this question" | ✅ | This document |
+| "your approach to the data" | ✅ | Split + audit; zero-label investigation; the four traps |
+| "**chosen evaluation metrics**" | ✅ | §6b, with a reason per metric |
+| "your conclusions" | ⏳ *pending* | Nothing trained yet |
+| "the **evidence** you provide to support them" | ✅ *apparatus ready* | `scripts/` are reproducible and self-asserting; the ablation table is the deliverable |
+| "watertight evaluation, ML best practices" | ✅ | Frozen split, test touched once, selection frozen before test, cluster bootstrap, vetoes |
+| "**engineering & compute requirements during the timeframe**" | ✅ | §6 compute discipline; kill gates; measured cost recorded per route |
+| "**incorporation of the biological background**" | ✅ | §6c — each item tied to a decision it changed |
+
+### Honest gaps
+
+1. **Nothing has been trained.** Every ✅ above is apparatus, not result. This is the only gap that
+   matters, and it closes by running F1–F4.
+2. **Internal model confidence has no owner.** It is one of the six routes the brief names and is
+   roughly an hour of work.
+3. **The affinity corpus is not downloaded**, so D1 — the largest published single gain — has not
+   started.
+4. **No external/independent evaluation set.** Published work shows accuracy collapses across assays.
+   We cannot fix that in the time; it belongs in Limitations, stated plainly rather than omitted.
+
+## 10. Where everything lives
 
 | Path | What |
 |---|---|
