@@ -166,5 +166,8 @@ equivalence.
 
 ---
 
-Start here: **B0 → B1 → B1′ → F150/X150.** Common to every plan, needs no GPU beyond a small card,
-and blocks everything downstream. Split counts measured from `splits/peptide_split.csv`.
+**B0 / B1 / B1′ are built and run** — see `results/README.md` for every number, what it shows, and
+what it does not establish. Headline: a per-allele median with *no peptide information* scores 0.563
+pooled Spearman, so every pooled figure must be read against 0.563 rather than zero.
+
+Next: **F150 / X150.** Needs no unresolved decision. Split counts measured from `splits/peptide_split.csv`.
