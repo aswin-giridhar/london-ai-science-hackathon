@@ -79,6 +79,50 @@ Nothing in `scripts/` ever read it, but it was linked from the README and would 
 destroyed 42% of the prediction target for anyone who loaded it. **`context/dataset.csv` is the only
 authoritative copy.**
 
+## 4b. Track 3 Build Plan (@Edouard V) — two things to fix before building
+
+`Track 3 Build Plan — Structure-Aware pHLA Stability Prediction.pdf` is the most operationally
+realistic of the three plans: hard kill gates at 16:30 / 20:00 / 02:00 / 08:00, a guaranteed
+sequence-only floor with structure as pure upside, one falsifiable original claim (does ensemble
+*spread* add signal over ensemble *mean*), an ablation table as the deliverable rather than a
+leaderboard number, and explicit vetoes on PyRosetta and 650M fine-tuning. Its thesis is sound and
+genuinely novel: existing structural methods score a single static pose, which approximates a
+thermodynamic quantity, while half-life is kinetic — so feature *variance* across an ensemble is the
+kinetic signal.
+
+Two corrections, both cheap, both before any code:
+
+**1. The split already exists — do not rebuild it.** The plan specifies 80% identity (= Hamming ≤ 1
+for 9-mers) targeting 21,600 / 2,700 / 2,700. The frozen split in `splits/` is **Hamming ≤ 2** at
+22,532 / 2,817 / 2,817, and the project README already declares it authoritative. Rebuilding would
+put every ablation row on a different split from the audited one.
+
+The plan's own risk register names "a wrong split discovered at 13:00 Sunday" as one of two things
+that will sink the submission, and proposes "have a second person sanity-check that no peptide
+cluster appears on both sides". `scripts/audit_splits.py` already does exactly that, exhaustively and
+independently of the generator. Use `splits/peptide_split.csv` and that half-hour is already spent.
+
+The plan also wants a held-out-allele axis — "the real generalisation test, and where structure
+should win". That exists too: `splits/allele_split.csv`, stratified by allele median half-life.
+
+**2. Conformal intervals need their own calibration rows.** The plan says to take absolute residuals
+"on the validation split". But validation is also doing model selection — the plan retrains in under
+a minute specifically to "ablate aggressively". Selecting on the same rows used for conformal
+calibration breaks exchangeability, and the distribution-free guarantee no longer holds. Since the
+plan calls uncertainty "non-negotiable", this matters.
+
+Fix: carve a calibration partition out of **train** — never from val or test. This is the same gap
+`HACKATHON_PLAN.md` avoids with its 70/10/10/10 four-way split. Empirical coverage can still be
+reported either way; it is the *guarantee* that needs clean rows.
+
+**Two smaller notes.** The zero floor is now characterised precisely (§8): `0.0` means half-life
+< 0.05 h, left-censored at a *known* threshold, which the two-head classify-then-regress design
+handles fine and which can be stated exactly in Q&A. And NetMHCstabpan is described in places as
+"the named baseline to beat" with the preprint's Table 2 as "our scoreboard" — the brief explicitly
+rules it out as a comparator, and because it trained on the entire corpus our test peptides are in
+its training data *regardless* of how we split. Running it is a useful reference; beating it is not
+a goal the brief recognises.
+
 ## 5. Open questions for the Stability Lens authors
 
 1. `training pipeline.pdf` shows Boltz-2 emitting an **Affinity** head alongside Structure. The Boltz
