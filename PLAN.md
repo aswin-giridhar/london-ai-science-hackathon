@@ -200,7 +200,9 @@ rather than waiting for the best model.
 
 | Metric | Why this one |
 |---|---|
-| **Spearman ρ — within-allele *and* pooled** | Primary. Assays disagree on absolute hours but rank consistently. **Pooled alone is misleading here**: unrelated pairs score 0.335 pooled against 0.027 within-allele, because alleles differ systematically in stability. Reporting only the pooled number inflates it with a between-allele effect |
+| **log-RMSE** | **Leads the ablation table.** Measured as the most *sensitive* of the four: it resolves a +0.02 gap that pooled Spearman cannot (`POWER_ANALYSIS.md`). Detection is its job |
+| **Spearman ρ, pooled** | **Comparison to the literature**, which reports rank correlation. Assays disagree on absolute hours but rank consistently. Confounded by between-allele differences, so never reported alone |
+| **Spearman ρ, within-allele** | **Confound check**, and directional only. Unrelated pairs score 0.335 pooled against 0.027 within-allele, so the confound is real — but with ~38 test rows per allele this metric is the *least* sensitive of the four and cannot resolve even a +0.05 gap. A flat result here is not evidence of no effect |
 | **Pearson r on `log1p`** | Catches the NetMHCstabpan failure mode: it ranks at 0.876 while its Pearson is 0.532, so its absolute hours are badly calibrated. Rank alone would hide that |
 | **RMSE / MAE in log space** | Absolute accuracy, in the space the model is trained in |
 | **Precision@10 within a supported allele** | The clinical use is re-ranking a shortlist of candidate neoantigens, so top-k matches the application. Within-allele, because a per-patient shortlist is single-allele |
