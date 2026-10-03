@@ -94,8 +94,16 @@ an evaluation set.
 
 ## 5. Geometry as a learned attention bias ✂
 
-Boltz-2 is a **frozen coordinate generator**. Its small-molecule affinity head is not usable here —
-the docs require a ligand chain, and a 9-mer is a protein chain. No gradient enters Boltz.
+**We do use Boltz-2 — for coordinates only.** It has two outputs and we take exactly one:
+
+| Boltz-2 output | Use it? | Why |
+|---|---|---|
+| **3D coordinates** of the complex | ✅ **yes** — the whole reason it is here | The dataset has no structures, so distances have to be generated |
+| Affinity prediction | ❌ **no** | Its docs require the binder to be *"a ligand chain (not a protein, DNA or RNA)"*, ~56 atoms. A 9-mer is a protein chain, so that head would return a number for an input it does not support. This is why `archive/plans/training pipeline.pdf` is superseded — it drew that head as a Stage-1 output |
+
+**"Frozen" means never trained.** Boltz runs as a fixed tool: sequences in, coordinates out, no
+gradient back. The only trainable parameters in this section are the **24** RBF weights `w:[4,6]`,
+far downstream of it.
 
 ```mermaid
 flowchart LR
