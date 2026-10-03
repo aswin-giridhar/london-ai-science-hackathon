@@ -93,33 +93,19 @@ The full catalogue is in `BRAINSTORM.md`. If you want the four highest value-per
 | **I1** position occlusion | Does the model rediscover the P2/P9 anchors from sequence alone? Cheap, visual, and it is the biology criterion §6 asks for |
 | **E1** within-allele reporting | Nearly free, and most teams will report the confounded pooled number instead |
 
-The older list below is kept because it is still accurate; these come from the brief's §5, which
-explicitly invites going beyond embeddings:
-
-- **Model confidence as uncertainty.** The brief names "internal and external confidence metrics".
-  Free uncertainty estimates, and the leading published model does none.
-- **Seed and mask variation as a cheap ensemble.** Also from §5. Gives both a variance estimate and
-  a possible accuracy gain for no training.
-- **The `t½ = 0` labels.** 5,679 rows (20%) sit at exactly 0.0. Whether that is an assay floor or a
-  measured zero is **not established by the CSV** — check the Rasmussen 2016 paper first. Censored
-  likelihood, or classify-then-regress? Nobody in the literature handles this.
-- **Does the pseudo-sequence lose anything?** 34 residues vs the full 182-residue α1/α2 domain —
-  a direct, cheap ablation on information content.
-- **Structure prediction on a subset.** Boltz-2 / Chai-1 co-folding. Expensive, so a subset, which
-  the brief explicitly permits. A `boltz` Claude Code plugin exists but is not installed and needs
-  an API key — check cost before committing.
-- **Which alleles are hard?** Per-allele error vs training rows per allele. Cheap, and makes a good
-  demo slide.
-- **Does a general protein model beat a one-hot allele encoding at all?** The honest null hypothesis.
-  If a lookup table of 75 alleles plus peptide features matches ESM-2, that is a real finding and
-  directly answers the brief's question.
+`BRAINSTORM.md` holds the full catalogue — roughly 40 directions across baselines, representation
+routes, zero-shot scoring, structure, the label floor, evaluation, interpretability, uncertainty and
+the demo, each with what it would prove, a cost estimate and how it could fail. It also lists the
+attractive traps. Read it rather than starting from a blank file.
 
 ## Where things live
 
 | Path | What |
 |---|---|
 | `experiments/` | these proposals and their write-ups |
-| `splits/` | the frozen split — created, verified, never regenerated |
-| `scripts/make_splits.py` | how the split was built, with its own assertions |
+| `BRAINSTORM.md` | the full idea catalogue |
+| `../splits/` | the frozen split — created, verified, never regenerated |
+| `../scripts/` | split generation, independent audit, and the two data diagnostics |
 | `../context/NOTES.md` | the brief, the dataset profile, the constraints |
-| `../context/dataset.csv` | the data |
+| `../context/dataset.csv` | the data — **the only authoritative copy** |
+| `../RECONCILIATION.md` | current state of the two planning tracks |

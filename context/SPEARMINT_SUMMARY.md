@@ -29,9 +29,14 @@ Three concrete mismatches with our task:
 ## Our dataset is the same corpus (with caveats)
 They describe the NetMHCstabpan corpus as **27,034 measurements, 72 HLA-I alleles, 9-mers, all from
 scintillation proximity assay (SPA) at 37 °C**. Ours is 28,166 rows / 75 alleles / all 9-mers.
-The ~1,100-row gap is almost certainly their "allele normalization and MHC sequence mapping" step
-dropping unmappable entries — ours still contains the three `(C67S)` engineered constructs.
-Both trace to Rasmussen et al. 2016, which Serova asks us to cite.
+
+**The allele count reconciles exactly:** 75 − 3 engineered `(C67S)` constructs = 72. So the
+engineered constructs are additional to the published corpus and both counts are correct.
+
+The row count nearly reconciles too: those three constructs hold 1,135 rows, and 28,166 − 1,135 =
+**27,031 against the paper's 27,034 — a residual of 3 rows**, cause unknown. Close enough to confirm
+the same underlying corpus, not close enough to claim the files are identical. Both trace to
+Rasmussen et al. 2016, which Serova asks us to cite.
 
 **But the HLA column differs**: they map each allele to its full-length heavy chain from
 IPD-IMGT/HLA; our file supplies only the α1/α2 groove domain. Any comparison to their numbers is

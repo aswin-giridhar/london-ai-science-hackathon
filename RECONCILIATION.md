@@ -1,250 +1,109 @@
-# Reconciliation — two planning tracks meeting
+# Reconciliation — where the two planning tracks stand
 
-**Written 2026-10-03 15:45 BST. ~23h to the 14:45 Sunday cutoff.**
+Two plans were produced independently: `SCIENCE_SKILLS_PLAN.md` / `HACKATHON_PLAN.md` (Stability
+Lens) and the work in `context/`, `splits/`, `scripts/`, `experiments/`. They agree on most of what
+matters. This file records **current state** — what is settled, what is open, what needs a human to
+decide. It is maintained as state, not as a log.
 
-This note reconciles `SCIENCE_SKILLS_PLAN.md` (the Stability Lens / Science-Skills revision) with the
-work in `context/`, `splits/`, `scripts/` and `experiments/`. The two were produced independently and
-mostly agree. Where they disagree, the specifics are below with evidence, so nobody has to re-derive
-them.
-
-Nothing here is a veto. Anything marked **decide** needs a human to pick.
+Last updated 2026-10-03 16:20 BST.
 
 ---
 
-## 1. Credit where it's due — the plan is right about things I under-weighted
+## 1. Settled — agreed by both tracks, do not relitigate
 
-Its factual claims check out. I verified independently:
+- The track is **not a leaderboard**. The brief rules NetMHCstabpan out as a comparator in its own
+  words, because it was trained on the whole dataset.
+- A **well-supported negative result is a valid submission**, in the brief's own words.
+- **One frozen split**; the test set is touched once.
+- **Model selection is frozen on train/dev before the test set is opened.** Test results report the
+  predeclared comparison; they do not choose the winner.
+- Report full-cohort **and** valid-subset numbers, with denominators.
+- Keep audit axes separate: label contamination, peptide leakage, structural-template exposure.
 
-- `google-deepmind/science-skills` is real, public, Apache-2.0; the pinned commit
-  `68832757cbbf941c620b71df5756cf6e5cc287b0` resolves to **Science Skills v1.2.1 (2026-09-14)**, and
-  every skill it names exists at that revision.
-- 28,166 rows, the 182-aa α1/α2 domain vs full-chain distinction, and three `(C67S)` engineered
-  constructs — all match what I measured from `context/dataset.csv` independently.
-- The Sunday 14:45 BST cutoff matches the brief.
+That is substantial agreement for two independent plans, and it is the part §6 of the brief scores.
 
-**Its strongest contribution is one I had under-weighted.** The brief's §6 asks for *"incorporation
-of the biological background of the problem"* as a scoring criterion, not as context. The plan does
-this properly — anchor-position exceptions, P3-dominant alleles, and a citation that improving anchor
-residues can *fail* to improve measured stability. My notes treated biology as background. That was
-a misread of the rubric and the plan corrects it.
+## 2. Settled by measurement — evidence in `scripts/`
 
-Its evaluation hygiene should be adopted wholesale, in particular:
-
-- *"Test results report the predeclared comparison; they do not select the winning model."*
-- Freeze cohort membership before running; never swap a failed test pair for an easier one.
-- Report full-cohort **and** valid-subset numbers with their denominators.
-- Separate audit axes: label contamination, peptide leakage, structural-template exposure.
-
----
-
-## UPDATE 16:05 — §2 is resolved, and the reviewer was right about something else
-
-Since this note was written, the other track pushed an expanded `README.md` that adopts
-**Hamming ≤ 2 as authoritative**. §2 below is settled; it is kept for the record.
-
-It also made a criticism that was correct and that I had missed:
-
-> *"Those diagnostics inspect evaluation labels, so disclose that the split design was informed by
-> exploratory label analysis; it is not a benchmark designed without viewing any evaluation labels."*
-
-That is true. The threshold was originally chosen by measuring how well a **test** peptide's label
-was predicted by its nearest training peptide. However conservative the resulting change, a
-benchmark whose design depended on evaluation labels is not blind.
-
-**Re-derived from training labels only** (`measure_leakage_by_distance.py`, analysis A), the same
-conclusion holds:
-
-| edit distance | identity | Spearman between train neighbours | n |
-|---|---|---|---|
-| 1 | 0.889 | 0.612 | 437 |
-| 2 | 0.778 | 0.636 | 297 |
-| 3 | 0.667 | 0.406 | 728 |
-| 4 | 0.556 | 0.354 | 5,501 |
-| random | — | −0.000 | 14,650 |
-
-Distances 1 and 2 behave alike; distance 3 drops sharply. The break is between 2 and 3 whether or
-not eval labels are consulted, so the threshold stands on train-only evidence. The script now runs
-the train-only analysis first and prints the train-vs-eval one beneath it, marked as confirmation
-that must not drive design. The original mistake is disclosed permanently in `splits/README.md`
-rather than edited out — the audit trail is worth more than a clean story.
-
-**Two items from their README still open:**
-- `experiments/001` names ESM-2 650M; their delivery baseline starts at 35M. A model-size ladder
-  (BRAINSTORM `R4`) would settle it with evidence instead of a preference, and directly serves the
-  brief's cost-benefit question.
-- They flagged the zero-label censoring claim as a hypothesis pending source evidence. That was the
-  right call, and it has now been **settled from the data** — see §8 below.
-
----
-
-## 2. One concrete conflict: the split threshold *(resolved — see update above)*
-
-**The plan specifies "exact one-edit global peptide groups" (Hamming ≤ 1). The split in `splits/` uses
-Hamming ≤ 2.** This is not a style difference — it was measured.
-
-Hamming ≤ 1 is exactly the published 80%-identity convention for 9-mers, so the plan is following
-standard practice. I adopted the same convention, then checked whether it holds. It does not.
-
-Measuring how well a test peptide's label is predicted by its nearest training peptide, as a
-**within-allele** z-score of `log1p` (`scripts/measure_leakage_by_distance.py`):
-
-| edit distance | identity | Spearman with neighbour |
+| Question | Answer | Evidence |
 |---|---|---|
-| 2 | 0.778 | **0.700** |
-| 3 | 0.667 | 0.311 |
-| 4 | 0.556 | 0.364 |
-| random pair | — | 0.027 |
+| Split threshold | **Hamming ≤ 2**, not the conventional ≤ 1 | `measure_leakage_by_distance.py` |
+| Was the split designed blind? | **Now yes.** Re-derived from train labels only | same script, analysis A |
+| What does `thalf_hours == 0.0` mean? | **Half-life < 0.05 h — left-censored**, not a true zero | `investigate_zero_labels.py` |
+| 72 alleles (papers) vs 75 (our file) | 75 − 3 engineered `(C67S)` = 72. Both correct | same script |
+| Is `dataset.xlsx` usable? | **No — removed.** 42% of the target was date-corrupted | see §4 |
 
-The break between *near-duplicate* and *merely similar* sits between **2 and 3**, not between 1 and 2.
-A Hamming ≤1 split leaves 13 test peptides whose labels are ~70% rank-predictable from a training
-neighbour. Cost of the stricter threshold is negligible: 5,410 clusters instead of 5,494, largest
-cluster 8 peptides instead of 5, so no single-linkage chaining.
+**Split threshold.** The published 80%-identity convention is exactly Hamming ≤ 1 for 9-mers. Using
+training labels only, neighbour label agreement is 0.612 at one edit and 0.636 at two, then drops to
+0.406 at three, against a null of 0.000. The break between *near-duplicate* and *merely similar* sits
+between 2 and 3. Cost of the stricter choice is negligible: 5,410 clusters instead of 5,494.
 
-**Also worth carrying across:** the first version of that measurement pooled pairs across alleles and
-produced a null of 0.335 where ~0 was required — allele-level stability differences inflated every
-correlation. This matters beyond the split. **Any pooled correlation on this dataset is partly a
-between-allele effect.** Report within-allele numbers alongside pooled ones, or the headline figure
-is measuring the wrong thing. The plan's §6 already says *"Pooled correlation can reflect
-between-allele differences, so always show supported within-allele results"* — we agree, arrived at
-separately.
+**Blind design.** The threshold was *originally* chosen using evaluation labels — a methodological
+error the other track caught and was right about. The re-derivation above uses training labels only
+and reaches the same conclusion, so the decision no longer depends on having seen eval labels. The
+original mistake is disclosed permanently in `splits/README.md` rather than edited out.
 
-**Decide:** adopt Hamming ≤ 2 (recommended — evidence above, already built and audited), or keep ≤ 1
-for literature comparability and disclose the 13 peptides.
+**The zero labels.** 98.4% of non-zero values are exact multiples of 0.1 h and exactly one row in the
+dataset falls below 0.1, so the reporting scale is 0.1 h and anything under 0.05 h rounds to 0.0.
+There is no gap above zero, so this is a rounding floor rather than a hard instrument threshold.
+Because the threshold is *known*, a Tobit-style censored likelihood is directly implementable rather
+than speculative. The published work treats the boundary as a point observation.
 
----
+The zeros are strongly allele-dependent — seven alleles are more than half zeros, including all three
+`(C67S)` constructs at 75–92%, while five alleles have none. **Dropping zero rows removes 20% of the
+data and effectively deletes those alleles.** This supports the existing instruction to quarantine
+the engineered constructs from the structural arm.
 
-## 3. Two parallel structures
+## 3. Open — needs a human to decide
 
-The plan edits `/Users/arkajyotisaha/Desktop/Hackathon/ARE/HACKATHON_PLAN.md` and a
-`Peptide-HLA Stability Primer.md`. Neither is in this repo. This repo has:
+1. **Canonical location for planning docs.** `HACKATHON_PLAN.md` and the primer now live here, which
+   resolves most of this. Remaining question is whether they are maintained here or on a laptop.
+2. **A calibration partition.** `HACKATHON_PLAN.md` specifies four partitions (70/10/10/10) because
+   split-conformal uncertainty needs a calibration set. The frozen split is three-way and has none.
+   If U1 is wanted, carve calibration out of **train** — never from val or test.
+3. **ESM-2 size.** `experiments/001` names 650M; the plan's delivery baseline starts at 35M on
+   compute grounds. A size ladder (`BRAINSTORM` R4) would settle it with evidence, and directly
+   serves the brief's cost-benefit question.
+4. **Data redistribution.** `HACKATHON_PLAN.md` §3.1 says "store only a downloader/manifest in git
+   until redistribution terms are checked". The dataset and both PDFs are already committed to a
+   public repo on the repo owner's explicit instruction. The SPEARMINT preprint is CC-BY 4.0 so
+   redistribution is fine; the Serova dataset's terms have not been checked. Worth a conversation.
 
-| Path | What |
+## 4. Divergence found during cleanup: `context/dataset.xlsx` was corrupt
+
+Removed from the repo. Excel date-parsed **11,907 of 28,166 `thalf_hours` values (42%)** on export:
+`1.8` became 1 August 2026, `5.2` became 5 February 2026, and so on. Every one of the 11,907
+reconstructs exactly as (day, month) from the CSV number, so the CSV holds the original values and
+the xlsx was the damaged copy.
+
+Nothing in `scripts/` ever read it, but it was linked from the README and would have silently
+destroyed 42% of the prediction target for anyone who loaded it. **`context/dataset.csv` is the only
+authoritative copy.**
+
+## 5. Open questions for the Stability Lens authors
+
+1. `training pipeline.pdf` shows Boltz-2 emitting an **Affinity** head alongside Structure. The Boltz
+   docs state the affinity binder "must be a ligand chain (not a protein, DNA or RNA)", max ~56 atoms
+   recommended — so a 9-mer peptide cannot be the binder. `HACKATHON_PLAN.md` already rejects this
+   use. **Is the diagram superseded?** As drawn it cannot be built, and its Stage 2 also places
+   Boltz-2 inside the trainer, which is far outside the compute budget.
+2. Are the "three domain mismatches" the same three `(C67S)` constructs, or a separate set?
+3. Does the structural arm need a full heavy chain + β2m construct, given the sponsor supplies only
+   the 182-aa α1/α2 domain? That reconstruction looks like the largest single risk in the plan.
+
+## 6. Known inaccuracies in `Peptide-HLA Stability Primer.md`
+
+The primer predates the event and is retained as background. Three of its figures do not describe
+this dataset, verified against `context/dataset.csv`:
+
+| Primer says | This dataset |
 |---|---|
-| `context/NOTES.md` | The brief, dataset profile, constraints, corrected reference numbers |
-| `context/SPEARMINT_SUMMARY.md` | The preprint, framed as calibration not a target |
-| `splits/` | Frozen, audited splits + `README.md` explaining what they guarantee |
-| `scripts/` | `make_splits.py`, `audit_splits.py`, `measure_leakage_by_distance.py` |
-| `experiments/` | Proposal template, ground rules, seeded experiments, `BRAINSTORM.md` |
+| HLA heavy chain "about 365 amino acids" | `hla_seq` is **182** residues (α1/α2 only) |
+| "about 27,000" / "21,626" measurements | **28,166** rows |
+| "fall apart in minutes; others last half a day" | max is **256.7 h ≈ 10.7 days** |
 
-**Decide:** which is canonical. My suggestion — this repo is the submission artifact (the brief wants
-a GitHub link), so planning docs should land here, and `HACKATHON_PLAN.md` should be copied in rather
-than maintained on one laptop. Not a strong opinion; a single location matters more than which one.
-
----
-
-## 4. A gap in both plans worth closing
-
-**The `t½ = 0` floor.** 5,679 rows — 20% of the dataset, 57% of the lowest histogram bin — sit at
-exactly 0.0.
-
-**What is measured:** the count and the exact value. **What is hypothesis:** that this represents an
-assay floor rather than genuine zero-hour measurements. The CSV does not state a detection limit, so
-this needs checking against Rasmussen et al. 2016 before any claim rests on it.
-
-The plan gets close: it removes `max(t_half_hours, 0)` from the target contract, correctly noting it
-*"silently turns bad data into valid zero-hour labels"*. But it then feeds 0 into `log1p` as a real
-value. So does the published SPEARMINT work — no mention of censoring anywhere in it.
-
-This is one of the few places where we could do something the literature hasn't. Options: a censored
-(Tobit-style) likelihood, two-stage classify-then-regress, or an explicit zero-label class — but
-confirm the assay semantics first.
-Written up as a candidate experiment in `experiments/BRAINSTORM.md`.
-
----
-
-## 5. Scope against the clock
-
-Read from the system clock, not estimated: **23.2 hours remained at 15:35 BST Saturday.**
-
-The plan's stated deliverable is *"an improved planning document — not an installed skill bundle,
-trained model, new code repository, or deployment."* Its full scope — Boltz-2 co-folding, PDB
-reference triage, chain/construct registries, β2-microglobulin, ProteinMPNN, conformal intervals,
-Streamlit, seven test files — is substantially more than a weekend.
-
-To its credit it gates this honestly (Gate A before B/C; *"skip optional searches, larger encoders,
-and U1 before compromising the core comparison"*). I'm agreeing with the plan's own gates, not
-arguing against it.
-
-**Gate A is already unblocked.** Audited inputs and a locked split exist. The baseline (`experiments/
-000`) and the frozen-embedding run (`001`) are the gate-A deliverables and need no structural work.
-
-**Suggested division, if three people are working:**
-
-| Owner | Track |
-|---|---|
-| Data/eval | Gate A: baseline, embeddings, the one-hot allele control, within-allele reporting |
-| Structure | Gate B pilot on a handful of pairs — answer *is this feasible at all* before committing |
-| Evidence/demo | Claim ledger, biology caveats, demo skeleton, the 2-min video |
-
----
-
-## 6. Open questions for whoever wrote the plan
-
-1. Are the "three domain mismatches" the same three `(C67S)` constructs, or a separate set? If
-   separate, which alleles?
-2. Did the dataset audit run against this `context/dataset.csv`, or a differently-exported copy? Row
-   counts match, so probably the same file — worth confirming before we treat the audits as one.
-3. Does the structural arm need the full heavy chain + β2m construct, given the sponsor supplies only
-   the 182-aa α1/α2 domain? That reconstruction is the plan's §3 and looks like its largest single
-   risk.
-4. Was any part of the plan executed, or is it all proposal? §Verification implies nothing ran.
-
----
-
-## 7. What is settled and shouldn't be relitigated
-
-- Serova's track is **not a leaderboard**. NetMHCstabpan is ruled out as a comparator in the brief's
-  own words. Both plans agree.
-- A well-supported negative result is a valid submission. Both plans agree.
-- Everything reports on one frozen split; test is touched once. Both plans agree.
-- Model selection is frozen on train/dev before the test set is opened. Both plans agree.
-
-That is a lot of agreement for two independently produced plans, and it is the part the brief
-actually scores.
-
----
-
-## 8. UPDATE 16:10 — the zero labels are settled, and both plans were wrong about them
-
-Everyone's notes hedged on `thalf_hours == 0.0`. My first version asserted "detection floor" with no
-evidence; their README correctly demanded source evidence; the official brief, the background primer
-and the SPEARMINT preprint are all silent on it. It turns out the data answers the question on its
-own — `scripts/investigate_zero_labels.py`.
-
-**Two tests.**
-
-1. *Is there a gap above zero?* A hard censoring threshold at some value leaves a point mass at 0
-   and nothing until that value. There is no gap — 0.05 and 0.1 both occur. So "below the
-   instrument's threshold" does not fit by itself.
-2. *What is the reporting precision?* **98.4% of non-zero values are exact multiples of 0.1 h**
-   (22,133 of 22,487), and **exactly one row in the entire dataset falls below 0.1 h**. The
-   reporting scale is 0.1 h.
-
-**Conclusion: `0.0` means "measured half-life below 0.05 h" — left-censored at three minutes, not a
-complex with zero lifetime.** The censoring threshold is therefore *known* (0.05 h), which makes a
-Tobit-style likelihood directly implementable rather than speculative. `log1p` treats that boundary
-as a point observation, and so does the published work.
-
-**The more immediately practical finding** is that the zeros are strongly allele-dependent:
-
-| allele | rows | zero fraction |
-|---|---|---|
-| `HLA-B*39:06(C67S)` | 379 | 92.1% |
-| `HLA-B*14:01(C67S)` | 374 | 89.0% |
-| `HLA-B*14:02(C67S)` | 382 | 74.9% |
-| `HLA-B*45:01` | 368 | 67.1% |
-| `HLA-B*41:01` | 368 | 59.8% |
-| `HLA-B*55:01` | 378 | 55.6% |
-| `HLA-B*51:01` | 353 | 50.7% |
-
-Median across alleles is 13.2%; five alleles have none at all. **Dropping zero rows would remove 20%
-of the dataset and effectively delete the seven alleles above**, including all three engineered
-constructs. Anyone filtering them needs to say so and report which alleles it costs.
-
-This also supports the plan's existing instruction to quarantine the `(C67S)` constructs from the
-structural arm: at 75–92% zeros, those three contribute very little gradient signal and their
-measurements may reflect the construct rather than the biology.
-
-**Reconciles a discrepancy too.** The primer and preprint both state **72** alleles; we measure 75.
-75 − 3 engineered = 72 exactly, so the `(C67S)` constructs are additional to the published corpus,
-not a counting error on either side.
+The 365-residue figure matters because the primer's pooling argument depends on it: it claims a
+9-mer is diluted to "about 2%" of a mean-pooled representation. With 182 residues it is 9/191 ≈
+**4.7%**. The qualitative advice (pool the chains separately) survives; the number does not. The
+primer also gives only P2/PΩ anchors with no allele-specific exceptions — `HACKATHON_PLAN.md` and the
+README are more careful here, and anchor features built from the primer alone would hard-code a
+simplification across all 75 alleles.

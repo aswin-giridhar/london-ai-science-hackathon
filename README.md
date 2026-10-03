@@ -28,7 +28,7 @@ Stability Lens asks a practical scientific question: given a nine-residue peptid
 | Available now | Purpose |
 |---|---|
 | [Official Serova brief](context/serova_primer.pdf) | Challenge question, dataset definition, model families, and evaluation expectations |
-| [Challenge CSV](context/dataset.csv) / [spreadsheet](context/dataset.xlsx) | Measured peptide–HLA half-lives and sequence inputs |
+| [Challenge CSV](context/dataset.csv) | Measured peptide–HLA half-lives and sequence inputs. **The CSV is the only authoritative copy** — the `.xlsx` export was removed because Excel date-parsed 11,907 of 28,166 `thalf_hours` values (42%), e.g. `1.8` became 1 August 2026 |
 | [Split guide](splits/README.md) and [saved report](splits/split_report.json) | Frozen assignments, reported counts, and generation-time checks |
 | [Split generator](scripts/make_splits.py) and [independent audit](scripts/audit_splits.py) | Existing code for constructing assignments and checking distances, coverage, and representativeness |
 | [Distance diagnostic](scripts/measure_leakage_by_distance.py) | Exploratory label-agreement analysis used when revising the grouping threshold; not a half-life model benchmark |
