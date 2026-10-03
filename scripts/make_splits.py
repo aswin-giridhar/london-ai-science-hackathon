@@ -50,7 +50,16 @@ DATA = ROOT / "context" / "dataset.csv"
 OUT = ROOT / "splits"
 
 SEED = 42
-CLUSTER_MAX_DIST = 1  # Hamming; 1 == 80% identity for 9-mers
+# Hamming distance at which peptides are treated as near-duplicates and kept together.
+#
+# 1 would match the published 80%-identity convention exactly (see module docstring). We use 2,
+# deliberately stricter, because measuring it showed the convention is too loose here: a test
+# peptide 2 edits from a train peptide had its within-allele label rank predicted at Spearman 0.700
+# by that neighbour, against 0.311 at distance 3 and 0.027 for random same-allele pairs. The break
+# between "near-duplicate" and "merely similar" sits between 2 and 3, not between 1 and 2.
+# Cost of the stricter choice is negligible: 5,410 clusters instead of 5,494.
+# Evidence: scripts/measure_leakage_by_distance.py
+CLUSTER_MAX_DIST = 2
 TARGETS = {"train": 0.80, "val": 0.10, "test": 0.10}
 
 
