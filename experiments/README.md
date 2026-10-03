@@ -48,6 +48,30 @@ cp TEMPLATE.md NNN-short-name.md     # next free number
 Then add a row to the table below. Keep the proposal under a page — if it needs more, it's probably
 two experiments.
 
+## Before you start: two planning tracks are being reconciled
+
+A second plan — `../SCIENCE_SKILLS_PLAN.md`, the Stability Lens / Google DeepMind Science-Skills
+revision — was developed independently and pushed to this repo. The two agree on most things that
+matter (not a leaderboard, negative results are valid, freeze model selection before test, one
+locked split). **`../RECONCILIATION.md` records where they differ and what still needs deciding.**
+
+Two points from it affect anything you build here:
+
+1. **The split threshold is settled at Hamming ≤ 2, not ≤ 1.** The other plan specifies one-edit
+   groups, which is the published 80%-identity convention. We measured it: a test peptide 2 edits
+   from a training peptide has its label rank predicted at Spearman 0.700 by that neighbour, against
+   0.311 at distance 3 and 0.027 for random pairs. `splits/` already uses the stricter threshold.
+2. **Never report a pooled correlation on its own.** Alleles differ systematically in stability, so
+   pooled numbers are partly a between-allele artefact — unrelated pairs correlate at 0.335 pooled
+   and 0.027 within-allele. Report within-allele alongside pooled, every time.
+
+## Where to get ideas
+
+**`BRAINSTORM.md`** catalogues ~40 directions across baselines, representation routes, zero-shot
+scoring, structure, the label floor, evaluation, interpretability, uncertainty and the demo — each
+with what it would prove, a cost estimate, and how it could fail. It also lists the attractive traps.
+Start there rather than from a blank file.
+
 ## Index
 
 | # | Experiment | Owner | Status | Headline result |
@@ -58,16 +82,26 @@ two experiments.
 
 Status: `proposed` → `running` → `done` / `abandoned` / `inconclusive`.
 
-## Backlog — ideas nobody has written up yet
+## Backlog — the short version
 
-Grab any of these and turn it into a proposal, or ignore them entirely and propose your own. These
-come from the brief's §5, which explicitly invites going beyond embeddings:
+The full catalogue is in `BRAINSTORM.md`. If you want the four highest value-per-hour items from it:
+
+| From BRAINSTORM | Why it is worth doing first |
+|---|---|
+| **B4** one-hot allele control | Only 75 distinct HLAs exist. If one-hot matches an embedding, the model is memorising allele identity, not using protein knowledge. Without this, no other number means anything |
+| **E2** learning curves | The sharpest answer to the brief's question — if foundation models help most when labels are scarce, that is a precise, transferable finding |
+| **I1** position occlusion | Does the model rediscover the P2/P9 anchors from sequence alone? Cheap, visual, and it is the biology criterion §6 asks for |
+| **E1** within-allele reporting | Nearly free, and most teams will report the confounded pooled number instead |
+
+The older list below is kept because it is still accurate; these come from the brief's §5, which
+explicitly invites going beyond embeddings:
 
 - **Model confidence as uncertainty.** The brief names "internal and external confidence metrics".
   Free uncertainty estimates, and the leading published model does none.
 - **Seed and mask variation as a cheap ensemble.** Also from §5. Gives both a variance estimate and
   a possible accuracy gain for no training.
-- **The `t½ = 0` floor.** 20% of labels are a detection limit, not a measurement. Censored
+- **The `t½ = 0` labels.** 5,679 rows (20%) sit at exactly 0.0. Whether that is an assay floor or a
+  measured zero is **not established by the CSV** — check the Rasmussen 2016 paper first. Censored
   likelihood, or classify-then-regress? Nobody in the literature handles this.
 - **Does the pseudo-sequence lose anything?** 34 residues vs the full 182-residue α1/α2 domain —
   a direct, cheap ablation on information content.

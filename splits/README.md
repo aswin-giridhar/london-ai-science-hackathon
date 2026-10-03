@@ -39,31 +39,52 @@ for equal-length strings a Levenshtein distance of 1 is reachable only by substi
 `identity = (9 − d)/9` gives 0.889 at d=1 and 0.778 at d=2. **80% identity on 9-mers is exactly
 Hamming ≤ 1.**
 
-We adopted a convention and then checked whether it holds. It does not. Measuring how well a test
-peptide's label is predicted by its nearest training peptide — as a within-allele z-score of
-`log1p`, so allele-level differences cannot inflate it (`measure_leakage_by_distance.py`):
+We adopted a convention and then checked whether it holds. It does not. Measuring how well one
+peptide's label predicts another's at a given edit distance — as a within-allele z-score of `log1p`,
+so allele-level differences cannot inflate it — **using training labels only**
+(`measure_leakage_by_distance.py`, analysis A):
 
-| edit distance | identity | Spearman with neighbour |
-|---|---|---|
-| 2 | 0.778 | **0.700** |
-| 3 | 0.667 | 0.311 |
-| 4 | 0.556 | 0.364 |
-| random pair | — | 0.027 |
+| edit distance | identity | Spearman between neighbours | n pairs |
+|---|---|---|---|
+| 1 | 0.889 | **0.612** | 437 |
+| 2 | 0.778 | **0.636** | 297 |
+| 3 | 0.667 | 0.406 | 728 |
+| 4 | 0.556 | 0.354 | 5,501 |
+| 5 | 0.444 | 0.238 | 2,944 |
+| random pair | — | −0.000 | 14,650 |
 
 The break between "near-duplicate" and "merely similar" sits **between 2 and 3**, not between 1 and
-2. A threshold of 1 would have left 13 test peptides whose labels were ~70% rank-predictable from a
-training neighbour. Cost of the stricter choice is negligible — 5,410 clusters instead of 5,494, and
-the largest cluster grows from 5 peptides to 8, so there is no single-linkage chaining problem.
+2. Distances 1 and 2 behave alike (0.61, 0.64) and distance 3 drops sharply (0.41). Cost of the
+stricter choice is negligible — 5,410 clusters instead of 5,494, and the largest cluster grows from
+5 peptides to 8, so there is no single-linkage chaining problem.
+
+### Disclosure: this threshold was first chosen the wrong way
+
+**The original derivation used evaluation labels.** It measured how well a *test* peptide's label was
+predicted by its nearest *training* peptide, found 0.700 at distance 2, and tightened the threshold
+on that basis. A reviewer on the team caught it: a benchmark whose design was informed by
+evaluation labels is not a benchmark designed blind, however well-intentioned the change.
+
+The table above is the re-derivation from training labels alone, and it reaches the same conclusion,
+so the threshold does not depend on having seen eval labels. The script still prints the
+train-vs-eval version as analysis B, clearly marked as confirmation that must not drive design.
+
+Two things worth being precise about rather than quietly dropping:
+
+- The direction of the original error was conservative — it made the test set *harder*, not easier.
+  That is the less dangerous direction, but it is still not blind design.
+- The disclosure stays in this file permanently. From the point the split was frozen (commit
+  `36ae9d4`), assignments and the model-selection protocol are fixed.
 
 Re-measured on the final split, the near-duplicate regime is gone and what remains is a flat band
-consistent with genuine biological similarity:
+consistent with genuine biological similarity (analysis B — reported, not used for design):
 
 | edit distance | Spearman | note |
 |---|---|---|
 | 3 | 0.322 | closest any eval peptide now gets to train |
 | 4 | 0.304 | |
 | 5 | 0.239 | |
-| random pair | −0.016 | the null, which validates the measurement |
+| random pair | −0.005 | the null, which validates the measurement |
 
 **That null matters.** A first version of this measurement pooled pairs across alleles and reported
 a null of 0.335 — which should have been ~0. Alleles differ systematically in stability, so both
