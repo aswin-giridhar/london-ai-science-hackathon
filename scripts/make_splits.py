@@ -254,8 +254,24 @@ def summarise(df, col, assignment, name):
     return out, d
 
 
-def main():
+def main(force=False):
     OUT.mkdir(exist_ok=True)
+
+    # The split is a frozen benchmark that every experiment reports against. Regenerating it
+    # silently would make every result produced so far incomparable, with no error anywhere.
+    # Refuse by default; an overwrite has to be asked for explicitly.
+    existing = [f for f in ("peptide_split.csv", "allele_split.csv") if (OUT / f).exists()]
+    if existing and not force:
+        print("REFUSING TO OVERWRITE THE FROZEN SPLIT")
+        print(f"  {', '.join(existing)} already exist in {OUT}/")
+        print()
+        print("  Every experiment reports against these files. Regenerating them would make all")
+        print("  prior results incomparable, and nothing downstream would raise an error.")
+        print()
+        print("  To verify the split instead:   python scripts/audit_splits.py")
+        print("  To deliberately replace it:    python scripts/make_splits.py --force")
+        raise SystemExit(1)
+
     df = pd.read_csv(DATA)
     peptides = sorted(df.peptide.unique())
     print(f"dataset: {len(df):,} rows | {len(peptides):,} peptides | {df.allele.nunique()} alleles")
@@ -391,4 +407,6 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    import sys
+
+    main(force="--force" in sys.argv)

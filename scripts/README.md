@@ -6,9 +6,13 @@ exploratory analysis.
 
 All scripts read `context/dataset.csv` by that exact path and run from the repo root.
 
+**Nothing here is removable.** Every file is cited as provenance somewhere, and the generator in
+particular is what makes the frozen split verifiable rather than an unexplained artifact. Rarely-run
+is not the same as unneeded — it is guarded instead.
+
 | Script | What it does | Run it when |
 |---|---|---|
-| `make_splits.py` | **Generates the frozen splits.** Clusters peptides at Hamming ≤ 2, assigns whole clusters, writes `splits/*.csv` and `split_report.json` | **Almost never.** Running it overwrites the frozen split. It is not an onboarding step |
+| `make_splits.py` | **Generates the frozen splits**, and is the *provenance* of `splits/` — a split with no generator is an unexplained CSV. Clusters peptides at Hamming ≤ 2, assigns whole clusters | **Almost never.** It now **refuses to overwrite** an existing split and exits 1; `--force` is required to replace one deliberately |
 | `audit_splits.py` | Independent brute-force audit — re-derives every distance from the CSVs rather than reusing the generator's index | After any change that could touch the split. Exits non-zero on failure |
 | `measure_leakage_by_distance.py` | Label agreement between peptides as a function of edit distance. The evidence behind `CLUSTER_MAX_DIST = 2` | To re-examine the threshold |
 | `investigate_zero_labels.py` | What `thalf_hours == 0.0` actually is: reporting grid, point-mass size, allele dependence | To re-check the zero-label reading |
