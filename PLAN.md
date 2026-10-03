@@ -146,7 +146,7 @@ Nothing here needs structure, GPUs beyond one small card, or any unresolved deci
 | F1 | **Trivial baselines**: global median, per-allele median. 30 min | — |
 | F2 | **Supervised sequence baseline** (`experiments/000`): peptide one-hot/BLOSUM + pseudosequence **+ explicit allele identity**, LightGBM and/or small MLP, `log1p` target | — |
 | F3 | **The one-hot allele control.** Replace the HLA representation with a one-hot over 75 alleles | If this matches the embeddings, the model is memorising allele identity — a *finding*, and the headline |
-| F4 | **Frozen ESM-2 35M embeddings + head** (`experiments/001`). Cache 5,633 peptide and 75 HLA vectors once, plus the 9 per-residue peptide vectors | Expect ≈ 0.57. Above 0.85 on the main split means stop and audit |
+| F4 | **Frozen ESM-2 35M embeddings + head** (`experiments/001`). Cache 5,633 peptide and 75 HLA vectors once, plus the 9 per-residue peptide vectors | Don't anchor on the paper's 0.574 — that was **650M**, different split, different HLA input. Above 0.85 on the main split means stop and audit |
 | F5 | **Report within-allele Spearman alongside pooled, from the first number onward** | Pooled correlations on this data are partly a between-allele artefact: unrelated pairs score 0.335 pooled and 0.027 within-allele |
 
 ### Differentiators — in value order, each independently killable

@@ -12,6 +12,17 @@ the benchmark with similarity-aware splits, and show a protein language model be
 honestly. They then show published half-lives aren't comparable across lab assays, and fix that by
 conditioning the model on which assay produced the number.
 
+## Two facts verified by the Stability Lens audit (not re-verified here)
+
+From `archive/plans/HACKATHON_PLAN.md`, which checked the paper's released prediction CSVs directly:
+
+- **All 2,700 Stage-2 test `(allele, peptide)` pairs also occur in the sponsor CSV.** So no split of
+  our file can turn the released checkpoint into a blind comparator — however we split, its training
+  data contains our test rows.
+- **The CCC discrepancy is a scale artefact, not two results.** Table 2 reports CCC **on hours**
+  (0.673 vs 0.500); the prose cites **on `log1p(hours)`** (0.788 vs 0.786). Both recompute correctly
+  from the released CSV. Always name the scale when reporting CCC.
+
 ## How this paper relates to our track — read this before using its numbers
 Serova's brief asks the same question this paper answers, so assume the judges know it. **But the
 brief is explicit that this is not a leaderboard** ("we are not looking for an approach that tops an

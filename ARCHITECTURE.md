@@ -67,7 +67,7 @@ rungs**, because that is what attributes a gain to a cause.
 | B0 | Global median, then per-allele median | How much is allele identity alone, with no peptide information |
 | B1 | **Simple supervised neural net** on one-hot/BLOSUM peptide + pseudosequence + explicit allele id | The honest bar. The brief asks for this by name, so the MLP is required — LightGBM is an addition, not a substitute |
 | B1′ | Same, but HLA replaced by a **one-hot over 75 alleles** | **The sharpest control.** If this matches the embedding, the model memorised allele identity rather than using protein knowledge |
-| F0 | Frozen ESM-2 35M embeddings + head | Does a general protein model add anything? Expect ≈ 0.57 |
+| F0 | Frozen ESM-2 35M embeddings + head | Does a general protein model add anything? Don't anchor on the paper's 0.574 — that was **650M**, on a different split, with a different HLA input |
 | F1 | F0 + affinity pre-training transfer | Largest published single jump: 0.574 → 0.745 |
 
 ### Why the embeddings are cheap
@@ -134,6 +134,32 @@ row**: mean-only vs mean-and-std, same head, same split.
 > stochasticity*, which is not a thermal ensemble. On ~200 pairs, generate ensemble A with seeds
 > {1,2,3} and B with {4,5,6}, then correlate per-pair std across them. If std is not reproducible it
 > is measuring solver noise, and the branch should die at this gate rather than at 02:00.
+
+### Which complexes are eligible for this arm
+
+From `archive/plans/HACKATHON_PLAN.md`, which did the mapping work (reported there, not re-verified
+here — we do not hold their consensus reference file):
+
+- The supplied 182-aa domain is an **exact substring of the full heavy chain at offset 24**, and
+  72/75 alleles map to a full sequence. That de-risks construct building considerably.
+- The 3 unmapped names are exactly the engineered `(C67S)` constructs.
+- Three further alleles — `HLA-B*08:03`, `HLA-A*02:50`, `HLA-A*24:19` — have **non-identical**
+  182-aa domains against that reference, so folding their full chains would model a different input.
+
+Quarantining all six from the structure arm costs **2,238 of 28,166 rows (7.9%)** — verified against
+our data. Their measurements stay in the sequence experiment; only the structural arm excludes them.
+
+### Open fork: how the poses are generated
+
+This section assumes **threading onto PDB templates**. `HACKATHON_PLAN.md` specifies **Boltz-2
+co-folding** instead. They are different pipelines with different costs, and the choice is not yet
+made. The relevant asymmetry: threading reuses a template backbone, so peptides on the same allele
+differ mainly in side-chain placement — enough for anchor packing, not for peptide-specific backbone
+bulging. Co-folding predicts a peptide-specific backbone but costs far more per pair.
+
+Decide it with two cheap measurements, not argument: **template coverage across our 75 alleles**
+(free, minutes — thin coverage kills threading outright) and **measured cost per pair for each**
+(five pairs through each pipeline). Neither has been measured.
 
 ## 6. Layer 5 — two heads, because of the floor ○
 
