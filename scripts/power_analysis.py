@@ -1,24 +1,35 @@
-"""How small a difference can our test split actually resolve?
+"""Confidence intervals and paired comparisons on the frozen test split.
 
-An ablation table is only interpretable if its rows differ by more than the noise. This measures the
-minimum detectable effect on the frozen test split, under a paired bootstrap that resamples *peptide
-clusters* rather than rows (rows within a cluster are not independent).
+Two things live here:
 
-Run before the ablation, not after, so the write-up can state what the evaluation can and cannot
-distinguish.
+  1. `single_metric_ci`  -- how wide is the CI on one metric, given our test set size? This is
+     sound, reproduces across runs, and is reported below.
 
-Method and its limits
----------------------
-Predictions are simulated by adding Gaussian noise to the log target, with the noise level tuned by
-bisection to hit a target Spearman. Two caveats, both of which matter for how far these numbers
-generalise:
+  2. `paired_bootstrap`  -- the function to call once TWO REAL MODELS exist. This is the correct
+     way to decide whether an ablation row is interpretable. It is not exercised here because
+     nothing has been trained yet.
 
-  1. Real model errors are structured -- heteroscedastic, allele-dependent, and worse near the
-     censored floor -- while this noise is homoscedastic. Treat the numbers as indicative of
-     resolution, not exact.
-  2. The simulated improvement is spread uniformly across alleles. If a real improvement is
-     concentrated in particular alleles (a foundation model helping most on rare ones, say), the
-     within-allele metric could be more sensitive to it than this shows.
+A retracted synthetic power table
+---------------------------------
+An earlier version of this script simulated predictions by adding Gaussian noise to the log target,
+tuned to hit a target Spearman, and reported a per-metric table of minimum detectable effects. That
+table was published in POWER_ANALYSIS.md and has been retracted. Re-running it did not reproduce,
+and the failure was diagnostic: results were non-monotonic in effect size (Pearson resolved a +0.01
+gap in 4 of 5 realisations but a +0.02 gap in only 1 of 5), which is impossible if the method is
+sound. Two causes:
+
+  FLAW 1 -- the noise was tuned on Spearman, then Pearson and RMSE were measured. Those were never
+  controlled, so the rows were not comparable across metrics. The tuning itself also scattered:
+  a target Spearman of 0.60 realised as 0.594 +/- 0.019, comparable to the +0.01 to +0.02 gaps the
+  table claimed to resolve.
+
+  FLAW 2 -- baseline and improved predictions used independent noise draws, giving an error
+  correlation near zero. Two real models trained on a shared feature matrix typically correlate
+  above +0.8, and a paired test on correlated errors is far more powerful. The retracted table
+  therefore UNDERSTATED how fine a difference we can resolve.
+
+The honest position: the single-metric CI below is real; the cross-metric sensitivity comparison
+needs real residuals, which arrive with the first two trained models.
 
     python scripts/power_analysis.py
 """
@@ -31,101 +42,86 @@ import numpy as np
 import pandas as pd
 
 ROOT = Path(__file__).resolve().parent.parent
-REPS = 200  # bootstrap resamples per realisation
-REALISATIONS = 5  # independent noise draws per (metric, gap) cell
-MIN_ROWS_PER_ALLELE = 12
+REPS = 2000
 
-rng = np.random.default_rng(0)
-df = pd.read_csv(ROOT / "context" / "dataset.csv")
-sp = pd.read_csv(ROOT / "splits" / "peptide_split.csv")
-te = df.merge(sp, on="peptide").query("split == 'test'")
 
-y = np.log1p(te.thalf_hours.values)
-cl, al = te.cluster_id.values, te.allele.values
-clusters = np.unique(cl)
-idx_by_cluster = {c: np.where(cl == c)[0] for c in clusters}
+def load_test():
+    df = pd.read_csv(ROOT / "context" / "dataset.csv")
+    sp = pd.read_csv(ROOT / "splits" / "peptide_split.csv")
+    te = df.merge(sp, on="peptide").query("split == 'test'")
+    return te
 
 
 def spearman(a, b):
     return np.corrcoef(pd.Series(a).rank().values, pd.Series(b).rank().values)[0, 1]
 
 
-def pearson(a, b):
-    return np.corrcoef(a, b)[0, 1]
+def cluster_resampler(clusters, rng):
+    """Resample whole peptide clusters. Rows inside a cluster are not independent."""
+    uniq = np.unique(clusters)
+    idx = {c: np.where(clusters == c)[0] for c in uniq}
+
+    def draw():
+        return np.concatenate([idx[c] for c in rng.choice(uniq, len(uniq), replace=True)])
+
+    return draw
 
 
-def neg_log_rmse(a, b):
-    return -np.sqrt(np.mean((a - b) ** 2))  # negated so that higher is better everywhere
+def single_metric_ci(y, pred, clusters, metric=spearman, reps=REPS, seed=0):
+    """95% CI on one metric, resampling clusters."""
+    draw = cluster_resampler(clusters, np.random.default_rng(seed))
+    vals = [metric(y[i], pred[i]) for i in (draw() for _ in range(reps))]
+    return float(np.percentile(vals, 2.5)), float(np.percentile(vals, 97.5))
 
 
-def within_allele_spearman(a, b, alleles):
-    scores = [
-        spearman(a[alleles == A], b[alleles == A])
-        for A in np.unique(alleles)
-        if (alleles == A).sum() >= MIN_ROWS_PER_ALLELE
-    ]
-    return float(np.nanmean(scores))
+def paired_bootstrap(y, pred_a, pred_b, clusters, metric=spearman, reps=REPS, seed=0):
+    """CI on metric(b) - metric(a), both scored on the SAME resampled rows.
+
+    This is what decides whether an ablation row is interpretable. Call it with two real models'
+    predictions; a CI excluding zero means the difference survived, and one spanning zero means
+    inconclusive -- which is a reportable result, not a failure.
+    """
+    draw = cluster_resampler(clusters, np.random.default_rng(seed))
+    diffs = [metric(y[i], pred_b[i]) - metric(y[i], pred_a[i]) for i in (draw() for _ in range(reps))]
+    lo, hi = np.percentile(diffs, [2.5, 97.5])
+    return float(np.mean(diffs)), float(lo), float(hi)
 
 
-def simulate(y, target_rho, rng):
-    """Noise level tuned by bisection so the prediction lands at target_rho."""
-    lo, hi = 0.01, 20.0
-    for _ in range(40):
-        mid = (lo + hi) / 2
-        if spearman(y, y + rng.normal(0, mid, len(y))) > target_rho:
-            lo = mid
-        else:
-            hi = mid
-    return y + rng.normal(0, (lo + hi) / 2, len(y))
+def main():
+    te = load_test()
+    y = np.log1p(te.thalf_hours.values)
+    clusters = te.cluster_id.values
+    rng = np.random.default_rng(0)
+
+    print(f"test split: {len(te):,} rows across {len(np.unique(clusters))} peptide clusters")
+    print(f"bootstrap:  {REPS} resamples of whole clusters\n")
+
+    print("CONFIDENCE INTERVAL on a single Spearman, by accuracy level")
+    print("  (predictions simulated only to set the accuracy level; the CI width is a property")
+    print("   of the test set, not of any model)\n")
+    for target in (0.45, 0.60, 0.75):
+        lo_s, hi_s = 0.01, 20.0
+        for _ in range(40):  # bisect the noise level to hit the target
+            mid = (lo_s + hi_s) / 2
+            if spearman(y, y + rng.normal(0, mid, len(y))) > target:
+                lo_s = mid
+            else:
+                hi_s = mid
+        pred = y + rng.normal(0, (lo_s + hi_s) / 2, len(y))
+        lo, hi = single_metric_ci(y, pred, clusters)
+        print(f"   rho ~{target:.2f}   95% CI [{lo:.3f}, {hi:.3f}]   width {hi - lo:.3f}")
+
+    print("\nWhat this supports:")
+    print("  Two INDEPENDENTLY reported Spearman values need to differ by roughly 0.05 before the")
+    print("  difference means anything, because their intervals are ~0.05 wide.")
+    print("\nWhat it does NOT support:")
+    print("  Any claim about which metric is most sensitive, or about the minimum detectable")
+    print("  PAIRED difference. A paired test on two models that share a feature matrix is much")
+    print("  more powerful than comparing two intervals, and its resolution depends on how")
+    print("  correlated the two models' errors actually are -- which cannot be guessed.")
+    print("\n  Once B1 and F0 exist, call paired_bootstrap(y, pred_B1, pred_F0, clusters) and")
+    print("  report the mean difference with its interval on every ablation row.")
 
 
-def resample():
-    picked = rng.choice(clusters, len(clusters), replace=True)
-    return np.concatenate([idx_by_cluster[c] for c in picked])
-
-
-print(f"test split: {len(te):,} rows across {len(clusters)} peptide clusters")
-print(f"bootstrap: {REPS} reps, resampling clusters\n")
-
-print("1. CONFIDENCE INTERVAL on a single Spearman")
-for target in (0.45, 0.60, 0.75):
-    pred = simulate(y, target, rng)
-    vals = [spearman(y[i], pred[i]) for i in (resample() for _ in range(REPS))]
-    lo, hi = np.percentile(vals, [2.5, 97.5])
-    print(f"   rho ~{target:.2f}   95% CI [{lo:.3f}, {hi:.3f}]   width {hi - lo:.3f}")
-
-print("\n2. MINIMUM DETECTABLE PAIRED DIFFERENCE, by metric")
-print("   Each cell: how many of the independent noise realisations gave a 95% CI on the")
-print("   difference that excludes zero. A single realisation is a coin toss near the")
-print(f"   boundary, so each cell runs {REALISATIONS} of them.\n")
-
-metrics = [
-    ("Spearman, pooled", lambda a, b, alleles: spearman(a, b)),
-    ("Pearson on log", lambda a, b, alleles: pearson(a, b)),
-    ("log-RMSE", lambda a, b, alleles: neg_log_rmse(a, b)),
-    ("Spearman, within-allele", within_allele_spearman),
-]
-gaps = (0.01, 0.02, 0.03, 0.05)
-
-print(f"   {'metric':<26}" + "".join(f"{g:>+9.2f}" for g in gaps))
-for name, fn in metrics:
-    row = f"   {name:<26}"
-    for gap in gaps:
-        hits = 0
-        for _ in range(REALISATIONS):
-            base = simulate(y, 0.60, rng)
-            better = simulate(y, 0.60 + gap, rng)
-            diffs = [
-                fn(y[i], better[i], al[i]) - fn(y[i], base[i], al[i])
-                for i in (resample() for _ in range(REPS))
-            ]
-            hits += np.percentile(diffs, 2.5) > 0
-        row += f"{f'{hits}/{REALISATIONS}':>9}"
-    print(row)
-
-print(f"\n   Read 5/5 as 'reliably resolvable', 0/5 as 'reliably not', and anything between as")
-print("   'on the boundary' -- which is itself the finding: do not report such a gap as a win.")
-print("\nStable across realisations: the ORDERING. log-RMSE is the most sensitive, within-allele")
-print("Spearman the least (it removes the between-allele confound but each per-allele estimate")
-print("rests on ~38 rows). The exact threshold per metric is not stable; the ordering is.")
-print("Use all three, with different jobs: see PLAN.md section 6b.")
+if __name__ == "__main__":
+    main()

@@ -1,10 +1,11 @@
-# Does our design actually answer the challenge question?
+# Can our evaluation resolve the differences we care about?
 
-**Short answer: yes by construction — but our test split cannot resolve the two gaps we care about
-most, unless we choose the metric deliberately.**
+**Short answer: the honest one is "we will know once two models exist."** A first attempt to answer
+it synthetically produced a per-metric table that did not reproduce, and that table is retracted
+below rather than quietly removed.
 
-Measured 2026-10-03 with `scripts/power_analysis.py`. Nothing is trained yet; these are properties
-of the *evaluation*, not of any model.
+Measured with `scripts/power_analysis.py`. Nothing is trained yet; everything here is a property of
+the *evaluation*, not of any model.
 
 ---
 
@@ -20,87 +21,89 @@ split, with the same head.
 - The frozen, audited split makes any answer honest.
 - Compute discipline and a negative-result path are built in.
 
-## The limit
+## What is solidly established
 
-On the frozen test split — **2,817 rows across 540 peptide clusters** — the minimum detectable paired
-difference in pooled Spearman is **≈0.04–0.05**:
+On the frozen test split — **2,817 rows across 540 peptide clusters** — the 95% confidence interval
+on a single Spearman is about **0.04–0.07 wide**, depending on accuracy:
 
-| true gap | 95% CI on Δ | resolvable? |
+| accuracy | 95% CI | width |
 |---|---|---|
-| +0.01 | [−0.037, +0.034] | no |
-| +0.02 | [−0.003, +0.055] | no |
-| +0.03 | [−0.015, +0.041] | no |
-| **+0.05** | [+0.022, +0.075] | **yes** |
-| +0.10 | [+0.057, +0.111] | yes |
+| ρ ≈ 0.45 | [0.428, 0.496] | 0.068 |
+| ρ ≈ 0.60 | [0.582, 0.638] | 0.056 |
+| ρ ≈ 0.75 | [0.739, 0.782] | 0.044 |
 
-Mapped onto the ablation rows:
+Reproduced across four independent runs. **What it supports:** two *independently reported* Spearman
+values need to differ by roughly **0.05** before the difference means anything.
 
-| Ablation row | Expected gap | Resolvable? |
-|---|---|---|
-| F0 → F1, affinity pre-training | +0.171 published | ✅ comfortably |
-| **B1 → F0, "does a foundation model help"** — *the actual challenge question* | unknown, plausibly small | ⚠️ maybe not |
-| **mean → mean + std**, the novel structural claim | unknown, plausibly small | ⚠️ maybe not |
+That alone justifies the practice: **report a confidence interval on every number**, and never claim
+a 0.02 improvement from two separately quoted figures.
 
-If a well-built one-hot-plus-allele baseline lands near 0.55 and frozen ESM-2 near 0.57, that +0.02
-sits below our resolution. **The single most likely outcome on the two rows that matter most is an
-honest "inconclusive at this sample size".**
+## ⚠ Retracted: the per-metric sensitivity table
 
-## The metric choice changes the answer
+An earlier version of this document carried a table claiming that log-RMSE could resolve a +0.02
+improvement where pooled Spearman needed +0.05, and that within-allele Spearman was least sensitive.
+**That table is withdrawn.** It came from a single run. Re-running it did not reproduce, and the way
+it failed was diagnostic — results were **non-monotonic in effect size**:
 
-Same test split, same simulated improvement, different metric. This is the part worth acting on:
+```
+metric                    +0.01  +0.02  +0.03  +0.05     (n of 5 realisations resolved)
+Spearman, pooled           1/5    3/5    5/5    4/5       <- +0.03 beats +0.05
+Pearson on log             4/5    1/5    2/5    4/5       <- incoherent
+```
 
-| Metric | +0.01 | +0.02 | +0.03 | +0.05 |
-|---|---|---|---|---|
-| Spearman, pooled | no | no | no | **YES** |
-| Pearson on log | no | no | **YES** | **YES** |
-| **log-RMSE** | no | **YES** | **YES** | **YES** |
-| Spearman, within-allele | no | no | no | no |
+A sound power analysis must be monotonic: a larger true effect cannot be harder to detect. Two causes,
+both confirmed:
 
-**log-RMSE resolves a +0.02 improvement that pooled Spearman cannot** — roughly 2.5× finer.
+**Flaw 1 — the metrics were never on a common footing.** Noise was tuned to hit a target *Spearman*,
+then Pearson and RMSE were measured on the result. Those were uncontrolled. The tuning itself also
+scattered: a target of 0.60 realised as **0.594 ± 0.019**, which is as large as the +0.01–0.02 gaps
+the table claimed to detect. The "true gap" was never the stated gap.
 
-### This corrects something we had been assuming
+**Flaw 2 — the simulated models were independent, and real ones are not.** Baseline and improved
+predictions used separate noise draws, giving an error correlation of **+0.010**. Two real models
+trained on a shared feature matrix typically correlate **above +0.8**, and a paired test on
+correlated errors is far more powerful.
 
-We had been recommending *"always report within-allele Spearman, because pooled is confounded by
-between-allele differences"*. That confound is real — unrelated pairs score 0.335 pooled against
-0.027 within-allele. But **within-allele Spearman turns out to be the least sensitive metric of the
-four**, unable to resolve even a +0.05 gap. The reason is sample size: test has ~38 rows per allele,
-so each per-allele Spearman is noisy and averaging noisy estimates stays noisy.
+**The direction of that second error matters: the retracted table *understated* our resolution.**
+The earlier warning — that the two rows we care about most might be unresolvable — was too
+pessimistic. A paired comparison between two models that share features will resolve finer than the
+0.05 implied by comparing two intervals. How much finer depends on how correlated their errors turn
+out to be, which cannot be guessed in advance.
 
-Both facts are true at once, so the three metrics get three different jobs:
+## What to do instead
 
-| Metric | Job |
-|---|---|
-| **log-RMSE** | **Detect** whether a feature block helps. Most sensitive, so this leads the ablation table |
-| **Spearman, pooled** | **Compare** to the literature, which reports rank correlation. Confounded, so never alone |
-| **Spearman, within-allele** | **Check the confound.** Directional only — it is underpowered, so a flat result here is not evidence of no effect |
+`scripts/power_analysis.py` now exposes the function to call once two models exist:
 
-## Why this is a strength, not a problem
+```python
+mean_diff, lo, hi = paired_bootstrap(y, pred_B1, pred_F0, clusters)
+```
 
-The brief says a well-supported negative result counts as much as a positive one. **"Inconclusive,
-with a stated minimum detectable effect" is a stronger result than an unqualified "+0.02".** Most
-teams will report +0.02 as a win. Pre-computing what your own test set can and cannot distinguish is
-precisely the *"watertight evaluation"* the evaluation criteria ask for.
+Both models scored on the *same* resampled clusters, every time. A CI excluding zero means the
+difference survived; one spanning zero means **inconclusive**, which the brief explicitly accepts as
+a result.
 
-Three things follow:
+Three practices stand regardless:
 
 1. **Report Δ with its confidence interval on every ablation row.** Never a bare number.
-2. **State the minimum detectable effect up front**, in the write-up, not an appendix.
-3. **Do not fix this by re-splitting.** A larger test set would break the frozen split and cost more
-   than it buys. Choose the sensitive metric instead.
+2. **State the resolution you actually achieved**, computed from real residuals, in the write-up.
+3. **Do not fix a wide interval by re-splitting.** That would break the frozen split and cost more
+   than it buys.
 
-## Caveats on the method
+## On the three metrics
 
-Predictions are simulated by adding Gaussian noise to the log target, tuned by bisection to hit a
-target Spearman. Two limits worth stating:
+The retraction removes the evidence for ranking them, so the earlier recommendation to let log-RMSE
+lead the ablation table is withdrawn too. What remains is the reasoning that does not depend on the
+simulation:
 
-- Real model errors are **structured** — heteroscedastic, allele-dependent, worse near the censored
-  floor — while this noise is homoscedastic. Read the numbers as indicative of resolution, not exact.
-- The simulated improvement is spread **uniformly across alleles**. If a real improvement is
-  concentrated in particular alleles — a foundation model helping most on rare ones, for instance —
-  the within-allele metric could be more sensitive to it than this shows.
+| Metric | Role | Why |
+|---|---|---|
+| **Spearman, pooled** | Headline, comparable to the literature | Assays disagree on absolute hours but rank consistently. Confounded by between-allele differences, so never alone |
+| **Spearman, within-allele** | Confound check | Unrelated pairs score 0.335 pooled against 0.027 within-allele, so the confound is real and measured. But with ~38 test rows per allele each estimate is noisy — treat a flat result as weak evidence, not as proof of no effect |
+| **log-RMSE / MAE in log space** | Absolute accuracy | Rank metrics hide calibration failure: NetMHCstabpan ranks at 0.876 while its Pearson is 0.532 |
 
-Both caveats point the same way: re-run `scripts/power_analysis.py` against real residuals once the
-first model exists, and replace these projections.
+Which of these resolves a given difference most reliably is now an **open question to settle on real
+residuals**, by running `paired_bootstrap` with each metric once B1 and F0 are trained. That is a
+twenty-minute job at that point and it will be worth more than any amount of further simulation.
 
 ## What this does not cover
 
@@ -110,5 +113,4 @@ first model exists, and replace these projections.
 
 ---
 
-Reproduce with `python scripts/power_analysis.py`. Split counts from
-`splits/peptide_split.csv`; published gaps from Karthikeyan, Vincent & Rubinsteyn, bioRxiv 2026.
+Reproduce with `python scripts/power_analysis.py`. Split counts from `splits/peptide_split.csv`.
