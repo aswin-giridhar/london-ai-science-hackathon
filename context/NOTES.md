@@ -1,7 +1,7 @@
 # Serova Bio — Protein Engineering Track
 
 Sources: `serova_primer.pdf` (the official 3-page brief, read in full 2026-10-03), `dataset.csv`,
-and `spearmint.pdf` (background preprint, **not** part of the brief).
+and `../archive/background/spearmint.pdf` (background preprint, **not** part of the brief).
 
 - Dataset: https://docs.google.com/spreadsheets/d/1NtZNvcF3u0KFn-1bbuA50CF3IXvs1l4HfbaR3KRLvso
 - Brief: https://drive.google.com/file/d/11i-LSRZlgLS7T2IVM-12xuddwuryDmnu/view

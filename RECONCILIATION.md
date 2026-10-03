@@ -1,6 +1,6 @@
 # Reconciliation — where the two planning tracks stand
 
-Two plans were produced independently: `SCIENCE_SKILLS_PLAN.md` / `HACKATHON_PLAN.md` (Stability
+Two plans were produced independently: `archive/plans/SCIENCE_SKILLS_PLAN.md` / `archive/plans/HACKATHON_PLAN.md` (Stability
 Lens) and the work in `context/`, `splits/`, `scripts/`, `experiments/`. They agree on most of what
 matters. This file records **current state** — what is settled, what is open, what needs a human to
 decide. It is maintained as state, not as a log.
@@ -55,15 +55,15 @@ the engineered constructs from the structural arm.
 
 ## 3. Open — needs a human to decide
 
-1. **Canonical location for planning docs.** `HACKATHON_PLAN.md` and the primer now live here, which
+1. **Canonical location for planning docs.** `archive/plans/HACKATHON_PLAN.md` and the primer now live here, which
    resolves most of this. Remaining question is whether they are maintained here or on a laptop.
-2. **A calibration partition.** `HACKATHON_PLAN.md` specifies four partitions (70/10/10/10) because
+2. **A calibration partition.** `archive/plans/HACKATHON_PLAN.md` specifies four partitions (70/10/10/10) because
    split-conformal uncertainty needs a calibration set. The frozen split is three-way and has none.
    If U1 is wanted, carve calibration out of **train** — never from val or test.
 3. **ESM-2 size.** `experiments/001` names 650M; the plan's delivery baseline starts at 35M on
    compute grounds. A size ladder (`BRAINSTORM` R4) would settle it with evidence, and directly
    serves the brief's cost-benefit question.
-4. **Data redistribution.** `HACKATHON_PLAN.md` §3.1 says "store only a downloader/manifest in git
+4. **Data redistribution.** `archive/plans/HACKATHON_PLAN.md` §3.1 says "store only a downloader/manifest in git
    until redistribution terms are checked". The dataset and both PDFs are already committed to a
    public repo on the repo owner's explicit instruction. The SPEARMINT preprint is CC-BY 4.0 so
    redistribution is fine; the Serova dataset's terms have not been checked. Worth a conversation.
@@ -112,7 +112,7 @@ calibration breaks exchangeability, and the distribution-free guarantee no longe
 plan calls uncertainty "non-negotiable", this matters.
 
 Fix: carve a calibration partition out of **train** — never from val or test. This is the same gap
-`HACKATHON_PLAN.md` avoids with its 70/10/10/10 four-way split. Empirical coverage can still be
+`archive/plans/HACKATHON_PLAN.md` avoids with its 70/10/10/10 four-way split. Empirical coverage can still be
 reported either way; it is the *guarantee* that needs clean rows.
 
 **Two smaller notes.** The zero floor is now characterised precisely (§8): `0.0` means half-life
@@ -125,16 +125,16 @@ a goal the brief recognises.
 
 ## 5. Open questions for the Stability Lens authors
 
-1. `training pipeline.pdf` shows Boltz-2 emitting an **Affinity** head alongside Structure. The Boltz
+1. `archive/plans/training pipeline.pdf` shows Boltz-2 emitting an **Affinity** head alongside Structure. The Boltz
    docs state the affinity binder "must be a ligand chain (not a protein, DNA or RNA)", max ~56 atoms
-   recommended — so a 9-mer peptide cannot be the binder. `HACKATHON_PLAN.md` already rejects this
+   recommended — so a 9-mer peptide cannot be the binder. `archive/plans/HACKATHON_PLAN.md` already rejects this
    use. **Is the diagram superseded?** As drawn it cannot be built, and its Stage 2 also places
    Boltz-2 inside the trainer, which is far outside the compute budget.
 2. Are the "three domain mismatches" the same three `(C67S)` constructs, or a separate set?
 3. Does the structural arm need a full heavy chain + β2m construct, given the sponsor supplies only
    the 182-aa α1/α2 domain? That reconstruction looks like the largest single risk in the plan.
 
-## 6. Known inaccuracies in `Peptide-HLA Stability Primer.md`
+## 6. Known inaccuracies in `archive/background/Peptide-HLA Stability Primer.md`
 
 The primer predates the event and is retained as background. Three of its figures do not describe
 this dataset, verified against `context/dataset.csv`:
@@ -148,6 +148,6 @@ this dataset, verified against `context/dataset.csv`:
 The 365-residue figure matters because the primer's pooling argument depends on it: it claims a
 9-mer is diluted to "about 2%" of a mean-pooled representation. With 182 residues it is 9/191 ≈
 **4.7%**. The qualitative advice (pool the chains separately) survives; the number does not. The
-primer also gives only P2/PΩ anchors with no allele-specific exceptions — `HACKATHON_PLAN.md` and the
+primer also gives only P2/PΩ anchors with no allele-specific exceptions — `archive/plans/HACKATHON_PLAN.md` and the
 README are more careful here, and anchor features built from the primer alone would hard-code a
 simplification across all 75 alleles.

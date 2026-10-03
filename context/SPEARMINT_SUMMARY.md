@@ -1,7 +1,7 @@
 # SPEARMINT paper — simplified (verified against the PDF)
 
 Karthikeyan, Vincent & Rubinsteyn (UNC Chapel Hill), bioRxiv preprint posted **29 June 2026**,
-doi `10.64898/2026.06.28.735023`. CC-BY 4.0. Local copy: `spearmint.pdf` (33 pages).
+doi `10.64898/2026.06.28.735023`. CC-BY 4.0. Local copy: `../archive/background/spearmint.pdf` (33 pages).
 *"Peptide:MHC binding stability prediction using protein language models."*
 
 ## The one-paragraph version

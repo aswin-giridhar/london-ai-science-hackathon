@@ -37,11 +37,12 @@ Stability Lens asks a practical scientific question: given a nine-residue peptid
 | **[Architecture](ARCHITECTURE.md)** | **What we are building** — the pipeline, the two tracks, the caching, the two heads, and the ablation table, with diagrams |
 | **[Merged plan and decision](PLAN.md)** | **Start here.** The three proposals evaluated against the brief, the best idea identified, conflicts resolved, and one ordered path with kill criteria |
 | [Reconciliation notes](RECONCILIATION.md) | Per-plan review with the measured evidence behind each resolution |
-| [Track 3 Build Plan](Track%203%20Build%20Plan%20%E2%80%94%20Structure-Aware%20pHLA%20Stability%20Prediction.pdf) | Threading-based structure ensemble, variance-as-kinetic-signal hypothesis, kill gates |
-| [Science Skills revision plan](SCIENCE_SKILLS_PLAN.md) | Detailed proposed construct verification, reference retrieval, structural controls, and delivery gates |
-| [Earlier hackathon plan](HACKATHON_PLAN.md) | Detailed research rationale and implementation proposals; historical decisions may be superseded by this README and the saved split files |
-| [Peptide–HLA background primer](Peptide-HLA%20Stability%20Primer.md) | Background written on 2 October 2026, before the event; retained as reference material |
-| [Working notes](context/NOTES.md), [SPEARMINT summary](context/SPEARMINT_SUMMARY.md), and [paper PDF](context/spearmint.pdf) | Background and earlier analysis; these are not new experimental results |
+| [Track 3 Build Plan](archive/plans/Track%203%20Build%20Plan%20%E2%80%94%20Structure-Aware%20pHLA%20Stability%20Prediction.pdf) | Threading-based structure ensemble, variance-as-kinetic-signal hypothesis, kill gates |
+| [**Archived source material**](archive/README.md) | The three original proposals and background reading, with what was taken from each and why |
+| [Science Skills revision plan](archive/plans/SCIENCE_SKILLS_PLAN.md) | Detailed proposed construct verification, reference retrieval, structural controls, and delivery gates |
+| [Earlier hackathon plan](archive/plans/HACKATHON_PLAN.md) | Detailed research rationale and implementation proposals; historical decisions may be superseded by this README and the saved split files |
+| [Peptide–HLA background primer](archive/background/Peptide-HLA%20Stability%20Primer.md) | Background written on 2 October 2026, before the event; retained as reference material |
+| [Working notes](context/NOTES.md), [SPEARMINT summary](context/SPEARMINT_SUMMARY.md), and [paper PDF](archive/background/spearmint.pdf) | Background and earlier analysis; these are not new experimental results |
 
 The Science Skills document proposes revisions to the earlier hackathon plan; both are planning records rather than execution logs. They retain historical descriptions from before this directory was connected to GitHub. The current README and saved split files describe the current project state. The background primer predates the event and is included as reference material, not as work claimed to have been built during the hackathon.
 
@@ -402,4 +403,4 @@ Further sources and planned tools:
 - [IPD-IMGT/HLA](https://www.ebi.ac.uk/ipd/imgt/hla), [official sequence repository](https://github.com/ANHIG/IMGTHLA), and [data terms](https://github.com/ANHIG/IMGTHLA/blob/Latest/LICENCE.md): allele nomenclature and sequence provenance. The earlier plan inspected release 3.65.0; record the actual pinned release when retrieving inputs.
 - [Allele-specific anchor preferences](https://haematologica.org/article/view/5692) and [experimental limits of anchor optimization](https://pmc.ncbi.nlm.nih.gov/articles/PMC3032881): biological reasons to test rather than assume contact–stability relationships.
 
-See the [revision plan](SCIENCE_SKILLS_PLAN.md) for the detailed evidence boundaries and proposed acceptance tests. Attribute every dataset, pretrained model, structural reference, and external workflow actually used in future experiments.
+See the [revision plan](archive/plans/SCIENCE_SKILLS_PLAN.md) for the detailed evidence boundaries and proposed acceptance tests. Attribute every dataset, pretrained model, structural reference, and external workflow actually used in future experiments.

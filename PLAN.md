@@ -46,7 +46,7 @@ Both splits are frozen, audited, and committed before any model was trained.
 
 ## 2. The three plans
 
-| | **Stability Lens** (`HACKATHON_PLAN.md`, `SCIENCE_SKILLS_PLAN.md`) | **Track 3 Build Plan** (`Track 3 Build Plan — ….pdf`) | **Repo infrastructure** (`splits/`, `scripts/`, `experiments/`) |
+| | **Stability Lens** (`archive/plans/HACKATHON_PLAN.md`, `archive/plans/SCIENCE_SKILLS_PLAN.md`) | **Track 3 Build Plan** (`Track 3 Build Plan — ….pdf`) | **Repo infrastructure** (`splits/`, `scripts/`, `experiments/`) |
 |---|---|---|---|
 | Core move | Controlled sequence→structure→inverse-folding ladder with verified constructs and an evidence ledger | Threading gives a pose *ensemble*; feature **variance** across it is the kinetic signal | Build and audit the measurement apparatus first |
 | Greatest strength | Evaluation rigour. *"Test results report the predeclared comparison; they do not select the winning model"* | One falsifiable original claim, plus hard kill gates at 16:30 / 20:00 / 02:00 / 08:00 | Artifacts that exist and are verified, not proposed |
@@ -131,7 +131,7 @@ ours** (0.0% coverage). That gap is what the split is buying.
 | 3 | `t½ = 0` is "an assay detection floor" | **It is a rounding floor at 0.05 h.** Reporting scale is 0.1 h (98.4% of non-zero values are exact multiples; exactly one row below 0.1) | So `0.0` means "< 0.05 h", left-censored at a *known* threshold. Two-head classify-then-regress handles it; a Tobit with a known cut is also now available |
 | 4 | NetMHCstabpan as "the baseline to beat"; Table 2 as "our scoreboard" | **Reference only, never a target.** It trained on the entire corpus, so our test peptides are in its training data *however* we split | The brief rules it out in its own words |
 | 5 | ESM-2 650M vs 35M | **Start at 35M.** Settle it with a size ladder if there is slack — that *is* the brief's cost-benefit question | `experiments/001` names 650M; Stability Lens starts at 35M on compute grounds |
-| 6 | Boltz-2 affinity head (`training pipeline.pdf`) | **Cannot be used.** Boltz docs: the affinity binder *"must be a ligand chain (not a protein, DNA or RNA)"* | A 9-mer is a protein chain. `HACKATHON_PLAN.md` already rejects this; the diagram appears superseded |
+| 6 | Boltz-2 affinity head (`archive/plans/training pipeline.pdf`) | **Cannot be used.** Boltz docs: the affinity binder *"must be a ligand chain (not a protein, DNA or RNA)"* | A 9-mer is a protein chain. `archive/plans/HACKATHON_PLAN.md` already rejects this; the diagram appears superseded |
 | 7 | 72 alleles (papers) vs 75 (our file) | Both correct: 75 − 3 engineered `(C67S)` = 72 | Row count reconciles to within 3 rows |
 
 ## 6. The path — ordered, with what kills each step
@@ -250,7 +250,7 @@ changed a concrete decision rather than decorating the write-up.
 
 ## 8. Open decisions for a human
 
-1. **The pre-event primer is committed, and `HACKATHON_PLAN.md` says it should not be.** Its own
+1. **The pre-event primer is committed, and `archive/plans/HACKATHON_PLAN.md` says it should not be.** Its own
    words: *"Do not commit or present the pre-event primer … as a newly built submission"* and
    *"because the primer predates kickoff, do not include it or copy its text into the judged artifact
    without organizer approval."* The submission rules say *"Build entirely during the event. No prior
@@ -315,9 +315,9 @@ Checked against the brief text, not from memory. **Gaps are marked as gaps.**
 | `README.md` | Project overview and status |
 | **`PLAN.md`** | **This file — the merged decision** |
 | `RECONCILIATION.md` | Detailed review of each plan, with evidence |
-| `HACKATHON_PLAN.md`, `SCIENCE_SKILLS_PLAN.md` | Stability Lens plans |
+| `archive/plans/HACKATHON_PLAN.md`, `archive/plans/SCIENCE_SKILLS_PLAN.md` | Stability Lens plans |
 | `Track 3 Build Plan — ….pdf` | The build plan |
-| `Peptide-HLA Stability Primer.md` | Pre-event background — see §8.1 |
+| `archive/background/Peptide-HLA Stability Primer.md` | Pre-event background — see §8.1 |
 | `context/` | The brief, the dataset, working notes, the SPEARMINT summary |
 | `splits/` | Frozen splits and what they guarantee |
 | `scripts/` | Split generation, independent audit, two data diagnostics |

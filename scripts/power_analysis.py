@@ -31,7 +31,8 @@ import numpy as np
 import pandas as pd
 
 ROOT = Path(__file__).resolve().parent.parent
-REPS = 400
+REPS = 200  # bootstrap resamples per realisation
+REALISATIONS = 5  # independent noise draws per (metric, gap) cell
 MIN_ROWS_PER_ALLELE = 12
 
 rng = np.random.default_rng(0)
@@ -94,7 +95,9 @@ for target in (0.45, 0.60, 0.75):
     print(f"   rho ~{target:.2f}   95% CI [{lo:.3f}, {hi:.3f}]   width {hi - lo:.3f}")
 
 print("\n2. MINIMUM DETECTABLE PAIRED DIFFERENCE, by metric")
-print("   YES = the 95% CI on the difference excludes zero, so the ablation row is interpretable.\n")
+print("   Each cell: how many of the independent noise realisations gave a 95% CI on the")
+print("   difference that excludes zero. A single realisation is a coin toss near the")
+print(f"   boundary, so each cell runs {REALISATIONS} of them.\n")
 
 metrics = [
     ("Spearman, pooled", lambda a, b, alleles: spearman(a, b)),
@@ -103,21 +106,26 @@ metrics = [
     ("Spearman, within-allele", within_allele_spearman),
 ]
 gaps = (0.01, 0.02, 0.03, 0.05)
-baseline = simulate(y, 0.60, rng)
 
 print(f"   {'metric':<26}" + "".join(f"{g:>+9.2f}" for g in gaps))
 for name, fn in metrics:
     row = f"   {name:<26}"
     for gap in gaps:
-        better = simulate(y, 0.60 + gap, rng)
-        diffs = [
-            fn(y[i], better[i], al[i]) - fn(y[i], baseline[i], al[i])
-            for i in (resample() for _ in range(REPS))
-        ]
-        row += f"{'YES' if np.percentile(diffs, 2.5) > 0 else 'no':>9}"
+        hits = 0
+        for _ in range(REALISATIONS):
+            base = simulate(y, 0.60, rng)
+            better = simulate(y, 0.60 + gap, rng)
+            diffs = [
+                fn(y[i], better[i], al[i]) - fn(y[i], base[i], al[i])
+                for i in (resample() for _ in range(REPS))
+            ]
+            hits += np.percentile(diffs, 2.5) > 0
+        row += f"{f'{hits}/{REALISATIONS}':>9}"
     print(row)
 
-print("\nReading: log-RMSE resolves a +0.02 improvement that pooled Spearman cannot.")
-print("Within-allele Spearman is the least sensitive here -- it removes the between-allele")
-print("confound but each per-allele estimate rests on ~38 rows, so the average is noisy.")
+print(f"\n   Read 5/5 as 'reliably resolvable', 0/5 as 'reliably not', and anything between as")
+print("   'on the boundary' -- which is itself the finding: do not report such a gap as a win.")
+print("\nStable across realisations: the ORDERING. log-RMSE is the most sensitive, within-allele")
+print("Spearman the least (it removes the between-allele confound but each per-allele estimate")
+print("rests on ~38 rows). The exact threshold per metric is not stable; the ordering is.")
 print("Use all three, with different jobs: see PLAN.md section 6b.")
