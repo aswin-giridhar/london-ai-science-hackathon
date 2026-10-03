@@ -36,8 +36,10 @@ the complex survives. Pretrained affinity predictors are a useful transfer sourc
 2. **20% of labels are exactly 0.0** (5,679 rows). That is a floor/detection-limit artifact, not a
    measurement of zero. Options: censored-regression likelihood, a two-stage classify-then-regress, or
    an explicit "unstable" class. Silently `log1p`-ing them treats a censoring boundary as a real value.
+   **The SPEARMINT paper does exactly that** — `log(1+0)=0` straight into MSE, no mention of censoring.
+   So this is a genuine open gap, not something we'd be re-treading.
 3. **The target needs a transform.** `log1p` drops skew from 5.87 to 0.91. Train in log space, report
-   in hours.
+   in hours. The paper uses the same: `log(1 + t½)`, MSE, inverted as `exp(ŷ) − 1`.
 4. **`hla_pseudoseq` cannot separate two alleles.** `HLA-B*14:01(C67S)` and `HLA-B*14:02(C67S)` share
    a pseudo-sequence, producing 368 (peptide, pseudoseq) pairs that collide. Keying on pseudoseq alone
    silently merges them; use `hla_seq` or the allele name as the identity.
@@ -47,15 +49,25 @@ Primary: **Spearman ρ** — the primer notes assays disagree on absolute values
 consistently. Also worth reporting: Pearson r on log, and a top-k shortlist metric
 (precision@10 / recall at fixed FPR), since the clinical use is re-ranking a shortlist.
 
-## Reference numbers (secondhand — from the teammates' artifact, not yet verified against the PDF)
-| Model | Spearman ρ | Caveat |
-|---|---|---|
-| NetMHCstabpan (2016) | 0.88 | reported as trained on its own test data — not a fair target |
-| SPEARMINT (preprint) | 0.79 | clean identity-filtered splits; Pearson r 0.76 |
-| either, on independent IEDB data | <0.4 | assay disagreement between labs |
+## Reference numbers — VERIFIED against the preprint (Table 2, n=2,700 clean test split)
+Full breakdown in `SPEARMINT_SUMMARY.md`; paper at `spearmint.pdf`.
 
-So **0.79 on a clean split is the number to aim at, not 0.88.** If we report a number above ~0.85 on a
-random split, that is the leak in point 1 above, not a result.
+| Model | Spearman ρ | Pearson r | Caveat |
+|---|---|---|---|
+| NetMHCstabpan | 0.876 | 0.532 | trained on its own test data — not a fair target |
+| TLStab | 0.698 | 0.306 | heavy peptide overlap with test set |
+| ESM-2 Direct | 0.574 | 0.515 | **what a naive frozen-embedding baseline gets** |
+| ESM-2 Transfer | 0.745 | 0.714 | + affinity pre-training |
+| MINT Direct | 0.732 | 0.679 | cross-chain attention, no transfer |
+| **MINT Transfer (SPEARMINT)** | **0.791** | **0.761** | honest state of the art |
+| all models, independent IEDB data | <0.4 | — | assay distribution shift |
+
+**0.79 is the number to aim at, not 0.876.** Anything above ~0.85 on a random split is the leak in
+point 1 above, not a result. Affinity pre-training is worth more than the architecture
+(ESM-2: 0.574 → 0.745), so the two-stage curriculum is the cheap win.
+
+Our dataset is this paper's Stage-2 corpus (they report 27,034 rows / 72 alleles vs our 28,166 / 75),
+so their setup is directly reproducible and their numbers are the right yardstick.
 
 ## Candidate approaches (from the primer)
 1. Frozen/fine-tuned protein LM (ESM-2, ESM-C) embeddings + shallow regression head. Cheapest baseline.
