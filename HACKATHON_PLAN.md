@@ -1,215 +1,417 @@
-# Serova track: a leakage-audited foundation-model test for peptide–HLA stability
+# Stability Lens: master execution plan
 
-**Project:** ARE · London AI × Science Hackathon, Serova protein-engineering track. **Status:** research and implementation plan, not an implemented model or a claim of performance. **Working title:** Stability Lens. **Hard deadline:** Sunday 4 October 2026, 14:45 BST per the detailed Resources rules; the kickoff slides round to approximately 15:00, so follow the earlier explicit cutoff. Submit a two-minute demo link, GitHub repository link, and short description. The detailed Resources rules specify first-round 1:30 pitch + 1:30 live demo + 2:00 Q&A, and finals 1:30 pitch + 1:30 demo; slides conflict (first-round 1:30 + 2:00 + 1:30 and an arithmetically inconsistent final-round timing). Rehearse both a **90-second** and **two-minute** demo, ask organizers which controls, and have the recording ready. Five judging criteria are weighted equally: technicality, creativity, usefulness, demo and track/sponsor alignment.[2][3][18]
+**Project:** ARE · London AI × Science Hackathon · Serova Protein Engineering Track. **Working branch:** `sh-arka22/are`. **Status:** current research and implementation roadmap; split tooling exists, but the model and structural pipelines are not implemented. This document governs the proposed work; [Science Skills](SCIENCE_SKILLS_PLAN.md) supplies the detailed evidence/structure companion and the [README](README.md) provides the project overview.
+
+**Reviewed source boundary:** upstream `main` at `de2532f0a0d97067828dfd0077d0b852a845b920`, compared with personal-branch revision `1273a9735ba0d69d8debc5e53a631c611904a8ab`. The documentation revision analyzes upstream code without importing it, modifying scripts, or rerunning scientific measurements. Source behavior, saved reports, earlier reported research, synthetic checks, and future work are distinguished below.
 
 ## 0. Executive decision and falsifiable question
 
-**Question:** On a peptide-similarity-disjoint split of Serova's measured half-life labels, do **sequence-only protein language-model features**, **predicted peptide–HLA 3D interface features**, or **inverse-folding sequence–structure compatibility scores** add out-of-sample signal beyond the same cheap supervised baseline, and at what compute cost? These are the three protein-model classes explicitly listed in the sponsor's supplied primer; success must be measured against the *half-life target*, not a structure RMSD, equilibrium affinity, inverse-folding likelihood, or an in-sample leaderboard number.[5][24]
+**Question:** On the existing peptide-component-disjoint benchmark, do sequence-only protein language-model features, predicted peptide–HLA interface geometry, or inverse-folding compatibility add useful measured half-life information beyond a fair supervised sequence baseline, and at what cost?[5][24]
 
-**Revised spine (sponsor-primer aligned):** keep B1 (small supervised control) and F0 (frozen ESM-2) as fast, same-split baselines; **promote an explicit 3D structure arm** using one multichain model (Boltz-2 first, Chai-1/Protenix only as substitutes) on a predeclared, compute-bounded subset; test whether its physically interpretable contacts improve `log1p(hours)` regression and rank correlation on exactly that subset. On the *same structures*, test a conditional ProteinMPNN peptide score as a third-family exploratory feature. Do not attempt all listed checkpoints or fold all 28,166 pairs; no claim of model improvement exists until the paired ablation is run. The model family, role, eligibility and abort criteria appear in §4.[1][5][23][24][25]
+The target is `thalf_hours`, not equilibrium affinity, pose accuracy, model confidence, or sequence likelihood. A bound structure is a static snapshot; dissociation is a kinetic process. None of the proposed protein models is automatically a validated half-life predictor.[1][5][27][41]
 
-**Decision priority:** a finished B1/F0 comparison plus a negative or positive **paired structure ablation** is a better Serova submission than many impressive 3D pictures with no half-life test. If 3D input preparation or inference fails its gate, ship the validated sequence comparison and report structure as an untested limitation—not a fabricated breakthrough. The published MINT/SPEARMINT stability-trained checkpoints have seen this source corpus and are not independently held-out baselines.[1][4][5]
+The priority order is fixed:
 
-**Claim permitted only after execution:** “Under our fixed peptide-disjoint split, model X changed test Spearman by Δ with a cluster-bootstrap interval, at Y GPU time/cost; here are the failures.” Until then, all numbers in this plan are *source data or previously published findings*, not our own results. The project is a research prioritization prototype, **not** a vaccine-selection or clinical decision tool.[5]
+1. **Trustworthy evaluation:** reuse the frozen inputs and assignments, close the documented validation gaps, and freeze the model-selection protocol.
+2. **Delivery floor:** B0/B1/F0 on the full sponsor dataset with a strong non-foundation baseline, allele-identity controls, within-allele reporting, and actual cost evidence.
+3. **Main scientific extension:** a bounded S0 cohort and paired S1 test of geometry beyond sequence, availability, and confidence.
+4. **Optional extension:** I1 peptide-only ProteinMPNN scoring on the same structures with a fixed-template control.
+5. **Follow-ups:** interaction features, learning curves, larger encoders, calibrated uncertainty, and additional model families only after the core result is viable.
+
+A positive, negative, or inconclusive matched comparison can be a successful scientific deliverable. An unrun branch must remain labeled untested. An inconclusive interval does not prove equivalence; a result from one checkpoint does not settle the value of an entire model family. This is a laboratory research-prioritization prototype, not a clinical or vaccine-selection system.[5]
 
 ## 1. Repository and evidence baseline
 
-- The current folder is `/Users/arkajyotisaha/Desktop/Hackathon/ARE`; it is **not a Git repository**. It holds `Peptide-HLA Stability Primer.md` (background, dated **2 October**, before the event) and this plan, plus `.claude/` settings and a `graft/` cache. There is no model, test suite, deployment or measured improvement here yet. **Submission eligibility:** detailed rules say build entirely during the event, with **no prior commits to the judged repo**; open-source libraries, APIs and pretrained models are allowed with attribution. Do not commit or present the pre-event primer, unrelated `graft/` caches, or old work as a newly built submission. Initialize a clean judged repo containing only event-built code/results, and use the primer for private orientation. Rules permit 2–5 teammates while the Luma listing says 3–5 and in-person only: aim for 3–5 and ask organizers if this matters to the team.[3][19]
-- **New supplied PDF, pinned source:** [`aswin-giridhar/london-ai-science-hackathon/context/serova_primer.pdf`](https://github.com/aswin-giridhar/london-ai-science-hackathon/blob/main/context/serova_primer.pdf) is the same three-page Serova challenge brief as the organizer's Drive file, not a new experimental paper or a directive to train every listed model. It defines a 28,166-row CSV of 9-mer peptides, measured half-life hours, HLA alleles (including three engineered C67S constructs), an **182-residue α1/α2 domain**, and a **34-residue pseudosequence**, with no supplied train/test split; cite Rasmussen et al. for the underlying data.[5][6][10] It explicitly lists **structure predictors, inverse-folding models and protein language models** as *broad candidate classes*, and encourages controlled subsets because compute differs. This revision gives all three classes testable roles without equating inverse folding or affinity with measured half-life.[24]
-- **External team notes are not ground truth:** the linked repository also has `context/NOTES.md` and `SPEARMINT_SUMMARY.md`. Its claim that the supplied **182-aa** `hla_seq` is the paper's **full ~365-aa chain** is false; its assertion that a frozen 35M embedding run will score the paper's ESM-2 Direct ρ≈0.57 on a different split is not an observed result; and the explanation of zero-hour labels as assay detection limits is a plausible hypothesis, not established metadata in the provided CSV. Those notes must not replace the sponsor PDF, paper or a live experiment.[1][5][7][40]
-- **Observed local data audit, 3 Oct 2026:** the publicly linked sheet exported as CSV and was parsed with `csv.DictReader`: 28,166 records, 75 alleles, 5,633 distinct peptides, 75 distinct 182-residue domains, 74 distinct pseudosequences, all peptides 9 aa, 5,679 zero-hour labels, no repeated `(allele, peptide)` pairs, no blank fields. An exact-one-substitution wildcard-index connected-component check found 5,494 peptide clusters, of which 5,376 were singletons; largest contained 5 distinct peptides. Reproduce in `src/data_audit.py`; these are **dataset facts, not model results**.[6]
-- **Concrete HLA mapping gate (checked, not presumed):** the pinned SPEARMINT `refs/2field_hla_consensus_seqs.csv` provides full sequences for **72/75** sponsor alleles; the three missing names are precisely the engineered C67S constructs. In the proposed two-allele pilot, `HLA-A*02:01` maps to a 365-aa full chain and `HLA-B*15:01` to 362 aa; in both, the sponsor's 182-aa domain is an *exact* substring beginning at zero-based offset 24. Among mapped alleles, `HLA-B*08:03`, `HLA-A*02:50` and `HLA-A*24:19` have **non-identical** 182-aa domains relative to this consensus reference, so a fold on those full sequences would represent a different input; quarantine until allele/sequence provenance is reconciled. Do not patch mutant variants onto an unrelated wild-type chain by hand.[5][6][42]
-- **Do not conflate datasets.** Karthikeyan et al. curate **27,034** measurements across 72 alleles from the NetMHCstabpan corpus, and train on 21,626 / validate on 2,705 / test on 2,700.[1] The sponsor gives a less-curated **28,166**-row file with engineered alleles; copy neither the paper's counts nor its pretrained checkpoint's apparent test performance onto this challenge dataset.[5] The sponsor domain is 182 residues; SPEARMINT's public checkpoint expects the *full MHC-I heavy chain*, about 365 residues.[5][7] Map to verified full sequences if doing a separate checkpoint demonstration, otherwise use the supplied 182 residues for new models. Never silently pretend they are equivalent.
-- The preprint reports MINT transfer Spearman 0.791 versus ESM-2 transfer 0.745 on its curated test; the deployed NetMHCstabpan score 0.876 is contaminated by training exposure. **Verified against the released `results/s2_predictions.csv`:** 2,700 test pairs give MINT ρ=0.7906 and NetMHCstabpan ρ=0.8763. The paper's **Table 2** gives CCC **on hours** 0.673 vs 0.500, while prose cites 0.788 vs 0.786 **on `log1p(hours)`**; computing both scales from the released CSV recovers 0.6735/0.4997 and 0.7879/0.7860, respectively. The difference is scale, not two contradictory experimental results. Always name the scale when reporting CCC.[1][4]
-- **Verified exact-label leakage:** all 2,700 Stage-2 test `(allele, peptide)` pairs also occur in the sponsor CSV; 568 of them also appear in the released Stage-3 training table. A new split of the sponsor file cannot turn an existing stability-trained checkpoint into a clean blind comparator. Separately, 979 of the 1,133 Stage-3 test records have a `ref_iri` already appearing in Stage-3 training (154 are new-reference rows): the paper's peptide-disjoint Stage-3 evaluation is **not** automatically new-study generalization.[1][4]
-- **Reanalysis versus full reproduction:** the paper's release contains curated stage splits, configurations, training code, model checkpoints and prediction CSVs, but not an end-to-end script showing every raw-data curation and similarity-split choice.[4] Its prose states 27,034 mapped stability measurements but the three released stability splits total **27,031**; investigate those three omitted rows before claiming exact raw-to-split reproduction.[1][4] An independently executed read-only rank check of released `MINT_stage3_film_v2` predictions gives SPA ρ=0.3591 (217), purified fluorescence 0.5666 (758) and cellular fluorescence 0.2204 (158).[1][4] These are **recomputed metrics from released predictions, not newly run model inference**; the published `unfrozen` variant is a separate method, so pin the method ID. The upstream code's `use_multimer=False` path differs from a strict no-cross-chain-attention ablation, and MINT also has PPI pretraining: do not attribute the MINT–ESM gap causally to cross-chain attention alone.[1][22]
-- The original SPEARMINT code, curated train/val/test tables and prediction outputs are public at a pinned upstream commit `d548dee9b04dd0e3a9d7a50a593d2c030e31d2a5`; Stage 1/2/3 weights also exist on Hugging Face. This supports an **attributed reproduction** and data-schema check, not a novel model claim. The upstream repo lists an MIT code license; confirm the sponsor CSV's redistribution rights separately before committing raw rows.[1][4][7]
+### What actually exists
 
-## 2. Research synthesis → concrete hypotheses
-
-| ID | Located evidence | Proposed test, NOT a known outcome |
+| Asset | Current state | Consequence |
 |---|---|---|
-| G1 · false success by leakage | Sponsor warns the legacy model was trained on the full file; SPEARMINT's supplementary methods describe sequence-similarity and cross-task filtering, not a leave-study-out design.[1][5][20] | Freeze one peptide-component split before training and audit zero cross-split pairs with ≥80% 9-mer identity. No target-dependent checkpoint or label statistics may touch the test set. |
-| G2 · unclear value of a pLM | MINT interaction pretraining and binding-affinity transfer helped in the preprint, but those interventions combine extra supervision and more parameters. Plain ESM-2 checkpoints span 35M and 150M.[1][9][13][14] | Compare a non-pLM baseline, frozen 35M mean-pooled pair representations, and the **same** frozen embeddings plus an explicit interaction head on the full held-out set. |
-| G2a · does 3D improve half-life? | The sponsor lists several sequence→3D models; Abella et al. modeled >150k complexes but used MS/affinity-derived *binary* binder labels, explicitly not quantitative half-life. SwiftMHC predicts structure and **affinity**, currently released for HLA-A*02:01 9-mers—not half-life.[24][27][29][30] | On a locked, same-pair subset, run sequence-only vs sequence+predicted-interface features with the same training/test rows; quantify Δρ, log-MAE, structural quality and per-pair compute cost. |
-| G2b · inverse-folding compatibility? | ProteinMPNN has `--score_only` for backbone/sequence consistency; that conditional likelihood is neither an off-rate nor a demonstrated stability predictor.[25] | On the *same* predicted complexes, score only the peptide chain with HLA held fixed, then train a small supervised residual feature and compare to G2a; include a fixed-template control to expose circular scoring when geometry was generated from the peptide. |
-| G3 · poorly grounded confidence | The paper explicitly calls for uncertainty estimates; conformal intervals have marginal finite-sample coverage *under exchangeability*, not automatic coverage under an assay or allele shift.[1][8][17] | Use a separate validation/calibration partition, show observed test coverage, widths, error vs abstention rate, and stratified failure cases. Abstain on unsupported HLA/assay rather than claim certified patient-specific confidence. |
-| G4 · wrong downstream story | Stability and affinity differ; SPEARMINT reports affinity dominates its eluted-ligand benchmark while stability helps some downstream immunogenicity rankings, but one clinical cohort favors affinity.[1][10] | Demo an **illustrative HLA-specific laboratory screening queue** ranked by measured/predicted half-life. Do not call 9-mer rows “patient data” or precision@10 “clinical benefit.” |
-| G5 · delivery risk | Sponsor requests testable conclusions, engineering/compute realism, and biological context, not a leaderboard; a visually polished demo alone cannot answer that question.[5] | Pre-record the paper/source, split manifest, baseline, costs, ablations and a one-screen failure case. Deadline freeze precedes demo recording. |
+| `context/dataset.csv` and `.xlsx` | Checked-in challenge data | Use the CSV as the canonical computational input; do not create an untracked competing export |
+| `splits/peptide_split.csv`, `allele_split.csv`, `split_report.json` | Frozen assignments and saved generation report | Consume and fingerprint them; do not regenerate to improve a score |
+| `scripts/make_splits.py` | Existing generator | Running it overwrites the split artifacts |
+| `scripts/audit_splits.py` | Existing independent distance computation and diagnostics | Its current pass/fail gates do not fully enforce the current split contract |
+| `scripts/measure_leakage_by_distance.py` | Local earlier diagnostic; newer upstream version inspected | Distinguish local behavior from upstream analysis A/B |
+| `experiments/` | Proposals, template, and result placeholders | A proposal is not a trained model or a measured result |
+| This plan, Science Skills companion, README | Current planning/documentation layer | Define future requirements, not completed scientific work |
+| Training code, model tests, evidence registries, structures, app | Not implemented in this checkout | Do not advertise runnable training/deployment commands or invented results |
 
-**Literature hierarchy.** Rasmussen et al. (2016) supply the domain-specific pan-stability precedent; Ullanat et al. (2026, peer-reviewed) motivate interaction-aware embeddings; Karthikeyan et al. (2026, **bioRxiv preprint, not peer-reviewed**) provide the stringent pMHC experiment and public weights; Romano et al. (2019) and Tibshirani et al. (2019/2020) describe conformal methods and their exchangeability/shift caveat. These motivate tests, not proof of our architecture's novelty or benefit.[1][8][9][10][17]
+This existing repository is the project workspace; do not initialize another Git root under `submission/`. The [background primer](Peptide-HLA%20Stability%20Primer.md) was written before the event and is retained as attributed reference material, not newly built hackathon implementation. Event eligibility and source redistribution conditions remain organizer/source questions, not assumptions inferred from public GitHub availability.[3][19]
 
-**3D research gap (why this is a hypothesis, not a result):** PANDORA models peptide–MHC structures using a published template database and implementation.[28][33][37] TFold models structures with an AlphaFold-based pipeline.[31] Neither pose benchmark demonstrates lower measured half-life error.[28][31] Abella et al. (2020) trained a structure/contact-based random forest on **stable-binder proxies** from mass spectrometry and weak-affinity negatives, explicitly noting that they did **not** regress a multi-allele experimental half-life target.[27] SwiftMHC (2026, peer-reviewed) predicts **3D structure and equilibrium binding affinity** for its released HLA-A*02:01 9-mer model, not half-life; that covers 1,023 rows in the sponsor CSV, not every allele.[29][30][6] Molecular simulations reveal alternate peptide unbinding pathways, which is precisely why one static bound conformation is an incomplete description of an off-rate.[41] To date this bounded search did not locate a large, publicly verified, matched *(pHLA 3D complex, measured half-life)* dataset; here the sponsor supplies half-life labels but no 3D coordinates, so coordinates must be modeled or carefully joined to experimental structures with provenance checks.[5][24][27]
+### Frozen dataset and split findings
 
-## 3. Data and evaluation contract — freeze this BEFORE running models
+The following are **saved-report or previously reported audit findings**, not newly recomputed model results.[6][46]
 
-1. **Acquire and fingerprint:** retrieve the event's publicly linked sheet to `data/raw/serova.csv` locally, log URL, retrieval date, SHA-256, headers, row count and target units; store only a downloader/manifest in git until redistribution terms are checked. Retain three engineered alleles explicitly, with a flag so the evaluation can report them separately.[5][6]
-2. **Validate:** reject nonstandard amino acids, non-9-mers, invalid negative/non-finite half-lives, conflicting allele→sequence mappings, empty features, and accidental duplicate `(allele, peptide)` observations. Log removals; don't quietly repair HLA constructs or pseudosequences. **Observed collision:** `HLA-B*14:01(C67S)` and `HLA-B*14:02(C67S)` share a 34-residue pseudosequence, creating 368 repeated `(peptide, pseudosequence)` keys (not duplicate peptide–allele rows); keep allele identity in B1 rather than merging different targets. The observed zero-hour labels require `log1p(hours)` rather than a bare log, but without assay limit metadata do **not** assert that zeros represent a specific censoring threshold.[1][5][6]
-3. **Group globally by peptide sequence:** for 9-mers, ≥80% identity by normalized Levenshtein includes identical or one-substitution pairs. Build connected components of that one-edit graph *across all alleles*. Assign entire components to **train/development/calibration/test** (e.g. target 70/10/10/10 by row count); balance allele and `log1p` label bins in a predeclared deterministic algorithm *without* splitting a component. Some alleles may be too sparse for separate calibration; log count/availability and never force a broken stratification. Fix seed(s), save row IDs and the split hash; do not pick the best test score over several seeds. Verify no cross-partition peptides meet the similarity threshold.[1][5]
-4. **Lock test once:** train heads on training rows; choose hyperparameters by grouped CV **inside training** or the development partition. Use the reserved calibration rows *only after* freezing the model and selection decisions; evaluate the test partition once. If calibration sample sizes per allele are inadequate, publish pooled empirical intervals and descriptive subgroup coverage only. For a tiny timebox, use one fixed split and optionally report prespecified sensitivity splits after the primary analysis; do not optimize to them.[8][17]
-5. **Metrics:** primary Spearman ρ over held-out peptide–allele pairs, paired Δρ against the strongest fair baseline, with cluster-bootstrap resampling by *peptide component* (not independent rows), and seed variability if retrained. Secondary MAE/RMSE in `log1p(hours)`, CCC with its scale stated, per-allele performance for sufficiently supported alleles, and compute/inference time. A screening illustration may report top-10 measured half-life enrichment **within an allele with enough held-out rows**, not an invented per-patient precision@10. Plot test residuals by half-life range and allele, including zero-hour behavior.[1][5]
-6. **Comparison firewall:** use exactly the same peptide-component split for all freshly trained baselines and pLM heads; within S0 compare all four branches on the identical pairs. Released NetMHCstabpan, TLStab, MINT transfer and SPEARMINT weights trained on source stability labels are **not** blind baselines on this sheet. The structure predictor may carry PDB/templates and other supervision, so record sequence/template overlaps and pretrained tasks; never imply equal training histories or pass a label-trained half-life checkpoint into S1. Show published prior metrics separately as *different data/split* and never feed them into the primary head.[1][4][5][27]
-7. **External evaluation optional:** a genuinely independent assay/allele set requires proof of no overlap with every supervised source and compatible assay metadata. The original paper documents a substantial shift between SPA and fluorescence; good sponsor-sheet performance does not imply that transfer has been solved. If no genuinely clean external assay test is ready, show limitations rather than simulate one.[1]
-8. **3D-specific split lock:** choose the *same* component-disjoint rows for B1/F0/S1/I1 before folding; preserve allele and pair identifiers in every PDB/mmCIF and feature row. Audit whether the structure model/template library has the exact or very similar peptide–HLA complex; if so, report the structure-template exposure and do not call pose accuracy a novel blind result. Log the exact HLA heavy-chain sequence used, mapping from the 182-aa supplied α1/α2 domain to a verified full chain, β2-microglobulin inclusion, mutations, missing residues and chain IDs. Exclude engineered C67S constructs from the 3D arm until their *mutant* full sequence is verified—never substitute a wild-type structure silently.[5][7][28][31]
-9. **3D feature contract:** compute contacts only across the peptide/HLA interface, with a prespecified heavy-atom distance cutoff; normalize contact counts for complex size, predeclare anchor positions P2/P9, and keep predicted structure confidence separate from the stability target. Fit any standardization, imputers or feature selection on *training folds only*. If a fold misses the binding register or clashes heavily, mark the prediction invalid and report failure rate, rather than selecting only successful test cases.[2][24][28]
-
-## 4. Models and ablation plan
-
-### The supplied primer's complete model menu, with an executable selection
-
-The primer **names examples**, not twelve required integrations. Pick **one verified representative per family**, use the rest only as prespecified alternatives, and keep their outputs distinct from measured half-life.[24]
-
-| Primer family / candidate | Role now | Specific gate or reason not to substitute blindly |
-|---|---|---|
-| **Structure — Boltz-2** | Primary 3D co-fold probe: peptide as a **protein chain**, HLA as another; add β2-microglobulin/template if required by the chosen input protocol | Verify sequence mapping and a small complex's chain identities, physically plausible peptide-in-groove geometry, and actual GPU seconds. Its `properties.affinity` binder is **small molecule only**; never use that output as peptide affinity or half-life.[23] |
-| **Structure — Chai-1** | Replacement if Boltz-2 input/prediction gate fails | Multi-chain FASTA supported, but current package specifies Linux, CUDA and BF16; its default multiple structure samples increase runtime. Benchmark a few complexes first.[34] |
-| **Structure — Protenix** | Second replacement if the team already has it running; Mini variant may be cheaper | Input/schema/weights and the selected version must be pinned; no claim it predicts a peptide off-rate.[35] |
-| **Structure — ESMFold / ESMFold2** | ESMFold can supply a single-chain HLA fold only; ESMFold2 is a possible complex alternative after a pMHC smoke test | A folded HLA **alone** is not a peptide-bound complex. ESMFold2's complex ability does not certify its pMHC register, peptide pose, or off-rate; verify model access and input contract before scheduling.[32][38] |
-| **Inverse — ProteinMPNN** | Primary geometry-conditioned **peptide sequence score** on a fixed pMHC backbone; optional design candidates later | `--score_only` exists. Hold HLA fixed, normalize peptide-only log likelihood by designed-residue count, and record whether the geometry was modeled using that same peptide to expose circularity. Scores are not half-lives.[25] |
-| **Inverse — LigandMPNN / ESM-IF** | Optional redesign/scoring only after ProteinMPNN path passes | LigandMPNN can model atomic context but its current README lists native sequence-scoring examples as unfinished; ESM-IF chain-context semantics must be verified. No predictive credit without matched test labels.[26][32] |
-| **Language — ESM-2** | F0/F1 independent frozen sequence control, no supervised stability pretraining | Checkpoint+tokenizer pinned; trained small head on our own split only.[13] |
-| **Language — ESMC / ProtT5** | Alternate sequence encoder when an end-to-end baseline already works | Different tokenizer, feature dimension and runtime; a model swap is not one line, and retraining heads must use the identical split.[38][39] |
-| **Structure-aware language — SaProt** | Optional sequence+3Di structural tokens derived from a *validated* fold | Its 35M/650M frozen embeddings require structural-alphabet tokens for optimal use; AA-only frozen features are an invalid equivalent comparison.[36] |
-
-**Selection output:** publish `models/selection.md` with exact checkpoint version, licence, input chains, runtime/memory probe, and go/no-go result for the chosen family representative. Inverse-folding models redesign/score sequences *conditional on geometry*; they do **not** convert sequences into coordinates and do not output measured dissociation half-life by themselves.[24][25]
-
-### Where the 3D structure is actually used (and where it is not)
-
-The sponsor sheet contains sequences and measured hours only — **no coordinates**. Every geometric quantity in S1 (hydrogen-bond geometry, P2/P9 pocket packing, contact maps, buried interface area, clashes) therefore has to be *generated*, which is the entire reason a structure predictor appears in this plan. The 3D model's job is to emit coordinates; all predictive claims are made by a small supervised head fitted on measurements taken **from** those coordinates.
-
-```text
-peptide 9-mer + validated HLA construct sequence (+β2m if required)
-        ↓   Boltz-2 co-fold, pinned checkpoint          ← the 3D step
-    predicted complex: per-atom coordinates + confidence
-        ↓   pose QC: peptide in groove? register correct? clashes?
-        ↓   featurize from coordinates (interface only)
- H-bond geometry · anchor pocket depth · contact map · buried area
-        ↓   regularized head on S0 training rows
-    predicted log1p(half-life) → compared with F0 on the SAME held-out pairs
-```
-
-Three uses, in priority order:
-
-1. **Feature generation (the scientific point).** A hydrogen bond cannot be counted without atom positions, so coordinates are the prerequisite for the mechanistic features, not a decorative extra. Boltz-2 is used strictly as a coordinate generator — its `properties.affinity` head is small-molecule only and is excluded.[23]
-2. **Validity filter.** A fold that ejects the peptide or misplaces the register yields an *invalid* row; invalid folds stay in the denominator and are reported as a failure rate rather than silently dropped.
-3. **Substrate for I1 and for the demo.** ProteinMPNN scores the peptide conditional on that backbone, so it consumes the same structures; the pose is also the one artefact a judge can read at a glance beside the ablation table.
-
-**Why this stays an experiment.** A co-fold returns a single static *bound* pose, whereas half-life is a kinetic property of *leaving* — and simulations report different unbinding pathways for related peptides, so one snapshot may simply not carry the escape information.[27][41] Structure-based pMHC classifiers to date were trained on binary binder labels rather than a multi-allele measured half-life target, so no published result licenses the assumption that coordinates reduce half-life error.[27] S1-vs-F0 on identical pairs is the test; a null result is a reportable finding, not a failure to ship.
-
-### Paired experimental ladder (the comparison, not an architecture collage)
-| Run | Inputs/training | Why it exists | Go/no-go |
-|---|---|---|---|
-| B0 | Training-only median `log1p(hours)` by HLA, global fallback | Sanity/failure floor | Completes with saved test predictions. |
-| B1 | **Strong, non-foundation supervised control:** B1a uses peptide positional one-hot (9×20) + 34-residue pseudosequence positional one-hot **plus explicit allele identity**; B1b uses peptide one-hot + supplied 182-residue HLA-domain positional encoding (with strong regularization). Select the stronger on train/development only, report both. The pseudosequence by itself aliases two engineered alleles and makes a weak strawman | Fair baseline against 3D/inverse features with all available raw sequence information, not just a deliberately narrow 34-mer | Produces saved test metrics, per-allele plot and a collision test.[5][6] |
-| F0 | Frozen `facebook/esm2_t12_35M_UR50D`; encode each of 5,633 distinct peptide sequences and 75 distinct supplied 182-aa HLA domains **once**; cache pooled vectors plus the peptide's 9 per-residue vectors (so F1 can access P2/P9 without recomputing); concatenate pooled vectors; train a regularized Ridge/MLP head on pairs | Compute-aware independent foundation-model test | A matching sample passes sequence, shape, label and inference-smoke tests; train within GPU budget.[6][13] |
-| F1 | **Same embeddings and same split** as F0; add element-wise peptide/HLA feature interaction and the cached peptide P2/P9 per-residue vectors; match regularization/head parameter budget | Tests whether pair interaction or anchor positions help beyond independent pooled chains; this is a controlled engineering ablation, **not** a claimed new pooling idea (MINT already supports separate-chain pooling).[22] | Retain only if development-set improvement holds and the locked-test ablation supports it; otherwise publish the negative result. |
-| S0 · **paired-subset control** | Before any new test predictions, declare the structural cohort by allele support and peptide-component split; e.g. pilot `HLA-A*02:01` and `HLA-B*15:01` (observed 1,023 and 1,070 sponsor rows) with a seeded, bounded draw **within each original partition**. Evaluate B1/F0 on exactly these rows; also refit a matched-size head on subset training rows | Separates a smaller-cohort effect from a 3D-feature effect | Publish sampled IDs, per-partition counts and support. If the GPU cost probe caps test rows too severely, mark results descriptive only. |
-| S1 · **3D contacts** | On S0's *same* pairs, co-fold peptide + a validated HLA **construct** (the supplied 182-aa α1/α2 domain or a matched mature extracellular HLA sequence, with β2-microglobulin if the model/template needs it), rather than feeding a precursor's signal/transmembrane region blindly, with a pinned Boltz-2 checkpoint. From physically plausible poses compute masked peptide–groove contact maps, P2/P9 pocket packing, hydrogen-bond geometry, buried interface area, clashes and model confidence; fit regularized structure-only and `F0+structure` heads on S0 training rows | Tests incremental structural signal against the **same** baseline, split, labels and HLA mix | Require same-pair ΔSpearman/Δlog-MAE with paired component bootstrap and actual GPU seconds/cost; no claim from a good-looking pose alone.[23][27] |
-| I1 · **inverse-folding compatibility** | Run ProteinMPNN peptide-only `--score_only` on the **same** S1 structures with HLA fixed; train `F0+S1+MPNN` head on S0 training rows. Repeat the score on an allele-matched fixed template (or matched structure not generated from that peptide) as a circularity control | Tests whether a geometry-conditioned sequence likelihood predicts **measured half-life**, rather than only fitting a structure it helped define | If chain isolation or input alignment fails, report untested; if no held-out gain over S1, remove from demo. Do not rank redesigned peptides as validated without measured outcomes.[25] |
-| HY · optional **fusion** | With all three family outputs frozen, fit the same regularized head on `F0` alone / `F0+S1` / `F0+S1+I1` using only S0 train/development | One causal incremental-feature ladder, rather than three incomparable leaderboards | Use the locked S0 test once; report ablation support, uncertainty and compute. No superiority claim if CI is inconclusive. |
-| F2 · stretch | Frozen ESM-2 150M on same sequences/splits, same head; optionally ablate 182-aa domain versus pseudosequence as a *sequence input* after confirming artificial pseudo-sequence encoding is biologically meaningful | Scale–accuracy curve, **lower priority than S1** | Only after B1/F0 and S1, and cost estimate passes budget.[14] |
-| U1 · stretch | Split-conformal residual interval around chosen model's `log1p(hours)` prediction; calibrated only on held-out calibration rows; invert with `expm1`, clamp any negative lower bound to zero | Empirical research confidence and triage | Show nominal vs realized coverage, interval width, group failures, and review/abstain fraction; do not claim validity under shift.[8][17] |
-
-**Mechanistic and compute ablations:** on the *full sponsor set*, isolate F0 vs F1 with fixed encoder, split, training data, head capacity and seed. On the **smaller frozen S0 set**, compare B1, F0, F0+S1 and F0+S1+I1 (and structure-only) using identical rows; do not compare a subset score directly to a full-corpus score. Record structure failures, interface quality, folding time, storage and per-pair cost before claiming utility. A static co-fold is only a bound pose, whereas dissociation is a kinetic process that may involve alternate unbinding pathways; geometric contacts/MPNN likelihood are *hypotheses* to test against half-life, not proxies guaranteed to be predictive. Defer 150M PLM, 650M fine-tuning and all-dataset complex folding until the B1/F0/S1 ladder works.[1][27][41]
-
-### Decision records and rejected alternatives
-
-- **One controlled three-family comparison, not every checkpoint.** The sponsor explicitly offers structure predictors, inverse-folding models and pLMs as model classes; answer whether each adds *incremental measured half-life signal*, not whether it makes plausible pictures or sequences. Retain the full-corpus B1-vs-F0 test as the delivery floor, then a **same-pair, same-split** S0→S1→I1 ladder as the differentiator. The falsifier is non-positive out-of-sample gain or a cost/failed-structure rate that makes the gain unusable; a negative result for one 35M PLM, one co-folder or one MPNN is not a blanket judgment on its entire family.[5][24][27]
-- **Use ESM-2 35M first, not an untested “one-line ESM-C swap.”** The public checkpoint and tokenizer are independently accessible, fitting a weekend throughput budget. A separate ESM-C branch may be proposed only after validating its own tokenizer, pooling and checkpoint/license, with a matched ablation; it is not a drop-in replacement nor the only way to satisfy the sponsor.[13][14]
-- **Reject EL pretraining for this MVP.** The paper deliberately held eluted-ligand labels back as a downstream endpoint; TLStab already explored affinity + eluted-ligand transfer in a different architecture. Once EL trains a model, that dataset is no longer an untouched external endpoint. A multi-task PLM remains a follow-up, not a validated novelty claim or weekend prerequisite.[1][21]
-- **Reject Boltz-2 affinity scoring of peptide-as-protein, not its co-folding.** Official prediction docs restrict the affinity binder to a *small-molecule ligand chain*, not a protein peptide chain. In S1 use the co-folded **coordinates only** to extract features and test those against measured half-life; structural confidence is a pose-quality indicator, not a dissociation-time label.[23]
-- **Retrospective uncertainty-only fallback, explicitly separate from the sponsor answer:** released `MINT_stage3_film_v2` prediction CSVs can test *empirical* assay-stratified residual intervals without loading 0.8B weights. Split the paper's 1,133 Stage-3 test rows into a new calibration and analysis partition **by peptide similarity**, with method ID frozen and no reuse of author-selected validation for calibration; report coverage and width for SPA/PF/CF, and show the 154 unseen-reference rows separately as a small descriptive stress slice. This cannot be sold as a fresh checkpoint evaluation, a new-study coverage guarantee, or a substitute for B1-vs-F0 on Serova's 28,166 rows.[1][4][8][17]
-
-## 5. Intended flow, files and interfaces
-
-```text
-Serova CSV → audit + SHA-256 → peptide-component split manifest (locked)
-           ├─ full corpus: B0/B1 small supervised controls
-           ├─ full corpus: unique peptide+HLA domain → frozen ESM-2 → F0/F1
-           └─ SAME-PAIR S0 subset across train/dev/cal/test partitions:
-                    allele → verified HLA construct(+β2m if needed); peptide → Boltz-2 co-fold
-                    → pose QC + peptide–groove contacts/anchor features (S1)
-                    → ProteinMPNN conditioned peptide-only score (I1)
-                    → controlled heads: F0 | F0+S1 | F0+S1+I1
-                         ↓ fixed held-out metrics + per-pair GPU cost/failures
-Calibration holdout → optional U1 interval (never fitted to test)
-                         ↓
-Streamlit: peptide + allele → actual half-life model prediction/rank,
-          contacts/3D pose only where computed, reliability flags and provenance
-```
-
-**Judged-code location:** a *new* `submission/` subdirectory beneath ARE, created during the event, is the intended clean Git root; this research plan remains at the ARE root. Ignore `../Peptide-HLA Stability Primer.md`, `../graft/`, cached exports and secrets when creating the submission. Because the primer predates kickoff, do not include it or copy its text into the judged artifact without organizer approval.[3]
-
-**Planned files inside `submission/`, not yet present:** `README.md` (one-command setup, claim and honest limitations); `pyproject.toml`; `src/data_audit.py`, `src/split.py`, `src/embed.py`, `src/structure_inputs.py`, `src/fold.py`, `src/pose_qc.py`, `src/interface_features.py`, `src/inverse_score.py`, `src/train.py`, `src/evaluate.py`, `src/uncertainty.py`, `src/app.py`; `modal_app.py` (bounded GPU embedding/folding and optional inference); `models/selection.md`; `tests/test_split.py`, `tests/test_labels.py`, `tests/test_chain_mapping.py`, `tests/test_interface_features.py`, `tests/test_inverse_score.py`, `tests/test_metrics.py`, `tests/test_inference.py`; `data/manifest.json` (URL/hash/schema/split seed, *not* raw CSV); `data/structures_manifest.jsonl` (row IDs/checkpoint/chain IDs/pose-quality/failures; raw PDBs kept in a versioned, access-controlled store rather than committed blindly); `configs/experiment.yaml`; `results/metrics.json`, `results/paired_ablation.csv` and frozen predictions (if data rights permit); `docs/demo_script.md`. Do not populate plots or metrics with fabricated values.
-
-**3D interfaces:** `fold_one(row_id, peptide, hla_construct_sequence, hla_construct_type, beta2m_sequence?, checkpoint_revision) -> {structure_uri, chain_map, confidence, seconds, status}`; `featurize(structure_uri, chain_map) -> fixed schema with contacts, anchor features, clashes, nullability and QC status`; `score_inverse(structure_uri, peptide_chain_id, fixed_hla_chains) -> peptide_normalized_log_prob or explicit failure`; `predict(peptide, allele) -> {predicted_hours, model_id, calibrated_interval_or_null, structure_uri_or_null, provenance, warning}`. The Streamlit UI can call local Python functions directly; a deployed Modal endpoint is **optional** and must expose the same data contract, not an undocumented custom response. Store hashes and checkpoint revision to prevent mixing structures/features from different model versions.[23][25]
-
-**Contracts:** one row is `(allele, peptide, thalf_hours, hla_seq, hla_pseudoseq)`; label transform `y=log1p(max(t_half_hours,0))`; prediction `t_hat=max(expm1(y_hat),0)` for presentation; every result records dataset hash, model/checkpoint revision, split ID, git commit, train seed, GPU type, training/inference duration, and comparison category. Demo inputs must reject unsupported alphabets/lengths and identify out-of-distribution alleles. If the interface shows an “assay” switch, it must use a model actually conditioned on assay—this sponsor CSV has no assay column, so the MVP **must not** display a pretend assay slider.[1][5][6][7]
-
-**First executable milestone:** initialize a repo and package, run a bootstrap import/`pytest -q` smoke test, then parse the sponsor CSV, lock split and verify overlap tests before building anything GPU-heavy. This folder currently has no tests or scripts to run; later tests are acceptance gates, not claimed successes.
-
-## 6. Sponsor/platform allocation (do not force logos into the architecture)
-
-| Platform / offer from event | Exact role for *this* project | Gate / caveat |
-|---|---|---|
-| **Serova**: Track 3 and dataset/brief | Scientific customer: judge split hygiene, half-life accuracy, cost, failure analysis; ask a mentor which HLA/assay and decision threshold matters most | The official brief values sound negative results; a nice UI cannot replace fair training/evaluation.[3][5] |
-| **Modal**: event advertises $150 credit per builder and a “Best use of Modal” challenge | Two *bounded*, independently metered jobs: (1) frozen ESM embeddings, (2) Boltz-2/Chai-1 small complex-fold probe then selected S0 folds; cache weights and structure outputs in a durable Volume or verified object store; parallelize only after measuring per-pair runtime and estimating the full pilot cost | Credit is **offered**, not verified redeemed; Modal docs say GPU use requires a valid payment method. Set explicit job/concurrency/budget caps and stop before runaway GPU spend. Modal use alone does not guarantee a prize.[3][11][12] |
-| **Hugging Face**: event advertises an approximately $20 HF Jobs/zeroGPU coupon | Pull public ESM-2 model pinned to revision; publish model card or optional lightweight demo after license/provenance check | Coupon and access unverified; public weights need no coupon, HF SPEARMINT checkpoint is target-supervised and not an eligible held-out comparator.[3][4][7][13] |
-| **Cognition / Devin**: event advertises $200 credit plus one month Devin Max | If available, assign a bounded, auditable reproduction of published prediction tables and tests, followed by a distinct new Serova-split ablation; inspect every PR and re-run numerical checks locally | **Sponsor-rule conflict:** the Resources page describes “reproduce a published scientific paper, then go further”; kickoff slides instead require **at least five parallel Devin sessions**, each ending in a branch/PR (GPU work on Modal). Ask Cognition/organizers which definition controls; a bioRxiv *preprint* may not meet “published paper,” so do not claim the side prize without confirmation. A single Devin session is useful for the main track but not demonstrably eligible for its special prize. Access requires the event-registration email.[1][3][4][18] |
-| **Google DeepMind / Antigravity 2.0**: temporary 48-hour event access | Parallel literature or code-review assistant, not the model used to predict pMHC; export any artifacts to this local repo | Access starts on activation; event page says hosted resources are deleted after 4 Oct. Do not mistake an IDE/research-agent offer for a guaranteed Gemini model API.[3][16] |
-| **Anthropic**: optional $200 Claude API credits for confirmed participants | Claude Code can help implementation **only after checking its live auth route**; the event API credit is a separate, optional route for bounded tasks | At final inspection `claude auth status` reported `authMethod: api_key` (`/login managed key`), **not** Claude Pro, despite an earlier Pro login; this may incur Console/API billing if used now. To restore included Claude Code Pro usage, re-run `claude auth logout` then `claude auth login --claudeai` interactively and verify `claude auth status --text` says `Login method: Claude Pro account`. Hermes Anthropic OAuth cannot use Pro's included allowance. Never put raw credentials in repo/demo.[3] |
-| **Amass**: event advertises $500 team API credits | Optional literature/provenance lookup for biological rationale and related immunotherapy studies, with DOI links in the demo evidence drawer | Its scientific-evidence API does **not** substitute for measured half-life labels or independent experimental validation. Access and query budget unverified.[3][15] |
-| **GXL / Paperclip**: event advertises unlimited event credit | Optional coordination/workflow support only if already available | No event onboarding link was present at inspection; skip unless using it directly resolves a bottleneck.[3] |
-
-Other sponsor logos (e.g. Cambridge Compute, Polaron, Originator, IQC) do not establish a usable API, credit entitlement, or relevant Serova deliverable. The posted prizes are **$1,500 + credits grand**, **$850 + credits per track**, and **$100 for a viral post**; neither the Modal nor Devin challenge has a verified cash amount or prize-stacking guarantee. Do not build irrelevant integrations merely to collect sponsor names. Sponsor offers are published **entitlements, not verified balances or redeemed accounts**.[2][3][18]
-
-## 7. Execution schedule and ownership
-
-**Saturday 13:00–15:30 BST — baseline and *structure feasibility in parallel*.** Owner A: create a clean, event-built `submission/` Git root; audit sheet, lock peptide-component splits and tests. Owner B: implement B0/B1 plus metrics and get *development* results. Owner C: verify HLA-domain-to-full mapping and choose a structurally plausible HLA construct/partner chain, pinned Boltz-2 version and licence; fold **three predeclared pilot pairs** spanning a short/long/zero measured half-life *from training only* (the labels select the feasibility examples, not test cases), inspect chain IDs, peptide-in-groove register and failures, time/bill the job on Modal. If solo, do A→B before C. No-go by 15:30 if no physically plausible pose, no correct HLA sequence, or unbounded GPU cost. Ask the Serova mentor about assay priorities and data redistribution rights.[3][5][23][24]
-
-**Saturday 15:30–21:00 — locked same-pair structural subset.** Cache ESM-2 35M features once and fit F0 on the full train/development split. Owner C freezes an S0 subset (e.g. the two alleles chosen by support, not by scores), verifies no pair/cluster leaks across partitions, runs a bounded Boltz-2 batch and records **all** failures rather than dropping them. Extract S1 interface features and plot P2/P9 pocket contacts for real labelled examples. Start ProteinMPNN `--score_only` *only if* structure QC passes. Owner D builds the one-screen UI and independent human-reviewed reproduction; no test-label tuning. Do not start F2/ESMC/SaProt/large-scale co-fold until this ladder exists.[1][5][13][23][25]
-
-**Sunday 08:00–11:30 — complete the three-family ablation or stop cleanly.** Finish the optional I1 inverse feature and fixed-template circularity check; fit B1/F0/F0+S1/F0+S1+I1 on the same S0 training rows; evaluate once on the locked S0 test, with paired peptide-component bootstrap, log-error, per-allele support, invalid-pose rate and actual cost. Run the full-corpus B1/F0 held-out comparison separately. If S1 fails the go/no-go test, show the negative or incomplete finding explicitly; do not rename a binder/affinity score “half-life.” U1 uncertainty is optional *after* the measured comparison; F2 remains below priority.[5][8][27]
-
-**Sunday 11:30–14:15 — ship measured science with a visible 3D example.** Streamlit view: choose allele + real peptide, show actual predicted half-life/rank from a trained head, 3D peptide–groove contacts **only for valid computed complexes**, baseline-vs-structure-vs-inverse ablation and compute trade-off. Provide unsupported-allele/pose warnings and a recorded real-output fallback. Finish README, two-minute video, public GitHub link and short description; submit before **14:45 BST**. Rehearse the 90-second and two-minute versions and prepare Q&A on static geometry versus kinetics, inverse-folding scores, leakage, missing labels and privacy. No fake prospective patient claims.[3][5][24]
-
-**No-guarantee decision gate:** sponsor score is subjective; scientific credibility, usefulness and a working demo improve chances but cannot promise a win. Do not manufacture numbers or a clinical claim to improve a slide.
-
-### Judge-ready narrative (fill placeholders ONLY from executed results)
-
-- **Pitch 0–20 s — usefulness/fit:** “Serova measures how long a peptide remains bound to HLA. Their primer offers three kinds of protein model—sequence embedding, 3D co-folding and inverse folding—but none automatically outputs measured dissociation half-life.” Point at one real peptide/HLA example and hours as units.[5][24]
-- **20–45 s — technicality/creativity:** show the peptide-component-disjoint split and the fair baseline; demonstrate that the **same pairs** passed through F0, S1 and I1, with structure quality checks and a small *incremental* head. Say that shipped NetMHCstabpan already trained on the sponsor labels and cannot be a blind comparator.[1][5]
-- **45–70 s — live demo:** select a real allele + 9-mer; show the trained half-life estimate and ranking, a valid peptide-in-groove 3D pose with P2/P9 contacts, and flip the table from sequence-only → plus contacts → plus inverse-folding score using **actual frozen experiment predictions**. If there was no validated structural lift, let the demo say so. Never invent a patient or a result.[5][24]
-- **70–90 s — honest conclusion:** replace the placeholders only with executed paired `Δρ`, log-error, bootstrap interval, invalid-fold fraction and GPU spend; a null result with a strong benchmark is worth showing. Reserve the recorded two-minute video for a failure case and exact provenance.[5]
-- **Q&A:** “Boltz affinity?” → its affinity head accepts small molecules, not a peptide-chain off-rate; “inverse folding?” → ProteinMPNN scores sequence compatibility with a backbone, not dissociation time; “3D predicts kinetics?” → a bound snapshot does not determine unbinding pathways; “Why not published NetMHCstabpan?” → its model saw sponsor labels; “New patient use?” → not prospectively validated.[1][5][23][25][41]
-
-## 8. Testing, safety and rollback
-
-| Layer | Test / acceptance |
+| Finding | Recorded value / interpretation |
 |---|---|
-| Bootstrap | Package imports in a fresh environment; `pytest -q` collects/runs. If no code exists, write tests first. |
-| Data | CSV column/type/length/units tests; 28,166 row audit unless a documented revised sheet changes it; enforce no cross-partition one-edit peptide neighbours and no shared exact peptide across alleles. |
-| Leakage | Train-only preprocessing, label normalization, feature caches with split-independent pretrained weights only; assert no S1/S2/S3 target-trained weights enter the primary pipeline. |
-| Model | Save/load prediction equality, expected shape/device, zero-hour finite log targets, deterministic seed on small fixture, overfit-a-tiny-training-batch smoke test; verify identical input pair order and original split hash across B1/F0/S1/I1. |
-| Structure / inverse | For at least a training-only pilot, assert peptide/HLA/β2m chain IDs map back to the input; HLA groove and peptide coordinates are finite, correct peptide length, no catastrophic peptide ejection/clash; contact features invariant to rigid 3D rotation/translation and sensitive to an anchor disruption; zero feature leakage from test labels. ProteinMPNN peptide-only mask/score must exclude HLA residues and be finite; compare self-cofold vs fixed-template control. Invalid structures remain in denominator as failures, not silently filtered. |
-| Metrics | Toy inputs with known Spearman/MAE, no accidental reuse of development/calibration as test, paired resampling at component level, CI/count denominators and **same-pair subset sample size** displayed. Compare equivalent trained heads on S0, not S0 versus a full-corpus number. |
-| Live/demo | Cold-start check on actual hosting, invalid allele/peptide rejection, geometry-pane hidden when no valid structure or no supported allele, network timeout fallback to cached **real** predictions with explicit “offline example” label, screen recording and links open on a clean browser. |
-| Security/durability | Secrets in Modal/HF/Claude secret stores, not source or screenshots; reviewed and pinned `trust_remote_code` only if loading published SPEARMINT for the attributed reproduction. Don't upload patient data (none provided); save Antigravity artifacts locally before the event ends. |
+| Dataset | 28,166 measurements; 5,633 distinct 9-mer peptides; 75 alleles |
+| HLA inputs | 182-aa α1/α2 domains, not full heavy chains; 34-position pseudosequences |
+| Prior audit | 75 distinct domains, 74 pseudosequences, 5,679 zero-hour labels; no blank fields or duplicate `(allele, peptide)` pairs reported |
+| Current grouping | Hamming distance ≤2 connected components across all alleles; seed 42 |
+| Current components | 5,410 components; largest contains eight distinct peptides |
+| Historical one-edit sensitivity | 5,494 components; largest five; not the current primary grouping |
+| Primary train | 22,532 rows; 4,514 peptides; 75 alleles |
+| Primary validation | 2,817 rows; 563 peptides; 73 alleles |
+| Primary test | 2,817 rows; 556 peptides; 75 alleles |
+| Secondary allele split | 64/5/6 train/validation/test alleles and 22,039/3,068/3,059 rows |
 
-**Rollback order:** if Boltz-2 fails the three-complex probe, use **one** preverified alternative (Chai-1/Protenix; or PANDORA/SwiftMHC as *external* non-primer controls with their separate installation/allele constraints) only if it can pass within the timebox; otherwise show sequence-only results and explicitly label 3D untested. If S1 passes but ProteinMPNN fails/only self-scores, drop I1 and keep the paired F0-vs-F0+S1 analysis. If all GPUs fail, ship B1-vs-B0 with honest limitations, not synthetic pLM results. If F1 or conformal intervals fail, remove them from the pitch. If live hosting fails, present the local working app plus real recording. Never call an unrun branch “reproduced,” claim predicted pose quality proves kinetic accuracy, or conceal a structure that did not fold.[2][29][30]
+The engineered `HLA-B*14:01(C67S)` and `HLA-B*14:02(C67S)` share a pseudosequence; the earlier audit reported 368 repeated `(peptide, pseudosequence)` keys, not duplicate peptide–allele observations. Preserve allele identity or domain information rather than merge their different measurements.[6]
 
-## 9. Definition of done and outstanding approvals
+The exact meaning of zero-hour values is not established by the CSV. A detection floor is a hypothesis, not a known censoring threshold. Do not invent a censoring likelihood or call a zero-versus-positive classifier a validated binding classifier without assay evidence.[5][6]
 
-- [ ] Upstream paper and sponsor attribution in README; public repository exists and code/data rights checked.
-- [ ] Row audit, split manifest/hash and overlap invariant checked by executable tests.
-- [ ] B0/B1/F0 return real full-corpus held-out metrics on the identical split, or an honest documented blocker/negative result; F1 only if it passes its own ablation.
-- [ ] Structure gate on at least three training-only complexes: full-HLA/chain provenance, plausible groove geometry and recorded cost; either a frozen S0 paired cohort with both successful **and failed** folds or an explicit no-go.
-- [ ] S0 comparison B1/F0 vs F0+S1 and, if viable, F0+S1+I1 on *exactly the same rows* and labels; report sample sizes, paired cluster uncertainty, per-allele limitations, inference latency, GPU bill and fixed-template inverse-folding control. Null or failed experiments count as documented findings, not victories.
-- [ ] Optional U1 intervals only if separately calibrated; no mixing of published and current dataset scores or affinity, geometry confidence and half-life units.
-- [ ] Live or local fallback demo actually exercised; two-minute recording, repo URL and short description submitted before deadline.
-- [ ] Mentor/sponsor onboarding entitlements and any raw-data license independently confirmed; none of these are assumed fulfilled by this plan.
+### Input identity
 
-**Decisions to ask the Serova mentor:** Which practical HLA/assay is the first deployment target? Is the sponsor CSV permitted in a public GitHub repo? Is their priority half-life ranking, absolute half-life, or screening throughput? Are engineered C67S constructs essential in the judged evaluation? These answers affect optional prioritization, not the basic split/experiment contract.[5]
+| Artifact | SHA-256 recorded for this revision |
+|---|---|
+| `context/dataset.csv` | `384e0accd35c589f02bd3f7d702d31b00a27f8f6f728cacb52b4d8a6c83af44a` |
+| `splits/peptide_split.csv` | `0d92a33bb64eb35d922f698283ca08f6556019e55c7f87c7ee5d31ab6b4d7988` |
+| `splits/allele_split.csv` | `6632491f72c3af890b82c4e5753863866089ae43cc0dd3b5d0af1c5bd521bdd1` |
+| `splits/split_report.json` | `b9893123ef40bacc28367b20e2eabec7bb8b7d9bd1bb3d0a41d87d160e28b539` |
+
+Their Git blobs match the inspected upstream snapshot. Matching counts between the earlier exported-sheet audit and the current CSV do not establish byte identity of an unavailable earlier export. Bind future experiments to these current input identities; retain earlier findings with attribution.
+
+### Prior research findings retained with their boundaries
+
+These findings were reported by the earlier plan and its cited sources. They were **not recomputed during this script/documentation review**:
+
+- The inspected SPEARMINT consensus reference maps 72/75 sponsor allele names; the missing names are the three C67S constructs. Separately, `HLA-B*08:03`, `HLA-A*02:50`, and `HLA-A*24:19` have domain discrepancies against that reference. Those two categories are not the same three alleles. Reconcile against a pinned official sequence source rather than assuming the sponsor input is wrong.[6][42]
+- Earlier pilot mapping found full-chain lengths 365 for `HLA-A*02:01` and 362 for `HLA-B*15:01`, with exact supplied-domain matches starting at zero-based offset 24. These are prior reference observations, not permission to use a precursor as the mature structural construct.[6][42]
+- SPEARMINT describes 27,034 curated measurements across 72 alleles, unlike the sponsor's 28,166 rows and 75 alleles. Its released train/validation/test counts are 21,626/2,705/2,700, totaling 27,031; the three-row discrepancy remains a limitation on claims of exact raw-to-split reproduction.[1][4]
+- The preprint reports MINT transfer Spearman 0.791 versus ESM-2 transfer 0.745. Earlier reanalysis of 2,700 released Stage-2 test predictions reported MINT 0.7906 and NetMHCstabpan 0.8763; the latter is not a clean held-out comparator. Hours-scale CCC was 0.6735/0.4997, versus log-hours CCC 0.7879/0.7860. Always state the scale.[1][4]
+- The earlier overlap audit reported all 2,700 Stage-2 test pairs in the sponsor CSV and 568 also in Stage-3 training. Of 1,133 Stage-3 test records, 979 had a reference identifier seen in training, leaving 154 new-reference rows. Peptide-disjoint testing is not automatically new-study testing.[1][4]
+- Earlier reanalysis of released `MINT_stage3_film_v2` predictions reported SPA Spearman 0.3591 (217 rows), purified fluorescence 0.5666 (758), and cellular fluorescence 0.2204 (158). These are prediction-file reanalyses, not fresh inference; other published variants are different methods. MINT's interaction pretraining and architecture also prevent attributing its difference from ESM-2 solely to cross-chain attention.[1][4][22]
+
+The referenced SPEARMINT code/prediction snapshot is `d548dee9b04dd0e3a9d7a50a593d2c030e31d2a5`. An attributed reproduction can be useful, but released stability-trained checkpoints are not the primary blind baselines on this sheet. A retrospective uncertainty analysis on those predictions would be a separate research task, not a replacement for B1/F0 here.[1][4][7]
+
+## 2. Extracted scripts and validation gaps
+
+### Local versus inspected upstream
+
+| Script | Local Git blob | Upstream Git blob at `de2532f` | Status |
+|---|---|---|---|
+| `make_splits.py` | `21e96d3bb92d8ed910a73c492b6855e601f61533` | Same | Identical |
+| `audit_splits.py` | `7b967dcbde8d7d97c094c0f60a1236ad7dc2c2da` | Same | Identical |
+| `measure_leakage_by_distance.py` | `3dc48a1615af803ca8fe1d0d9bde49eff855a630` | `2f3f39cebd88aebd0d246aa7b9d19200b623c6d4` | Upstream adds A; local remains the earlier version |
+
+The upstream [reconciliation](https://github.com/aswin-giridhar/london-ai-science-hackathon/blob/de2532f0a0d97067828dfd0077d0b852a845b920/RECONCILIATION.md) and [brainstorm](https://github.com/aswin-giridhar/london-ai-science-hackathon/blob/de2532f0a0d97067828dfd0077d0b852a845b920/experiments/BRAINSTORM.md) are reviewed source material, not files imported by this revision. Their assertions must be checked against the code rather than adopted wholesale.[47][48]
+
+### Generator: `scripts/make_splits.py`
+
+**Input:** canonical CSV. **Dependencies:** pandas and standard library. **Outputs overwritten when run:** the primary split CSV, secondary split CSV, and JSON report.[43]
+
+- `UnionFind` and `cluster_peptides` (69–112) build exact global connected components using masked-position keys. At the active cutoff of two, groups include two-substitution neighbors as well as closer pairs.
+- `greedy_assign` (146–172) assigns whole groups, largest first, according to relative remaining row quota with seeded tie-breaking. This avoids the old absolute-deficit imbalance; the primary allocation is row-weighted, not label-bin stratified.
+- `greedy_assign_stratified` (128–143) applies that allocation inside secondary allele strata. `main` creates those strata from full-dataset per-allele median labels (290–297).
+- `verify_no_cross_split_neighbours` (178–210) compares every nontraining peptide against training peptides. It does not separately check validation-versus-test distances.
+- `validate_detector` (213–226) plants a one-substitution positive, not a two-substitution boundary case.
+- `main` (257–394) reports cutoff sensitivity, validates several invariants, and writes fixed output paths. It asserts uniform peptide length, not specifically nine. The `if __name__ == "__main__"` guard prevents regeneration on import.
+
+The module's one-edit convention description and historical threshold rationale are not the authoritative current constant: `CLUSTER_MAX_DIST = 2`. Generation is not an onboarding step or a harmless verification command.
+
+### Independent audit: `scripts/audit_splits.py`
+
+**Inputs:** CSV and saved primary assignment. **Dependencies:** NumPy/pandas, with SciPy used by pandas Spearman calculations. **Outputs:** stdout and exit status; no scientific artifact writes.[44]
+
+The audit joins on peptide with `validate="many_to_one"`, computes Hamming distances by chunked brute force, and checks train–validation, train–test, validation–test, several coverage invariants, duplicate pairs, memorization coverage, and distribution summaries. It reads evaluation labels for diagnostic calculations and executes at import time.
+
+Its three distance pass/fail checks still reject only distances ≤1 (48–61). Printing the number of neighbors at distance ≤2 does not enforce the two-edit contract. `peptide_lookup_score` returns `0.0` when fewer than ten matches exist (76–85); this is a sentinel, not a measured zero correlation. The current checks also do not replace full schema validation, exact assignment-key equality, or a complete secondary-allele audit.
+
+### Distance diagnostic: inspected upstream `scripts/measure_leakage_by_distance.py`
+
+**Inputs:** CSV and saved primary assignment. **Dependencies:** NumPy/pandas/SciPy. **Outputs:** printed descriptive statistics and a null-tolerance check. Both analyses execute at import/run time; no train-only CLI switch exists.[45]
+
+The upstream file builds `Z[(peptide, allele)]` from `log1p` labels standardized per allele over the **entire dataset** (45–47). Analysis A later selects training peptide pairs (69–96) but uses that table; B compares test with training pairs (98–126).
+
+**Therefore A is not strictly train-only.** An isolated synthetic check during this review held training labels fixed and changed only held-out labels; training normalized values and pooled ranks changed. This proves a dependency, not its numerical magnitude on the real dataset. Within a single finite, nondegenerate allele group, affine standardization preserves ranks; pooling multiple groups is different.
+
+Other limits:
+
+- Pair sampling takes at most three sorted-index neighbors per distance. A applies this cap before removing duplicate pair orientations, so eligible pairs can be missed (81–83).
+- The A null uses the first 3,000 sorted training peptides, can sample self-matches, and couples RNG draws to set iteration. Determinism and representativeness need explicit policies.
+- `report` prints a null correlation and tests `abs(null_rho) > 0.08` (54–66). An isolated empty-null fixture returned NaN without failing this guard.
+- The final statement that the boundary lies between distances two and three is unconditional text (128–129), not a conclusion established by an implemented decision rule.
+
+The source review and synthetic checks did not run the real dataset diagnostic, regenerate assignments, or reproduce its reported correlations. The newer A/B script remains upstream-only in this personal branch.
+
+### Required future hardening, not completed fixes
+
+| ID / priority | Gap | Required acceptance before relying on the result |
+|---|---|---|
+| D1 / P0 | All-row normalization enters nominally train-only A | Fit preprocessing on training rows only; perturbing/removing held-out labels cannot change A's artifacts, samples, or outputs; separate confirmation-only B |
+| A1 / P0 | Audit gates enforce cutoff one instead of two | One declared cutoff applied to all three partition pairs; reject distance 0/1/2 fixtures and accept an isolated distance-3 case |
+| M1 / P0 | Undefined null passes; low-coverage correlation is replaced by zero | Require finite statistics and adequate support; report undefined values, reasons, and coverage rather than fabricated zeros |
+| D2 / P1 | Order-dependent capped pairs, null policy, unconditional conclusion | Filter unique eligible pairs before capping; specify seeded ordering, self-match policy, support, uncertainty, and a conclusion rule or descriptive-only reporting |
+| V1 / P1 | Incomplete schema/assignment guarantees | Enforce exact 9-mer/alphabet/label contracts, unique and complete keys, allowed split names, no extra assignments, valid allele mapping, and proper secondary scope |
+| P1 / P1 | Mutable outputs, import-time execution, incomplete run provenance | Separate loading/checking/generation; use isolated fixtures and pure helper seams in future tests; record versions, hashes, seeds, command, and status |
+
+These findings do **not** demonstrate that the saved split contains a distance-two violation. The stored report records zero evaluation-to-training neighbors at the configured cutoff; upstream prose reports a closest cross-partition distance of three.[46][49] Keep those as recorded findings, not a fresh exhaustive audit. Do not reroll the split to repair the narrative.
+
+## 3. Data and evaluation contract
+
+### Canonical inputs and frozen assignments
+
+One measurement is `(allele, peptide, thalf_hours, hla_seq, hla_pseudoseq)`. Preserve exact allele strings, engineered suffixes, and stable pair identity. Load `context/dataset.csv` and join the saved primary assignments many-to-one on peptide; require unique assignment keys, exact peptide-key coverage, allowed partition names, and nonmissing `cluster_id`/`split`.
+
+Keep the current **80/10/10 train/validation/test, seed-42, Hamming≤2 component split**. Do not introduce the earlier proposed 70/10/10/10 replacement. An 80% identity convention for aligned 9-mers corresponds to Hamming≤1; the current grouping deliberately keeps two-substitution neighbors together as well. This is not a general variable-length sequence-alignment rule.
+
+The secondary allele split holds out whole alleles but not necessarily peptides. Its median-label stratification is label-informed; it is not prospective external-assay validation. Record an unknown-allele policy for identity features and keep these metrics separate from the primary benchmark.
+
+### Label and feature validation
+
+Reject nonstandard amino acids, non-9-mers, unequal-length Hamming inputs, missing fields, negative/nonfinite labels, duplicate/conflicting observations, and inconsistent allele-to-sequence mappings. Log exclusions; do not silently rewrite sponsor constructs or merge pseudosequence collisions.
+
+```text
+y = log1p(thalf_hours)          after rejecting invalid labels
+predicted_hours = expm1(y_hat)
+```
+
+Any clipping of predictions for presentation is a separate recorded choice. Never turn negative labels into valid zeros. Fit scalers, imputers, target normalization, learned feature selection, and other learned preprocessing on training rows only. A fixed pretrained encoder may cache label-independent embeddings, but any learned downstream transform remains training-only.
+
+### Selection and exposure firewall
+
+- Select architectures, feature definitions, heads, hyperparameters, seeds/protocols, and early stopping with training/validation information. Lock them before the scheduled test evaluation.
+- Freeze S0 membership, reference/template selection rules, pose QC, retry caps, and fallback behavior before cohort inference. Do not replace failed test cases or select models according to their test result.
+- Preserve the historical disclosure: evaluation-label diagnostics informed the threshold choice. Later supporting analysis cannot make that original choice prospectively blind; current upstream A also has the normalization dependency described above.
+- Keep supervised-label exposure, own-partition peptide overlap, structural-template exposure, and design-time label exposure separate. PDB/Foldseek searches cannot certify an undisclosed pretraining corpus as clean.
+- Released NetMHCstabpan, TLStab, and stability-trained MINT/SPEARMINT checkpoints are not independently held-out baselines on the source corpus. Do not use their predictions as primary training features.[1][4][5]
+- External-assay claims require compatible metadata and independent exposure checks. A good score on this sponsor dataset does not establish assay transfer.[1]
+
+### Metrics and uncertainty
+
+Primary: held-out Spearman and paired change in Spearman on identical test pairs. Secondary: MAE/RMSE on `log1p(hours)`, supported within-allele performance, support counts, cost, latency, failures, and fallbacks. If CCC or hours-scale error is reported, name the scale explicitly.
+
+Resample **peptide components**, retaining all rows and both models' predictions for each selected component. This paired bootstrap quantifies conditional test-sampling uncertainty, not retraining variability; report independently run seed variation separately. Pooled correlation can include between-allele effects, so show supported within-allele results rather than claiming every pooled association is either pure biology or entirely an artifact.
+
+Empty, constant, insufficient, or nonfinite inputs yield undefined statistics with reasons and counts. A zero-coverage lookup is not evidence of a measured zero correlation. A confidence interval spanning no gain is inconclusive, not equivalence. Small structural cohorts remain pilots.
+
+U1 is optional. The current split has no dedicated calibration partition. Any later group-aware calibration design must preserve the frozen test set and separate calibration from model selection. Standard row-level conformal guarantees do not automatically hold under peptide dependence or assay shift; ensemble spread and conformal output are not automatic out-of-distribution detectors.[8][17]
+
+## 4. Models and controlled comparisons
+
+### Experimental ladder
+
+| ID | Proposed inputs / method | Required comparison and boundary |
+|---|---|---|
+| B0 | Training-only global/allele median log-half-life; global fallback for unsupported alleles | Sanity floor; constant predictions have undefined rank correlation, not zero by definition |
+| B1 | B1a: positional peptide + pseudosequence features and explicit allele identity; B1b: positional peptide + 182-aa domain features, strongly regularized | Select using training/validation only; avoid a pseudosequence-collision straw man and report both variants |
+| F0 | Frozen `facebook/esm2_t12_35M_UR50D`; separately encode peptide/domain, pool valid amino-acid tokens, concatenate, and fit a regularized Ridge/MLP head | Full-corpus comparison with B1, identical split and selection discipline; include a matched replacement of the HLA embedding with one-hot allele identity |
+| F1 | Same encoder/cache with controlled pair interactions or explicit peptide-position features | Optional; match tuning/capacity policy and select before test |
+| S0 | Label-blind, bounded structural cohort within the saved partitions | A cohort, not a model or a resplit; evaluate matched-size B1/F0 on these same pairs |
+| S1 | Verified complex coordinates → QC, separate confidence, compact contact geometry → regularized heads | Geometry increment over the matched sequence/availability/confidence control, with all-input fallbacks |
+| I1 | ProteinMPNN peptide-only normalized compatibility on S1 backbones, with fixed receptor context | Optional increment over matched no-I1 comparison plus fixed-template sensitivity |
+| F2 / other encoders | Larger ESM-2 or alternative sequence representations | Follow-ups after the core result; no assumed gain or unmeasured runtime promise |
+| U1 | Separately designed group-aware calibration/empirical coverage | Optional; no invented calibration partition or unsupported coverage guarantee |
+
+Cache each unique peptide and domain once for independently encoded F0, with checkpoint/tokenizer/version and input hashes. Retain per-position peptide embeddings if F1 will need them. Do not include padding/special tokens in residue pooling. A joint-context/cross-attention encoder changes the caching and comparison contract.
+
+### Model menu: one primary route, not an integration sweep
+
+| Family | Primary route | Alternatives / limits |
+|---|---|---|
+| Sequence language model | ESM-2 35M frozen baseline | 150M/650M, ESMC, and ProtT5 are optional matched follow-ups, not drop-in equivalents.[13][14][38][39] |
+| Complex structure | Boltz-2 coordinates | Chai-1 or Protenix only as an already-feasible fallback with pinned input/version/runtime. Boltz small-molecule affinity is excluded.[23][34][35] |
+| Monomer/other folding | Not a substitute for a validated peptide complex | ESMFold or an AlphaFold Database monomer does not supply the peptide interface. Any newer complex-capable route needs its own pHLA smoke test and access check.[32][38] |
+| Inverse folding | ProteinMPNN peptide score | LigandMPNN/ESM-IF require verified scoring/chain-context semantics; they do not produce measured half-lives or automatically validate redesigned peptides.[25][26][32] |
+| Structure-aware language | Deferred SaProt | Correct structural-alphabet inputs and validated structures are required; amino-acid-only frozen features are not an equivalent structural comparison.[36] |
+| External structural controls | Optional PANDORA/SwiftMHC/TFold context | Separate template, installation, allele, and target limits; structure or affinity performance is not half-life performance.[28][29][30][31][33][37] |
+
+### Research synthesis and ranked backlog
+
+The sponsor's three model classes motivate tests, not novelty guarantees. Prior structural classifiers used binder proxies rather than a multi-allele quantitative half-life endpoint; the earlier bounded search did not establish the absence of all related work. MINT's reported improvement combines supervision/architecture differences, not one isolated mechanism.[1][9][22][27]
+
+| Candidate from earlier/upstream plans | Decision |
+|---|---|
+| Allele-identity controls, supported within-allele reporting, measured cost | Core |
+| Learning curves using whole training components; explicit per-position features | Optional after the core sequence/structure comparison is viable |
+| Positional occlusion and allele-specific anchor profiles | Descriptive follow-up/demo analysis, not causal proof of mechanism |
+| ESM-2 model-size sweep | Optional cost-benefit experiment; experiment 001's 650M proposal does not override F0=35M |
+| Zero-shot likelihood/context diagnostics | Optional; score/variant/prompt selection and checkpoint exposure still require evaluation discipline |
+| Zero-label censoring | Deferred until assay semantics support an observation model; no unsupported novelty claim |
+| Fine-tuning, EL/multitask transfer, model-family sweeps, molecular dynamics, sequence redesign | Outside the MVP |
+| Conformal intervals and seed/mask spread | Optional, with empirical coverage and dependence/shift caveats |
+
+Do not claim that mean pooling erases every trace of position from contextual embeddings, that a matched one-hot control proves protein knowledge is absent, or that zero-shot scoring removes all leakage surfaces. These are hypotheses about incremental utility under a protocol, not conclusions about a model's internal knowledge. Upstream brainstorm IDs reuse names such as B1/I1; reference them as `BRAINSTORM R4` or by descriptive name rather than changing this plan's model IDs.[48]
+
+## 5. Evidence-grounded structural experiment
+
+### Construct registry
+
+Use the [companion's mapping contract](SCIENCE_SKILLS_PLAN.md#3-sequence-and-construct-registry). Preserve sponsor allele, mutation suffix, domain, pseudosequence, and pair ID. Resolve names against a pinned official IPD-IMGT/HLA release, require an exact supplied-domain match, and record accession, numbering, hashes, boundaries, and retrieval provenance.[54][55]
+
+The primary proposed input is **mature extracellular HLA heavy chain + mature β2m + peptide**. Do not blindly feed a signal/transmembrane-containing precursor. A domain-only fallback is a separately named protocol. Multiple compatible extensions remain ambiguous; C67S constructs and the separately named domain discrepancies remain quarantined from the structural arm until resolved, while valid measured rows stay in sequence experiments.
+
+Mapping statuses: `verified`, `ambiguous_extension`, `domain_mismatch`, `engineered_unverified`, `unmapped`. Extract/align sequences in code rather than manually rewriting amino-acid strings.
+
+### References, QC, and exposure
+
+PDB sequence matches are candidates, not proof of allele/construct identity. Inspect assembly, entity and author/label chain IDs, residue numbering, peptide identity/length, β2m, modifications, missing atoms, method, resolution, and citation. A qualifying reference may be absent.
+
+Keep reference/QC use, fixed-template inverse-folding control, and structural-exposure audit distinct. A crystal complex is not an independent half-life example without compatible measured stability and assay metadata. Align on mapped HLA groove residues; call peptide RMSD a pose-error measurement only for an appropriate matched peptide/construct reference. Otherwise label it a reference overlay.
+
+Freeze QC and label-blind selection rules after training-only probes. Predictor confidence is a separate channel, read from documented fields/scales; experimental B-factors are not pLDDT.
+
+### Compact contact-feature contract
+
+For every peptide position P1–P9, count mapped 182-domain HLA residues with at least one peptide/HLA heavy-atom pair at distance **≤4.5 Å**, then divide by the recorded mapped-residue denominator. Count unique receptor residues rather than atom pairs. Keep the nine-vector, raw counts, missing-coordinate masks, deterministic alternate-conformer policy, and feature-schema version.
+
+Only peptide–HLA-domain contacts belong in this vector, not intrachain or β2m contacts. The cutoff is an engineering definition, not a universal physical threshold. P2/P9 are useful visual summaries, not universal exclusive anchors; allele-specific exceptions exist. More contacts or improved anchors need not produce longer measured half-life.[52][53]
+
+Hydrogen-bond geometry, salt bridges, buried surface area, and pocket depth remain stretch features until their algorithms, atom requirements, units, and fixtures are specified. A generic distance contact or PyMOL display is not a verified hydrogen bond.
+
+### Matched training eligibility and failure handling
+
+1. Run three training-only probes after budget approval to assess mapping, pose validity, memory, runtime, and cost.
+2. Freeze S0 IDs within the saved partitions before folding the cohort; predeclare seeds, attempts, QC/confidence-based pose selection, concurrency, retry reserve, and spend stop conditions.
+3. Fit the availability/QC diagnostic on all S0 training rows. Fit the confidence and confidence-plus-geometry heads on **identical valid-structure training rows**; their paired test difference is the primary geometry contrast.
+4. Both structural comparators use the same predeclared matched F0 fallback for invalid test structures. Every preselected test pair receives an operational prediction with `model_used` and `fallback_reason`.
+5. Report a secondary valid-structure comparison on identical valid test pairs, including F0 trained on the same eligible training rows. Do not attribute different training eligibility to feature quality.
+6. Report selected, attempted, valid, fallback, and inverse-score counts and costs. Never replace a failed test pair or report only successful folds as all-input performance.
+7. I1 scores only the peptide with receptor context fixed and normalization explicit. Include an allele-compatible fixed-template sensitivity control selected without the evaluated peptide's label, excluding evaluated test-component peptides where possible. The control is not a new all-atom predicted complex.
+8. If I1 shrinks training eligibility, refit the no-I1 comparator on the same eligible rows and fall back to the already-frozen no-I1 pipeline when a score is unavailable.
+
+The main comparison sequence is matched-size B1/F0 → F0+availability/QC → plus confidence → plus geometry → optional I1, with structure-only prediction as a secondary diagnostic. A self-generated pose can favor its conditioning peptide's inverse-folding score; this circularity must stay visible.[25]
+
+## 6. Workspace, interfaces, and artifact contracts
+
+```text
+Sources / literature --------------------------------> claim ledger
+context/dataset.csv + saved splits + hashes
+    |
+    +--> future validation / hardened checks --> B0 / B1
+    |
+    +--> cached frozen ESM-2 embeddings --> F0
+    |
+    +--> verified construct registry --> locked S0
+              +--> PDB references --> chain / pose / exposure checks
+              +--> Boltz-2 --> QC + confidence + contact vector
+                                   +--> optional peptide-only ProteinMPNN
+                                                   |
+                         matched heads + explicit operational fallbacks
+                                                   |
+                         paired metrics + support + failures + cost
+                                                   |
+                         real-output prediction / evidence / pose demo
+```
+
+The existing `scripts/` and frozen `splits/` are reused. Future `src/` modules will validate/load those assignments rather than quietly replace them. No nested `submission/` repository or duplicate raw CSV is required.
+
+| Proposed future artifact | Contract / purpose |
+|---|---|
+| Input/run manifest | Dataset/split hashes, code revision, model/tokenizer revision, feature schema, versions, seeds, command, hardware, timing, and cost |
+| `data/evidence_manifest.jsonl` | Claim, source/version/passage, endpoint, assay, license, status, retrieval date and hashes |
+| `data/hla_mapping.jsonl` | Exact sponsor/reference/construct identity, boundaries, mutations, β2m, mapping status |
+| `data/reference_manifest.jsonl` | PDB assembly/chain/residue maps, experimental quality, coordinates hash, role, exposure status |
+| `data/structures_manifest.jsonl` | Pair/cohort IDs, construct/model versions, attempts, QC/confidence scale, reference IDs, failures, coordinates hash, runtime/cost |
+| `models/selection.md` | Development-selected models and input contracts, versions/licenses, feasibility decisions |
+| Prediction/result records | Pair/component/split/cohort, target scale, prediction, model used, fallback reason, paired metrics and denominators |
+| `experiments/` write-ups | Hypothesis fixed before execution, owner, status, exact protocol, budget, result and limitations |
+
+These manifests and model/result records are **not implemented**. Proposed modules cover input validation, embeddings, structural inputs, folding, pose QC, features, inverse scoring, training, evaluation, optional uncertainty, and Streamlit. Proposed tests are listed in §8; their paths are specifications, not present files.
+
+Future interface requirements:
+
+```text
+fold_one(pair_id, peptide, hla_construct_sequence, construct_type,
+         beta2m_sequence, checkpoint_revision)
+  -> structure_uri_or_null, chain_map, confidence_fields, seconds, status, failure_reason
+
+featurize(structure_uri, chain_map, mapped_domain, feature_schema_version)
+  -> contact_vector, raw_counts, denominator, missing_masks, qc_status
+
+score_inverse(structure_uri, peptide_chain_id, fixed_receptor_chains)
+  -> peptide_normalized_score_or_null, scoring_protocol, failure_reason
+
+predict(peptide, allele)
+  -> predicted_hours, model_id, interval_or_null, structure_uri_or_null,
+     structure_status, provenance, warnings, fallback_reason
+```
+
+Names above express proposed contracts rather than existing callable APIs. Save enough metadata to prevent mixing versions or reordering paired predictions. Unsupported input must be rejected or explicitly handled, not silently coerced. The sponsor CSV has no assay column; do not expose an assay switch unless a genuinely assay-conditioned model is implemented. Local Python calls suffice for a demo; a remote endpoint is optional.
+
+## 7. Execution gates, resources, and ownership
+
+### Dependency gates rather than expired start times
+
+| Gate | Required evidence / output | Current status and stop rule |
+|---|---|---|
+| A0 — trustworthy inputs/checks | Frozen identities; complete two-edit and schema/coverage validation; isolated diagnostics and defined-statistic policies | Assets exist, hardening open. Do not call an audit PASS a complete validation certificate |
+| A1 — sequence floor | B0/B1/F0, allele control, cached embeddings, development-selected heads and traceable predictions | Not implemented; complete the baseline before expanding model scope |
+| B — structural feasibility | Verified constructs/references, approved spending boundary, three training-only probes, observed runtime/memory/cost, frozen QC | Planned; Modal access confirmed, paid-job approval absent. One already-ready substitute or explicit no-go |
+| C — locked structural cohort | Frozen S0 IDs/counts, input versions, concurrency/attempt caps, manifests including failures | Planned; stop admitting jobs beyond remaining budget and result-freeze capacity |
+| D — scientific freeze | Frozen choices, scheduled test comparison, paired uncertainty/support, failures/cost, optional I1 | Planned; no test-selected architectures or hidden exclusions |
+| E — submission | Exercised real-output demo, recording, attribution, repository link and description | Planned; use local/recorded real output if hosting fails |
+
+Each implementation task needs input artifacts, dependencies, output, acceptance tests, a responsible role, and a stop/fallback condition. Suggested roles are data/evaluation, structure/modeling, and evidence/demo; do not invent assigned people. Solo work follows A0/A1 before structural expansion.
+
+### Modal and spending
+
+**The user confirms Modal GPU access.** Account/billing state, GPU model/VRAM, image compatibility, concurrent capacity, available credits, and a numerical budget have not been independently verified. **Paid jobs require separate approval.** This documentation revision launches none.
+
+Before a paid probe or batch, record: approved amount/currency, account route, GPU/image/checkpoint, bounded wall-clock and attempts, maximum concurrency, measured per-pair cost including overhead, retry reserve, cache strategy, admission/stop rule, and preserved result/demo freeze window. Use measured probe cost to size S0; nominal sponsor offers are not verified balances. Durable approved storage must retain manifests and real outputs.[11][12]
+
+### Other platforms and science infrastructure
+
+- Science Skills supplies evidence retrieval, sequence annotation, references, and visualization—not a half-life model. Its source is pinned to `68832757cbbf941c620b71df5756cf6e5cc287b0`; use the [companion matrix](SCIENCE_SKILLS_PLAN.md#2-science-skills-workflow-matrix) for exact deliverables and limits.[50][51]
+- Hugging Face can supply pinned public weights; target-supervised SPEARMINT weights remain outside the primary comparison.[7][13]
+- Cognition/Devin, Google research-agent tools, Anthropic, Amass, and other offers are optional engineering/evidence support. Access, billing routes, balances, expiry, and prize criteria must be checked at use, not inferred from logos or stale authentication output.[3][15][16][18]
+- Earlier event materials gave conflicting Cognition challenge wording: reproduction-plus-extension versus at least five parallel sessions ending in branches/PRs. Confirm with organizers rather than changing the scientific plan to claim eligibility.[3][18]
+- Do not perform automatic account logout/login, install a bundle-wide skill collection, or add unrelated integrations. Credentials belong in approved secret stores, not source, manifests, screenshots, or demos.
+- Review applicable software, material, and database terms. Keep required notices; do not distribute modified HLA sequence mirrors without reviewing the relevant conditions.[51][55]
+
+### Deadline and demo
+
+The earlier plan records **Sunday 4 October 2026, 14:45 BST** as the detailed-rules cutoff, with rounded or conflicting timings elsewhere. Preserve that earlier recorded cutoff and ask organizers which presentation timing controls; it was not freshly reverified in this code review. Prepare 90-second and two-minute demonstrations, recording, GitHub link, and short description with a submission buffer.[2][3][18]
+
+The demo must show a supported peptide/allele, a real model prediction and identity, the matched comparison, support/failure/cost information, and an evidence drawer. A displayed structure is labeled `experimental reference`, `predicted complex`, or `no valid structure`. Experimental labels appear only in clearly marked evaluation examples; offline fallback uses real saved outputs. Do not invent patients, improved clinical outcomes, intervals, or geometry where no valid structure exists.
+
+Rollback: preserve sequence results if folding fails; preserve S1 without I1 if inverse scoring fails; preserve CPU baseline evidence if GPU work cannot proceed. A failed or negative branch remains in the scientific record even if its live feature is not shown. No deadline or sponsor rule justifies fabricating a result.
+
+## 8. Verification and future acceptance tests
+
+### This documentation revision
+
+Only `HACKATHON_PLAN.md`, `SCIENCE_SKILLS_PLAN.md`, and `README.md` change. Verify full diffs, Markdown/fences/tables/anchors/local links, pinned references, example syntax, cross-document contracts, and unchanged protected files. Use saved-report values rather than recalculating them. No full script, dataset audit, training test suite, paid compute, or deployment is run for this update.
+
+The synthetic diagnostic checks described in §2 were limited in-memory probes of reviewed code paths, not a full scientific test run or an implemented regression suite.
+
+### Later code-hardening and model tests — not yet implemented
+
+| Proposed area / files | Required fixtures and assertions |
+|---|---|
+| Split checks: `tests/test_split.py` | Across all three partition pairs, reject distance 0/1/2 and accept an isolated distance-3 case; transitive components stay intact; one- and two-edit planted positives both detected |
+| Input contracts: `tests/test_labels.py` | Exact schemas/keys, allowed partitions, no missing/extra assignments, duplicate/conflicting pairs, invalid alphabet/length, negative/nonfinite labels; valid zero remains finite under `log1p` |
+| Diagnostic isolation: `tests/test_diagnostic_isolation.py` | Fixed training rows with changed/permuted/removed evaluation labels produce identical A normalization, samples, and output; confirmation analysis is separate |
+| Diagnostic sampling/metrics: `tests/test_diagnostics.py` | Unique eligible pairs before caps; deterministic seeded samples under input/process-order changes; explicit self-pair/null policy; constant/empty/insufficient/nonfinite inputs do not silently pass |
+| Mapping: `tests/test_chain_mapping.py` | Exact supplied domain, separately tested mismatches/engineered variants, ambiguous extension, mature boundaries, β2m identity, author/label numbering and insertion codes |
+| References: `tests/test_reference_manifest.py` | Wrong peptide/allele, incomplete groove, assembly selection, experimental/predicted distinction, missing-reference fallback |
+| Geometry: `tests/test_interface_features.py` | Fixtures on both sides of 4.5 Å; unique receptor-residue counting; rigid rotation/translation invariance; no β2m/intrachain contamination; missing/alternate atom policy |
+| Inverse scoring: `tests/test_inverse_score.py` | Peptide-only mask/normalization, fixed receptor context, alignment failure, template provenance, matched no-I1 eligibility |
+| Metrics/fallbacks: `tests/test_metrics.py` | Pair-order checks, component resampling, same training eligibility, undefined correlations, every selected input predicted, correct valid/full-cohort denominators |
+| Inference/demo: `tests/test_inference.py` and smoke checks | Save/load consistency, unsupported inputs, real output/status labels, no B-factor/pLDDT confusion, offline artifact fallback |
+
+Future environments must pin dependencies and isolate pure helper seams before importing scripts with top-level I/O. Run only narrow tests relevant to the implemented change; do not run the generator on frozen benchmark files as a test. No packaging or `pytest` setup exists here yet.
+
+## 9. Definition of done and open decisions
+
+### Documentation completion
+
+- [ ] Master/companion/README agree on current assets, pinned upstream analysis, and proposed work.
+- [ ] Frozen split details, label rules, comparison/fallback contracts, and resource gates agree.
+- [ ] Identified script gaps remain visibly open, with exact future acceptance cases.
+- [ ] Existing scripts, dataset, splits/report, and background primer are unchanged.
+- [ ] Focused documentation checks pass; the reviewed update is committed and verified on `sh-arka22/are` with the user's GitHub identity.
+
+### Scientific completion — separate and not achieved by this revision
+
+- [ ] A0 hardening validated without regenerating the benchmark.
+- [ ] B0/B1/F0 return traceable, same-split held-out results or a documented blocker.
+- [ ] Construct/reference/probe gate produces a measured structural go/no-go.
+- [ ] If viable, S0/S1 and optional I1 comparisons include matched controls, failures, uncertainty, support, and actual cost.
+- [ ] Any uncertainty output has an appropriate separate design and empirical evidence.
+- [ ] Demo/recording uses real outputs and is exercised before submission.
+
+Open external decisions: approved spend cap and GPU specification; source/redistribution and event eligibility; mentor priorities for assay, allele, absolute hours versus ranking, and engineered constructs; actual team ownership and resource availability. These are explicit preflight requirements, not invented facts.
+
+The documentation-only update does not authorize model implementation, script synchronization, fixes, spending, or deployment. Subsequent work stays on the personal branch unless the user directs otherwise. The [Science Skills companion](SCIENCE_SKILLS_PLAN.md) retains the detailed evidence, construct, reference, visualization, licensing, and acceptance contracts supporting this roadmap.
 
 ## Sources
 
@@ -255,3 +457,16 @@ Other sponsor logos (e.g. Cambridge Compute, Polaron, Originator, IQC) do not es
 [40] https://github.com/aswin-giridhar/london-ai-science-hackathon/blob/main/context/NOTES.md
 [41] https://www.kavrakilab.org/publications/abella2020-pnas.pdf
 [42] https://raw.githubusercontent.com/pirl-unc/spearmint/d548dee9b04dd0e3a9d7a50a593d2c030e31d2a5/refs/2field_hla_consensus_seqs.csv
+[43] https://github.com/aswin-giridhar/london-ai-science-hackathon/blob/de2532f0a0d97067828dfd0077d0b852a845b920/scripts/make_splits.py
+[44] https://github.com/aswin-giridhar/london-ai-science-hackathon/blob/de2532f0a0d97067828dfd0077d0b852a845b920/scripts/audit_splits.py
+[45] https://github.com/aswin-giridhar/london-ai-science-hackathon/blob/de2532f0a0d97067828dfd0077d0b852a845b920/scripts/measure_leakage_by_distance.py
+[46] https://github.com/aswin-giridhar/london-ai-science-hackathon/blob/de2532f0a0d97067828dfd0077d0b852a845b920/splits/split_report.json
+[47] https://github.com/aswin-giridhar/london-ai-science-hackathon/blob/de2532f0a0d97067828dfd0077d0b852a845b920/RECONCILIATION.md
+[48] https://github.com/aswin-giridhar/london-ai-science-hackathon/blob/de2532f0a0d97067828dfd0077d0b852a845b920/experiments/BRAINSTORM.md
+[49] https://github.com/aswin-giridhar/london-ai-science-hackathon/blob/de2532f0a0d97067828dfd0077d0b852a845b920/splits/README.md
+[50] https://github.com/google-deepmind/science-skills/tree/68832757cbbf941c620b71df5756cf6e5cc287b0
+[51] https://github.com/google-deepmind/science-skills/blob/68832757cbbf941c620b71df5756cf6e5cc287b0/SKILL_LICENSES.md
+[52] https://haematologica.org/article/view/5692
+[53] https://pmc.ncbi.nlm.nih.gov/articles/PMC3032881
+[54] https://www.ebi.ac.uk/ipd/imgt/hla
+[55] https://github.com/ANHIG/IMGTHLA/blob/Latest/LICENCE.md

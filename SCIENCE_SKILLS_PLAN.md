@@ -3,40 +3,50 @@ agent: devin-local
 session: heady-bubble
 created: 2026-10-03T14:04:32Z
 ---
-# Stability Lens: Science-Skills-grounded revision
+# Stability Lens: Science Skills and structural-evidence companion
 
-Improve the Serova hackathon plan by grounding structural modeling in verified allele sequences and experimental references, then testing incremental half-life prediction with explicit provenance, failure handling, and compute limits.
+Specify the evidence retrieval, verified constructs, reference structures, geometric features, and failure-aware comparisons supporting the [master execution plan](HACKATHON_PLAN.md).
 
 ## Summary
 
-Revise **only `HACKATHON_PLAN.md`** after approval. Preserve its sequence → structure → inverse-folding research direction, peptide-component-disjoint evaluation, and honest negative-result fallback. Add a small, concrete Google DeepMind Science Skills workflow instead of another collection of models.
+This is the technical companion to the current master plan, not a second implementation status report or a directive to edit only one document. The original front matter records the earlier revision proposal's provenance. The current documentation update reconciles this companion, `HACKATHON_PLAN.md`, and `README.md`; it does not install skills, change scripts, regenerate splits, train models, fold complexes, or deploy a service.
 
-**Recommended project framing:** “Stability Lens tests whether predicted peptide–HLA geometry adds useful half-life information beyond sequence, with every construct, pose, result, and failure traceable to its evidence.”
+The sequence → structure → optional inverse-folding direction remains: B0/B1/F0 provide the full-dataset delivery floor, while matched S0/S1 comparisons test the incremental value of geometry. Science Skills supplies evidence, sequences, references, and visualization—not measured half-life predictions. The pre-event `Peptide-HLA Stability Primer.md` remains unchanged background.
 
-The immediate deliverable is an improved planning document—not an installed skill bundle, trained model, new code repository, or deployment. Keep `Peptide-HLA Stability Primer.md` unchanged as background. Put relevant corrections and caveats into the plan so the implementation does not inherit the primer’s overclaims.
+The existing 80/10/10, seed-42, Hamming≤2 component split is authoritative. Modal GPU access is confirmed by the user; hardware/runtime compatibility and a numerical budget remain preflight items, and paid jobs require separate approval.
 
-## Research completed and evidence boundary
+## Research provenance and current evidence boundary
 
-- Read both supplied documents in full. The workspace contains those documents, `.claude` settings, and a `graft` cache; no implemented pipeline, package manifest, tests, or structural files are present.
+- **Earlier research:** the initial document review preceded Git integration and the current script inventory. The repository now contains tracked plans, context data, split tooling, frozen assignments/report, and experiment proposals; model training, structural modules, registries, tests, and the demo remain unimplemented.
 - Read the supplied ARQ and Tavily Dynamic Search guidance. Inspected Graft/Graphify guidance; there is no usable graph artifact here, and Graft MCP exposed no tools. No index was built.
-- Read the relevant Google DeepMind Science Skills instructions at **`68832757cbbf941c620b71df5756cf6e5cc287b0`**, the repository’s v1.2.1 revision. Inspected PDB, bioRxiv, and Foldseek helper code plus PyMOL recipes.
-- Used bounded Tavily discovery/extraction to verify the official IPD-IMGT/HLA source and two relevant biological caveats. No raw research output was deliberately saved outside this plan.
-- Confirmed that the official HLA repository reports **IPD-IMGT/HLA 3.65.0**, dated 2026-07-14. This identifies the inspected release, not a promise that it remains the latest during implementation.
+- **Earlier research:** read the relevant Google DeepMind Science Skills instructions at **`68832757cbbf941c620b71df5756cf6e5cc287b0`**, the repository’s v1.2.1 revision. Inspected PDB, bioRxiv, and Foldseek helper code plus PyMOL recipes.
+- **Earlier research:** used bounded Tavily discovery/extraction to verify the official IPD-IMGT/HLA source and two relevant biological caveats. No raw research output was deliberately saved outside this plan.
+- **Earlier research:** the inspected official HLA repository reported **IPD-IMGT/HLA 3.65.0**, dated 2026-07-14. This identifies the inspected release, not a promise that it remains the latest during implementation.
 - Retain the current plan’s previously reported dataset audit and published-prediction reanalysis **as attributed prior findings**. Do not recompute them merely to rewrite the document, label them as new measurements, or silently treat unavailable audit artifacts as reproduced.
 - No Science Skills database wrappers, GPU jobs, training, inference, installation, or deployment ran during this revision research.
 
-Source-document fingerprints before any approved edit:
+Historical pre-revision fingerprints from the original proposal (not current hashes of revised documents):
 
 | Document | SHA-256 |
 |---|---|
 | `HACKATHON_PLAN.md` | `3c2f8b1c8f8ff0a59d5a2c9e6c9c7ea665e520a170f97ef3f348015d3bee83f3` |
 | `Peptide-HLA Stability Primer.md` | `11af78a17fb12d3a271404efd995bb124fe1acc3ed0f995d99d7a5b81fb05020` |
 
-## Implementation Steps
+### Upstream script review and unresolved gates
 
-### 1. Tighten the executive decision without changing the target
+The [master plan's script extraction](HACKATHON_PLAN.md#2-extracted-scripts-and-validation-gaps) is based on upstream `de2532f0a0d97067828dfd0077d0b852a845b920`, compared with personal-branch revision `1273a9735ba0d69d8debc5e53a631c611904a8ab`. Local generation/audit scripts match that snapshot; the local distance diagnostic is still the earlier version. This update does not synchronize it.
 
-Revise existing §§0–2 to distinguish:
+The upstream diagnostic's new analysis A forms training pairs but normalizes labels using all dataset rows before selecting them. A synthetic held-out-label perturbation changed training normalized values and pooled ranks. Its null guard also accepted an undefined correlation in an isolated fixture. These findings do not remeasure the sponsor data or quantify its metric bias. The independent audit still enforces only a one-edit cutoff in its pass/fail checks, weaker than the saved two-edit contract.
+
+Treat diagnostic isolation, cutoff-boundary checks, explicit undefined statistics, deterministic pair sampling, and schema/provenance hardening as open implementation gates. Do not claim a clean train-only justification, complete audit certification, or newly reproduced model performance. Keep the historical disclosure that evaluation labels influenced the original split design; neither a later analysis nor this document erases that history.
+
+The current report records 5,410 components (largest eight) and primary train/val/test counts of 22,532/2,817/2,817 rows, 4,514/563/556 peptides, and 75/73/75 alleles. Read these as saved-report facts, not freshly recalculated findings. One-edit counts remain historical sensitivity evidence only.
+
+## Technical workflow specifications
+
+### 1. Scope tiers and scientific target
+
+The master plan distinguishes four scope tiers:
 
 1. **Delivery floor:** B0/B1/F0, measured on the full sponsor dataset under one locked split.
 2. **Main scientific differentiator:** paired F0 versus F0 + geometric features on one predeclared, bounded structural cohort.
@@ -47,9 +57,9 @@ Keep the existing 28,166-row versus paper-curated-data distinction, 182-aa domai
 
 Do not add AlphaGenome, ChEMBL, clinical-trial mining, large MSA campaigns, molecular dynamics, sequence redesign, or another foundation-model sweep to the MVP. Do not describe “no paper found in our bounded search” as proof of novelty.
 
-### 2. Add a compact Science Skills → deliverable matrix
+### 2. Science Skills workflow matrix
 
-Place the matrix near the evidence baseline and connect it to the execution gates, not just the sponsor table.
+Each workflow below supports a concrete artifact and the master plan's execution gates; it is not a list of sponsor integrations to install.
 
 | Priority / upstream directory | Input and inspected helper | Concrete contribution | Limits / fallback |
 |---|---|---|---|
@@ -60,15 +70,15 @@ Place the matrix near the evidence baseline and connect it to the execution gate
 | Core when structures exist: `pymol` | Validated local coordinate file plus explicit chain map | Human-auditable groove overlay, contact view, PNG and editable `.pse` session | Visualization is not kinetic validation; test headless rendering on the actual host |
 | Optional: `alphafold_database_fetch_and_analyze` | Verified UniProt accession → fetch/pLDDT/PAE helpers | Monomer confidence/domain context only if it resolves a construct question | Does not run a custom co-fold or provide peptide-interface features; skip unless exact sequence identity is established |
 | Optional: `foldseek_structural_search` | Existing coordinate file → `scripts/search.py --databases pdb100` | Candidate structural relatives for the reference/exposure ledger | Requires coordinates and uploads them; a global HLA fold match does not validate the peptide pose or prove absence of training overlap |
-| Exception path: `protein_sequence_msa`, `protein_sequence_similarity_search` | Heavy-chain sequences → Clustal Omega or MMseqs2/BLAST helpers | Investigate unresolved HLA mapping with explicit identity/coverage denominators | Not the 9-mer leakage checker; do not replace the exact one-edit peptide graph with heuristic homology search |
+| Exception path: `protein_sequence_msa`, `protein_sequence_similarity_search` | Heavy-chain sequences → Clustal Omega or MMseqs2/BLAST helpers | Investigate unresolved HLA mapping with explicit identity/coverage denominators | Not the 9-mer leakage checker; do not replace the exact Hamming≤2 component contract with heuristic homology search |
 
 Pin source revision, command, retrieval date, input/output hash, and tool version for every executed workflow. Use Tavily for discovery and cross-checking; use the specialized, rate-limited wrappers for production database retrieval.
 
 **Licensing and installation:** the source repository distinguishes Apache-2.0 software, CC-BY materials, and separate database terms. Review terms and record required notices before actual database use. The HLA database’s `LICENCE.md` specifically requires permission before distributing modified data; publish retrieval instructions and hashes rather than an unreviewed modified sequence mirror. Do not blindly run the repository’s bundle-wide `npx` install. Any later approved project-local skill configuration belongs in `.devin/skills/`; it is outside this document-edit approval.
 
-### 3. Replace the generic mapping gate with a sequence/construct registry
+### 3. Sequence and construct registry
 
-Extend existing §3 and the planned `src/structure_inputs.py` responsibility:
+The planned `src/structure_inputs.py` responsibility is:
 
 - Preserve the sponsor allele string, engineered-variant suffix, 182-aa sequence, pseudosequence, and pair ID.
 - Resolve named alleles against a **pinned official IPD-IMGT/HLA release**. The existing SPEARMINT consensus reference remains useful prior evidence, but is not permission to overwrite a mismatched sponsor sequence.
@@ -76,7 +86,7 @@ Extend existing §3 and the planned `src/structure_inputs.py` responsibility:
 - If several full sequences remain compatible with the supplied fragment, record the ambiguity; do not silently choose an extension and call it uniquely identified.
 - For the primary pilot, propose a **verified mature extracellular heavy-chain construct plus mature β2-microglobulin and the peptide**. Record the exact sequences and boundaries. Do not feed the entire signal/transmembrane-containing precursor by default.
 - A domain-only construct, if used as fallback, is a separately named protocol and cannot silently replace the primary construct within one comparison.
-- Keep the current three domain mismatches and C67S constructs quarantined from the structural arm until reconciled. Keep their valid measured rows in the sequence experiment.
+- Keep the prior domain mismatches (`HLA-B*08:03`, `HLA-A*02:50`, `HLA-A*24:19`) separate from the three engineered C67S constructs; quarantine unresolved inputs from the structural arm while retaining their valid measured rows in sequence experiments.
 - Perform sequence extraction/alignment in code, not by manually rewriting amino-acid strings.
 
 Proposed `data/hla_mapping.jsonl` fields:
@@ -85,7 +95,7 @@ Proposed `data/hla_mapping.jsonl` fields:
 
 Mapping statuses must distinguish `verified`, `ambiguous_extension`, `domain_mismatch`, `engineered_unverified`, and `unmapped`. A record is not eligible for the primary structural cohort merely because its allele name resembles a database annotation.
 
-### 4. Add reference-first structural triage, not a mandatory new modeling branch
+### 4. Reference-first structural triage
 
 Before the three training-only co-fold probes:
 
@@ -109,9 +119,9 @@ Proposed `data/reference_manifest.jsonl` fields:
 
 `reference_id, pdb_id, assembly_id, entity_ids, label_chain_map, auth_chain_map, residue_map, peptide_sequence, hla_sequence_hash, beta2m_sequence_hash, experimental_method, resolution_or_null, modifications, missing_residues, release_date, primary_citation, coordinate_sha256, eligibility, use_role, exposure_status`.
 
-### 5. Specify a smaller, more defensible structure-feature experiment
+### 5. Structure-feature contract
 
-Update §§3–4 and the planned feature contract:
+The master plan adopts this proposed feature contract:
 
 **MVP geometry:** for each peptide position P1–P9, compute the fraction of mapped 182-domain HLA residues with at least one peptide/HLA heavy-atom pair at distance **≤4.5 Å**. This is a prespecified engineering definition, not a universal physical threshold. Use one deterministic atom/alternate-conformer policy and record the mapped-residue denominator.
 
@@ -123,11 +133,11 @@ Store the 9-position vector, raw counts, missing-coordinate masks, and feature-s
 
 **Scientific hypothesis:** contacts may predict half-life, but more contacts or “better” anchors are not guaranteed to increase persistence. Published experimental work found that anchor improvements did not always improve measured stability. Use this as a falsification caveat, not as a reason to abandon the paired test.
 
-### 6. Close the selection, failure, and test-set loopholes
+### 6. Selection and failure-aware evaluation
 
-Preserve the current peptide-component split, train-only transforms, and matched S0 rows; make the execution contract unambiguous:
+Use the saved 80/10/10 Hamming≤2 component assignments, training-only learned transforms, and matched S0 rows. These are required implementation contracts, not claims that the current scripts enforce every safeguard:
 
-- Freeze model/head families and hyperparameter selection on training/development data. **Remove wording that retains a branch only if its locked-test result improves.** Test results report the predeclared comparison; they do not select the winning model for that same test.
+- Freeze model/head families and hyperparameter selection on training/validation data. Test results report the predeclared comparison; they do not select the winning model for that same test or decide which negative findings to retain.
 - Freeze structural cohort membership before folding. Do not replace failed or low-confidence test pairs with easier examples.
 - Predeclare bounded attempts per pair, selection by label-blind QC/confidence, seeds, cost cap, and stopping rules.
 - Keep supervised-label contamination, exact peptide-component leakage, and structural-template exposure as separate audit axes. Public PDB/Foldseek search cannot prove the contents of an undisclosed pretraining corpus.
@@ -155,17 +165,17 @@ Primary metric remains held-out Spearman with **paired component bootstrap**, pl
 
 If test support is small, call the result a pilot and report interval width; do not promise significance from an arbitrary subset size. A confidence interval spanning no gain means inconclusive evidence, not proof of equivalence.
 
-**Target fix:** after rejecting negative/nonfinite labels, use `y = log1p(t_half_hours)`. Remove `max(t_half_hours, 0)` from the target contract because it silently turns bad data into valid zero-hour labels. Presentation clipping of predictions is a separate recorded choice.
+**Target contract:** reject negative/nonfinite labels, then use `y = log1p(thalf_hours)`. Do not clip invalid labels into valid zeros. Presentation clipping of predictions is a separate recorded choice.
 
-**U1 remains optional:** pooled row-level conformal guarantees do not automatically follow when observations share peptide components or undergo assay shift. Use an appropriate group-aware design before claiming coverage guarantees; otherwise report empirical coverage only. Neither conformal intervals nor ensemble spread automatically detect out-of-distribution inputs.
+**U1 remains optional:** pooled row-level conformal guarantees do not automatically follow when observations share peptide components or undergo assay shift. Use an appropriate group-aware design before claiming coverage guarantees; otherwise report empirical coverage only. Neither conformal intervals nor ensemble spread automatically detect out-of-distribution inputs. The current split has no separate calibration partition; any future design must preserve the test set and separate calibration from model selection rather than silently introduce a four-way resplit.
 
-### 7. Connect evidence artifacts to the pipeline and demo
+### 7. Evidence artifacts and demo
 
-Replace the existing architecture diagram with:
+The proposed evidence-to-prediction flow is:
 
 ```text
 Paper/source lookup → claim ledger ──────────────────────────────┐
-Sponsor CSV → audit/hash → locked peptide-component split        │
+Existing CSV + saved split → hashes + hardened checks            │
        ├─ B0/B1 + frozen ESM-2 → F0                              │
        └─ HLA sequence registry → eligible locked S0              │
               ├─ PDB references → chain/pose/exposure checks      │
@@ -182,84 +192,74 @@ Sponsor CSV → audit/hash → locked peptide-component split        │
                      Streamlit prediction + evidence/pose drawer
 ```
 
-Extend the planned artifact inventory instead of creating an elaborate new service:
+The following artifact specifications remain unimplemented; no new service is required:
 
 - `data/evidence_manifest.jsonl`: claim ID, DOI/URL, paper/version/type, exact support location, endpoint/assay, license, status (`supported`, `hypothesis`, `unverified`), and retrieval details.
 - `data/hla_mapping.jsonl` and `data/reference_manifest.jsonl`: registries described above.
-- Existing `data/structures_manifest.jsonl`: add construct/coordinate hashes, chain-map version, reference IDs, QC reason, confidence field/scale, attempts, failure status, feature version, and per-pair runtime/cost.
-- Existing result records: add full-cohort and valid-subset identifiers, denominator counts, fallback fraction, reference/exposure flags, and actual model used.
+- Planned `data/structures_manifest.jsonl`: include construct/coordinate hashes, chain-map version, reference IDs, QC reason, confidence field/scale, attempts, failure status, feature version, and per-pair runtime/cost.
+- Planned result records: include full-cohort and valid-subset identifiers, denominator counts, fallback fraction, reference/exposure flags, and actual model used.
 - Keep raw data/coordinates local or in approved storage until redistribution is cleared; never put credentials into artifacts.
 
 **Demo layout:** one real peptide/allele, actual predicted half-life and model ID, measured label only in clearly marked evaluation examples, sequence-vs-structure ablation, cost/failure rate, and an evidence drawer. Mark a displayed object `experimental reference`, `predicted complex`, or `no valid structure`; never imply an unrelated reference is the selected peptide’s pose.
 
 Use explicit peptide polymer-chain selections in PyMOL. The skill’s small-molecule `organic` recipe is unsuitable for selecting a protein peptide chain. Save PNG plus `.pse`, check nonzero atoms, and use static real-output images as a nonblocking fallback if headless rendering or interactive 3D fails.
 
-### 8. Replace expired starts with resource-gated delivery
+### 8. Resource-gated delivery
 
-Retain the current plan’s earlier **Sunday 4 October 2026, 14:45 BST** submission cutoff and timing-conflict warning as sourced event requirements from the prior plan, not freshly reverified event information. Replace the Saturday 13:00 start with dependency gates and status fields.
+Retain the earlier recorded **Sunday 4 October 2026, 14:45 BST** submission cutoff and timing-conflict warning as prior event-source information, not freshly reverified scheduling. Follow dependency gates instead of expired start times.
 
-| Gate | Required artifact / decision | Stop or fallback |
+| Gate | Required artifact / decision | Current state / fallback |
 |---|---|---|
-| A — reliable baseline | Audited inputs, locked split, B0/B1 training/development results, embedding cache/F0 | No GPU-heavy expansion before the split tests and baseline work |
-| B — structural feasibility | Verified pilot constructs, reference triage, three training-only probes, observed runtime/memory/cost, frozen QC policy | If mapping, pose quality, or cost fails, use one already-ready alternative or label structure untested |
-| C — locked cohort | S0 IDs/counts, actual available budget, worker cap, bounded retries, all-pair manifests | Stop admitting jobs that cannot fit the budget and result-freeze window; do not choose test rows by label/performance |
-| D — scientific freeze | Frozen development-selected models, paired evaluation, uncertainty/counts/failures, optional I1 | No new architecture after evaluation; report positive, negative, inconclusive, or unrun honestly |
-| E — submission | Verified local/live demo, recording, attribution, description, repository link | Preserve the existing Sunday demo/submission buffer; submit before the earlier cutoff |
+| A0 — trustworthy inputs/checks | Frozen input identities, complete two-edit/schema checks, isolated diagnostics, defined-statistic policies | Artifacts exist; hardening is open. An existing audit PASS is not full certification |
+| A1 — reliable baseline | B0/B1/F0, fair allele controls, validation-selected heads, cached embeddings and traceable predictions | Not implemented; precedes GPU-heavy expansion |
+| B — structural feasibility | Verified constructs/references, approved budget, three training-only probes, actual runtime/memory/cost, frozen QC | Planned; one already-ready alternative or explicit untested structure |
+| C — locked cohort | S0 IDs/counts, worker/attempt limits, spend stop rule, complete manifests | Planned; stop admitting work beyond budget or result-freeze capacity |
+| D — scientific freeze | Frozen choices, paired scheduled evaluation, uncertainty/support/failures, optional I1 | Planned; positive, negative, inconclusive, and unrun outcomes stay explicit |
+| E — submission | Exercised real-output demo, recording, attribution, description, repository link | Planned; preserve submission buffer and offline real-output fallback |
 
-Estimate cohort cost from measured pilot cost **including overhead and retry reserve**, not nominal credit offers. Record an explicit spend cap and stop condition; no new paid jobs are authorized by this revision.
+Modal GPU access is confirmed by the user, not independently runtime-tested. GPU model/VRAM, image compatibility, account route, available credits, concurrency, and a numerical cap remain preflight items. **Paid jobs require separate approval.** Estimate cohort cost from a later approved probe including overhead and retry reserve; record a spend cap, maximum attempts/concurrency, and admission/stop rule. This revision launches no jobs.
 
-Parallel team: data/evaluation owner; structural-input/model owner; evidence/demo owner. Solo: A first, then B/C; skip optional searches, larger encoders, and U1 before compromising the core comparison. The evidence workflow must support delivery, not consume the weekend.
+Parallel team: data/evaluation owner; structural-input/model owner; evidence/demo owner. Solo: A0/A1 first, then B/C; skip optional searches, larger encoders, and U1 before compromising the core comparison. The evidence workflow must support delivery, not consume the weekend.
 
-Update the Google DeepMind sponsor row to name this actual use of Science Skills. Do not imply access to Antigravity, paid model APIs, or sponsor-prize eligibility has been verified. Replace stale authentication-state assertions with “verify current account/billing route before use”; retain no automatic logout/login commands.
+Science Skills is research infrastructure, not a half-life model. Do not infer access to Antigravity, other paid APIs, or prize eligibility from sponsor offers. Verify account/billing routes before use; retain no automatic logout/login instructions.
 
-## Exact Document Edit Map
+## Document roles and approved scope
 
-| Existing location | Revision |
+| Document | Responsibility |
 |---|---|
-| Title, executive decision, §0 | Keep Stability Lens and falsifiable half-life question; introduce the evidence-grounded structural spine and explicit scope tiers |
-| §§1–2 | Preserve prior audits/source distinctions; add pinned Science Skills matrix, evidence hierarchy, and biological caveats |
-| §3 | Add sequence/reference registries, failure-aware evaluation, target-validation fix, split/exposure distinctions |
-| §4 | Keep baseline/model menu; make contact MVP precise, add confidence/availability controls, freeze model selection before test |
-| §5 | Replace flow and extend planned manifests/interfaces; distinguish reference structures from predicted target structures |
-| §6 | Explain concrete Google DeepMind skill use; remove stale live-account assertions without assuming new access |
-| §7 | Replace elapsed starts with dependency gates, measured-budget decisions, and the existing submission buffer |
-| §§8–9 | Add acceptance tests, explicit model/pose/coverage statuses, and documentation-only completion boundary |
-| Sources | Preserve existing citations; append pinned skill and verified new source links, repair numbering/anchors |
+| [Master plan](HACKATHON_PLAN.md) | Authoritative current execution/evaluation contract, extracted script behavior, open hardening gates, model ladder, resources, and acceptance criteria |
+| This companion | Detailed source workflows, construct/reference registries, feature definitions, failure controls, visualization, and source terms |
+| [README](README.md) | Accessible project overview, current implementation status, navigation, and safe onboarding |
+| Background primer | Unchanged pre-event reference; not a current execution contract |
 
-Keep the main plan readable: consolidate repeated cautions into contracts/decision tables rather than appending another long, competing plan. Preserve useful existing findings and model alternatives, but keep optional tools visibly off the critical path.
-
-## Files to Modify
-
-- **Modify after approval:** `/Users/arkajyotisaha/Desktop/Hackathon/ARE/HACKATHON_PLAN.md`.
-- **Keep unchanged:** `/Users/arkajyotisaha/Desktop/Hackathon/ARE/Peptide-HLA Stability Primer.md`.
-- **Planning artifact only:** `/Users/arkajyotisaha/.devin/plans/plan-1e9f464293078ecb.md`.
-
-The listed future manifests, modules, tests, images, and `.devin/skills` locations are specifications to include in the hackathon document, **not files to create in this revision**. No Git initialization, installation, memory write, paid compute, deployment, commit, or push is included.
+The approved revision updates only the master plan, this companion, and README on `sh-arka22/are`, then verifies and publishes those documents with the user's GitHub identity. Scripts, input data, split files/report, experiments, and primer stay unchanged. Future manifests, modules, tests, images, and `.devin/skills` paths are specifications, not files created by this update. No installation, full scientific script run, training, folding, paid compute, or deployment is included.
 
 ## Verification
 
-### For the approved documentation revision
+### Documentation verification
 
-- [ ] Review the complete document diff against the edit map; check that the primer fingerprint is unchanged.
-- [ ] Preserve audit counts as previously reported, without re-deriving or relabeling them as fresh verification.
-- [ ] Trace every added tool capability to the pinned instructions/helper code listed below.
-- [ ] Check Markdown heading hierarchy, tables, fences, citation numbering, source links, and internal anchors.
-- [ ] Check names and contracts agree across the flow, ladder, file inventory, acceptance tests, and definition of done.
-- [ ] Check no unsupported novelty, clinical benefit, pLDDT-to-half-life, static-pose-to-kinetics, or clean-pretraining claim appears.
-- [ ] Check no test-driven model/subset/template selection or silent invalid-fold removal remains.
-- [ ] Check optional tools, unconfirmed resources, external uploads, data rights, and future commands are labeled clearly.
-- [ ] State that no training/test suite exists or ran; do not invoke a nonexistent build.
+- [ ] Review all three document diffs and their shared split/model/feature/fallback contracts.
+- [ ] Confirm the primer, scripts, canonical input, and frozen split/report fingerprints are unchanged.
+- [ ] Preserve saved counts and prior findings with their evidence status; do not re-derive them for a rewrite.
+- [ ] Verify Markdown structure, fences, tables, internal anchors, local links, source references, and example syntax.
+- [ ] Distinguish the local diagnostic from the newer pinned upstream analysis and keep all identified hardening gaps open.
+- [ ] Check no unsupported novelty, clinical, confidence-to-half-life, clean-pretraining, or prospective-blind-design claim appears.
+- [ ] Check no test-driven model/subset/template selection or silent fold removal remains.
+- [ ] Label resources, uploads, licenses, future commands, and unimplemented artifacts accurately.
+- [ ] State that no full scientific script or model test suite ran for this documentation update; the isolated synthetic diagnostic checks are not a completed regression suite.
 
-Read-only document checks can use `shasum -a 256` on both documents and a Python standard-library Markdown/link/fence scan. Since ARE is not a Git root, compare against an in-memory pre-edit snapshot rather than claiming `git diff` is available.
+The repository now supports `git diff --check`, full diff review, and unchanged-file comparisons. Use a read-only standard-library Markdown/link scan rather than inventing a nonexistent build. Proposed implementation tests below require separate code work before they can run.
 
-### Acceptance tests to add to the future implementation plan
+### Future implementation acceptance tests
 
 - `tests/test_chain_mapping.py`: exact 182-aa mapping, mismatched allele, ambiguous extension, C67S quarantine, mature-chain boundaries, β2m identity, label/auth renumbering and insertion codes.
 - `tests/test_reference_manifest.py`: wrong peptide, wrong allele, incomplete groove, experimental versus predicted type, assembly selection, and missing-reference fallback.
 - `tests/test_interface_features.py`: known synthetic contact distances on both sides of 4.5 Å; unique receptor-residue counting; rigid rotation/translation invariance; no intra-chain/β2m contacts; alternate conformers and missing atoms handled deterministically.
 - `tests/test_metrics.py`: identical pair order, paired component resampling, constant/insufficient targets, complete-case versus full-cohort counts, F0 fallback, and no model selection on test outcomes.
 - `tests/test_inverse_score.py`: only the peptide is scored, receptor context stays fixed, score normalization is explicit, template provenance is attached.
-- Existing split/label/inference tests: exact one-edit global peptide groups, negative-label rejection, zero-hour finiteness, train-only preprocessing, save/load equivalence, and unsupported-input handling.
+- `tests/test_split.py` and `tests/test_labels.py`: all three partition pairs reject distance 0/1/2 and accept an isolated distance-3 fixture; transitive components, exact assignment coverage, allowed split names, exact 9-mer/alphabet rules, negative/nonfinite-label rejection, zero-hour finiteness, and save/load/unsupported-input handling.
+- `tests/test_diagnostic_isolation.py`: held-out-only label perturbation/permutation/removal leaves training normalization, samples, and analysis-A outputs unchanged; confirmation-only evaluation is separate.
+- `tests/test_diagnostics.py`: undefined/constant/empty/nonfinite statistics cannot silently pass or become zero; sampling filters unique eligible pairs before capping and has deterministic ordering, a declared null/self-match policy, and support counts.
 - Demo smoke check: real prediction/artifact, correct structure-status label, experimental B-factor not shown as pLDDT, offline real-output fallback, working recording.
 
 Proposed narrow commands **only after those files and dependencies exist**:
@@ -279,12 +279,13 @@ uv run pytest -q tests/test_split.py tests/test_labels.py tests/test_metrics.py 
 6. **Online search cannot prove full pretraining decontamination.** Record what was checked and what remains unknown.
 7. **Wrappers have concrete quirks.** PDB returns all hits unless pagination is set; its implemented count flag is `--count-only`, despite an inconsistent prose example. bioRxiv DOI retrieval does not explicitly choose the newest version. Foldseek needs an external timeout and narrow database selection rather than an unbounded polling dependency.
 8. **Tavily compatibility was observed.** The installed CLI advertises `--chunks-per-source`, but the extraction backend rejected it. Plain extraction plus bounded in-memory filtering succeeded; do not prescribe an update or configuration change just to work around this.
-9. **License/output side effects are deferred.** Executing several skills creates output files, caches, or notice receipts. That is outside this Plan-mode/document-only approval.
-10. **Operational resources remain unverified.** Actual GPU availability, budget, rendering platform support, mentor decisions, and submission-rule ambiguities stay explicit gates—not assumptions.
+9. **License/output side effects remain gated.** Running skills can create downloads, caches, notices, or external uploads. Those executions are outside this documentation-only update.
+10. **Access is not an approved execution budget.** Modal access is user-confirmed; hardware/runtime compatibility, spending cap, and paid-job approval remain outstanding, as do rendering support, mentor decisions, and submission-rule ambiguities.
+11. **Existing tooling is not complete certification.** The audit threshold mismatch, all-row diagnostic normalization, undefined-statistic behavior, and sampling/conclusion limits remain executable-code gaps. This companion specifies acceptance criteria but does not repair them.
 
 ## Verified Sources for the Revision
 
-The existing plan’s sources [1]–[42] remain attached to their existing claims. Add the following sources for new workflow claims, using a consistent numbering scheme in the final document:
+The master plan retains earlier sources [1]–[42] with their original evidence boundaries and adds the pinned script review. The following workflow sources were inspected during the earlier Science Skills research, not newly executed by this revision:
 
 - Google DeepMind Science Skills, pinned source and license overview: https://github.com/google-deepmind/science-skills/tree/68832757cbbf941c620b71df5756cf6e5cc287b0
 - Skill-specific terms: https://github.com/google-deepmind/science-skills/blob/68832757cbbf941c620b71df5756cf6e5cc287b0/SKILL_LICENSES.md
@@ -302,3 +303,5 @@ The existing plan’s sources [1]–[42] remain attached to their existing claim
 - HLA data terms: https://github.com/ANHIG/IMGTHLA/blob/Latest/LICENCE.md
 - Anchor-position exceptions: “The nature of peptides presented by an HLA class I low expression allele”: https://haematologica.org/article/view/5692
 - Anchor improvements need not improve stability: “Real time detection of peptide–MHC dissociation reveals that improvement of primary MHC-binding residues can have a minimal, or no, effect on stability”: https://pmc.ncbi.nlm.nih.gov/articles/PMC3032881
+- Reviewed scripts and supporting snapshot: https://github.com/aswin-giridhar/london-ai-science-hackathon/tree/de2532f0a0d97067828dfd0077d0b852a845b920/scripts
+- Script contracts, evidence qualifications, and future hardening: [master plan §2](HACKATHON_PLAN.md#2-extracted-scripts-and-validation-gaps)

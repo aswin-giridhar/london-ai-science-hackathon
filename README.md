@@ -31,16 +31,26 @@ Stability Lens asks a practical scientific question: given a nine-residue peptid
 | [Challenge CSV](context/dataset.csv) / [spreadsheet](context/dataset.xlsx) | Measured peptide–HLA half-lives and sequence inputs |
 | [Split guide](splits/README.md) and [saved report](splits/split_report.json) | Frozen assignments, reported counts, and generation-time checks |
 | [Split generator](scripts/make_splits.py) and [independent audit](scripts/audit_splits.py) | Existing code for constructing assignments and checking distances, coverage, and representativeness |
-| [Distance diagnostic](scripts/measure_leakage_by_distance.py) | Exploratory label-agreement analysis used when revising the grouping threshold; not a half-life model benchmark |
+| [Distance diagnostic](scripts/measure_leakage_by_distance.py) | Earlier local exploratory label-agreement analysis; the reviewed upstream A/B version is not installed here |
 | [Experiment index](experiments/README.md) and [template](experiments/TEMPLATE.md) | Hypotheses, ownership, time boxes, and eventual result write-ups |
-| [Science Skills revision plan](SCIENCE_SKILLS_PLAN.md) | Detailed proposed construct verification, reference retrieval, structural controls, and delivery gates |
-| [Earlier hackathon plan](HACKATHON_PLAN.md) | Detailed research rationale and implementation proposals; historical decisions may be superseded by this README and the saved split files |
+| [Science Skills companion](SCIENCE_SKILLS_PLAN.md) | Detailed evidence retrieval, verified constructs, references, contact features, failure-aware comparisons, and provenance |
+| [Master execution plan](HACKATHON_PLAN.md) | Current research/evaluation contract, pinned script extraction, open validation gates, model ladder, resources, and acceptance criteria |
 | [Peptide–HLA background primer](Peptide-HLA%20Stability%20Primer.md) | Background written on 2 October 2026, before the event; retained as reference material |
 | [Working notes](context/NOTES.md), [SPEARMINT summary](context/SPEARMINT_SUMMARY.md), and [paper PDF](context/spearmint.pdf) | Background and earlier analysis; these are not new experimental results |
 
-The Science Skills document proposes revisions to the earlier hackathon plan; both are planning records rather than execution logs. They retain historical descriptions from before this directory was connected to GitHub. The current README and saved split files describe the current project state. The background primer predates the event and is included as reference material, not as work claimed to have been built during the hackathon.
+The master plan is the current execution roadmap; the Science Skills document is its technical companion, not a competing plan or an execution log. Earlier research findings retain their source/version boundaries. The background primer predates the event and is included as reference material, not as work claimed to have been built during the hackathon.
 
 Earlier experiment proposals have not all been synchronized with the newer plan. In particular, experiment 001 names ESM-2 650M, whereas the proposed delivery baseline below starts with ESM-2 35M. The current **80/10/10 train/validation/test split with Hamming distance ≤2 grouping remains authoritative**; older one-edit grouping descriptions and a planning example involving a fourth calibration partition do not override the saved assignments. Optional experiments must record their final checkpoint and protocol before running. Treat claims in working notes about zero-label censoring, novelty, or expected scores as hypotheses unless supported by source evidence.
+
+### Script review and evidence limits
+
+The planning documents now incorporate a source review of all three scripts at upstream revision `de2532f0a0d97067828dfd0077d0b852a845b920`. Local generation/audit scripts match that snapshot; the personal branch still contains the earlier distance diagnostic. **This documentation update does not import or fix scripts.** See the [master plan's extraction and gap register](HACKATHON_PLAN.md#2-extracted-scripts-and-validation-gaps).
+
+The upstream [distance diagnostic](https://github.com/aswin-giridhar/london-ai-science-hackathon/blob/de2532f0a0d97067828dfd0077d0b852a845b920/scripts/measure_leakage_by_distance.py) adds analysis A using training peptide pairs, but normalizes their labels with statistics computed over the entire dataset first. A synthetic held-out-only label change altered its training normalized values and pooled ranks. Its null guard also accepted an undefined correlation in an isolated fixture. These checks establish code-path problems, not a recomputed bias estimate on the sponsor dataset.
+
+The existing audit still enforces only one-edit separation in its pass/fail checks, despite the saved two-edit contract, and its low-coverage lookup uses zero as a correlation sentinel. Keep complete cutoff-boundary validation, training-only preprocessing, explicit undefined statistics, deterministic sampling, and input/assignment validation as **open implementation gates**. An audit PASS or a near-zero sampled null is not complete certification.
+
+The reviewed upstream [reconciliation](https://github.com/aswin-giridhar/london-ai-science-hackathon/blob/de2532f0a0d97067828dfd0077d0b852a845b920/RECONCILIATION.md) and [brainstorm](https://github.com/aswin-giridhar/london-ai-science-hackathon/blob/de2532f0a0d97067828dfd0077d0b852a845b920/experiments/BRAINSTORM.md) provide context, not proof that the gaps are fixed. Preserve the original label-informed split-design disclosure; later supporting analysis cannot retroactively make the original design blind.
 
 ## Biology and prediction target
 
@@ -352,13 +362,14 @@ Record checkpoint versions, target scale, training eligibility, exact split/coho
 
 | Gate | Required evidence | Fallback |
 |---|---|---|
-| **A — reliable sequence baseline** | Validated inputs, frozen split identity, B0/B1 and cached F0, development-selected heads | Resolve this before expanding GPU work |
+| **A0 — trustworthy inputs/checks** | Frozen identities, complete two-edit/schema checks, isolated diagnostics, valid-statistic policies | Existing artifacts are available, but identified hardening remains open |
+| **A1 — reliable sequence baseline** | B0/B1, cached F0, allele controls, development-selected heads, traceable predictions | Complete before expanding GPU/model scope |
 | **B — structural feasibility** | Verified constructs, reference triage, three training-only probes, observed runtime/memory/cost, frozen QC policy | One already-ready alternative or explicitly untested structure |
 | **C — locked structural cohort** | S0 pair IDs/counts, worker limit, spend cap, bounded retries, and manifests | Stop admitting jobs that cannot fit the budget and result-freeze window |
 | **D — scientific freeze** | Paired held-out comparisons, support, uncertainty, failures, and optional I1 | Report positive, negative, inconclusive, or unrun outcomes honestly |
 | **E — submission** | Exercised local/live demo, recording, citations, repository link, and description | Local real-output demo and recording if hosting fails |
 
-Estimate cost from measured probes including overhead and retry reserve. Sponsor offers do not establish actual access, billing route, or usable budget. No paid compute is launched by following this documentation update.
+**Modal GPU access is confirmed by the user.** GPU hardware/VRAM, runtime compatibility, account route, available credits, and a numerical budget have not been independently verified. **Paid jobs require separate approval.** A later approved probe must establish actual cost including overhead and retry reserve before sizing the cohort, with explicit concurrency, attempts, spend cap, and stop rules. This documentation update launches no compute.
 
 The planned Streamlit demo shows one supported peptide/allele, a real prediction and model ID, sequence-versus-structure comparisons, coverage/failure rate, and an evidence drawer. Every displayed structure is labeled **experimental reference**, **predicted complex**, or **no valid structure**. Measured labels appear only in clearly identified evaluation examples. Offline fallbacks must use real saved outputs, not fabricated predictions.
 
@@ -397,4 +408,4 @@ Further sources and planned tools:
 - [IPD-IMGT/HLA](https://www.ebi.ac.uk/ipd/imgt/hla), [official sequence repository](https://github.com/ANHIG/IMGTHLA), and [data terms](https://github.com/ANHIG/IMGTHLA/blob/Latest/LICENCE.md): allele nomenclature and sequence provenance. The earlier plan inspected release 3.65.0; record the actual pinned release when retrieving inputs.
 - [Allele-specific anchor preferences](https://haematologica.org/article/view/5692) and [experimental limits of anchor optimization](https://pmc.ncbi.nlm.nih.gov/articles/PMC3032881): biological reasons to test rather than assume contact–stability relationships.
 
-See the [revision plan](SCIENCE_SKILLS_PLAN.md) for the detailed evidence boundaries and proposed acceptance tests. Attribute every dataset, pretrained model, structural reference, and external workflow actually used in future experiments.
+See the [master execution plan](HACKATHON_PLAN.md) for current script evidence, priorities, and open gates, and the [Science Skills companion](SCIENCE_SKILLS_PLAN.md) for detailed source/structural contracts and future acceptance tests. Attribute every dataset, pretrained model, structural reference, and external workflow actually used in future experiments.
