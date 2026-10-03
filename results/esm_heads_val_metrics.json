@@ -1,0 +1,56 @@
+{
+  "F150_pooled_head": {
+    "n": 2817,
+    "spearman_pooled": 0.592924790832193,
+    "spearman_within_allele": 0.2784174491003618,
+    "alleles_supported": 68,
+    "pearson_log": 0.5929833251546679,
+    "rmse_log": 0.8746925442804627,
+    "mae_log": 0.6794585956484631,
+    "mae_hours": 4.2755285650319825,
+    "seeds": [
+      42,
+      43,
+      44
+    ],
+    "spearman_pooled_per_seed": [
+      0.5884,
+      0.5739,
+      0.581
+    ],
+    "spearman_pooled_seed_spread": 0.0145,
+    "spearman_within_allele_per_seed": [
+      0.2755,
+      0.2482,
+      0.2647
+    ],
+    "spearman_within_allele_seed_spread": 0.0273
+  },
+  "X150_interaction_head": {
+    "n": 2817,
+    "spearman_pooled": 0.7537633127709604,
+    "spearman_within_allele": 0.5583888390775487,
+    "alleles_supported": 68,
+    "pearson_log": 0.7654631545190219,
+    "rmse_log": 0.7042350095612764,
+    "mae_log": 0.5237847238627484,
+    "mae_hours": 3.538639621547081,
+    "seeds": [
+      42,
+      43,
+      44
+    ],
+    "spearman_pooled_per_seed": [
+      0.7154,
+      0.7096,
+      0.6903
+    ],
+    "spearman_pooled_seed_spread": 0.025,
+    "spearman_within_allele_per_seed": [
+      0.4968,
+      0.4941,
+      0.458
+    ],
+    "spearman_within_allele_seed_spread": 0.0388
+  }
+}

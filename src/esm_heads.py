@@ -23,6 +23,20 @@ Both rungs read the frozen cache from src/embed.py. The encoder is never trained
 
 from __future__ import annotations
 
+import os
+
+# Anaconda's numpy (MKL) and pip's torch each ship a libiomp5md.dll, and the second to
+# initialise aborts the process. Must be set before numpy or torch is imported.
+#
+# The flag's own warning says it "may silently produce incorrect results", so it was checked
+# rather than trusted: under these settings torch's matmul is bit-identical to numpy's
+# (max abs diff 0.0), a seeded X150 forward repeats exactly, and 4-thread vs 1-thread differs
+# by 8.2e-08 -- float32 reduction-order noise, not corruption. Pinning the thread counts
+# removes the oversubscription the warning is actually about.
+os.environ.setdefault("KMP_DUPLICATE_LIB_OK", "TRUE")
+os.environ.setdefault("OMP_NUM_THREADS", "4")
+os.environ.setdefault("MKL_NUM_THREADS", "4")
+
 import json
 import time
 from pathlib import Path
@@ -35,7 +49,7 @@ import metrics
 
 ROOT = Path(__file__).resolve().parent.parent
 CACHE = ROOT / "cache" / "esm2_150m.npz"
-OUT = ROOT / "results"
+OUT = Path(os.environ.get("RESULTS_DIR", ROOT / "results"))   # redirectable: the Modal mount is read-only
 
 SEEDS = (42, 43, 44)
 MAX_EPOCHS = 40
@@ -44,6 +58,8 @@ BATCH = 256
 LR = 1e-3
 D_MODEL = 128
 N_HEADS = 4
+
+DEVICE = "cpu"   # set in main(); the heads are small enough that a GPU is pure latency win
 
 
 def load_cache():
@@ -70,6 +86,8 @@ def build_models(torch, nn, d_in_pooled, d_res):
     class F150(nn.Module):
         """Mean-pooled baseline head."""
 
+        NEEDS_RESIDUES = False
+
         def __init__(self):
             super().__init__()
             self.net = nn.Sequential(
@@ -83,6 +101,8 @@ def build_models(torch, nn, d_in_pooled, d_res):
 
     class X150(nn.Module):
         """Residue-level peptide -> HLA cross-attention."""
+
+        NEEDS_RESIDUES = True
 
         def __init__(self):
             super().__init__()
@@ -122,10 +142,28 @@ def build_models(torch, nn, d_in_pooled, d_res):
 # --------------------------------------------------------------------------- training
 
 
-def train_one(torch, nn, Model, data, seed):
+def gather(banks, d, idx, residues=True):
+    """Index the unique-sequence banks instead of materialising per-row tensors.
+
+    28,166 rows share only 75 HLA domains. A per-row (182, 640) float32 tensor for the
+    training split would be 10.5 GB; the bank is 35 MB and each batch gathers the 256 rows
+    it needs. Same duplication src/embed.py exploits, one layer further down.
+    """
+    pi, ai = d["pi"][idx], d["ai"][idx]
+    out = [banks["pep_pool"][pi], banks["hla_pool"][ai]]
+    if residues:
+        # a (256, 182, 640) float32 gather is 119 MB. F150 never reads it, and pulling it
+        # anyway would put ~3,500 pointless 119 MB copies inside F150's measured wall-clock --
+        # making the F150/X150 cost comparison, which we report, meaningless.
+        out += [banks["pep_res"][pi], banks["hla_res"][ai]]
+    return out
+
+
+def train_one(torch, nn, Model, banks, data, seed):
     torch.manual_seed(seed)
     np.random.seed(seed)
-    model = Model()
+    need_res = Model.NEEDS_RESIDUES
+    model = Model().to(DEVICE)
     opt = torch.optim.AdamW(model.parameters(), lr=LR, weight_decay=1e-2)
     lossf = nn.MSELoss()
 
@@ -138,10 +176,9 @@ def train_one(torch, nn, Model, data, seed):
         model.train()
         order = np.random.permutation(n)
         for i in range(0, n, BATCH):
-            idx = order[i : i + BATCH]
+            idx = torch.from_numpy(order[i : i + BATCH]).to(DEVICE)
             opt.zero_grad()
-            pred = model(tr["pep_pool"][idx], tr["hla_pool"][idx],
-                         tr["pep_res"][idx], tr["hla_res"][idx])
+            pred = model(*gather(banks, tr, idx, need_res))
             loss = lossf(pred, tr["y"][idx])
             loss.backward()
             opt.step()
@@ -150,11 +187,9 @@ def train_one(torch, nn, Model, data, seed):
         with torch.no_grad():
             pv = []
             for i in range(0, len(va["y"]), 1024):
-                s = slice(i, i + 1024)
-                pv.append(model(va["pep_pool"][s], va["hla_pool"][s],
-                                va["pep_res"][s], va["hla_res"][s]))
-            pv = torch.cat(pv).numpy()
-        rho = metrics._spearman(va["y"].numpy(), pv)
+                pv.append(model(*gather(banks, va, slice(i, i + 1024), need_res)))
+            pv = torch.cat(pv).cpu().numpy()
+        rho = metrics._spearman(va["y"].cpu().numpy(), pv)
         if rho is not None and rho > best["rho"] + 1e-5:
             best = {"rho": rho, "epoch": epoch,
                     "state": {k: v.clone() for k, v in model.state_dict().items()}, "pred": pv}
@@ -171,21 +206,38 @@ def main():
     import torch
     from torch import nn
 
+    global DEVICE
+    DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+    torch.set_num_threads(int(os.environ["OMP_NUM_THREADS"]))
+    if DEVICE == "cuda":
+        print(f"device: cuda -- {torch.cuda.get_device_name(0)}, "
+              f"{torch.cuda.get_device_properties(0).total_memory / 1e9:.1f} GB")
+    else:
+        print(f"device: cpu -- {torch.get_num_threads()} threads")
     OUT.mkdir(exist_ok=True)
     t0 = time.time()
     z, pep_index, all_index = load_cache()
     m = features.load()
+
+    banks = {
+        "pep_pool": torch.tensor(z["peptide_pooled"].astype(np.float32)),
+        "hla_pool": torch.tensor(z["hla_pooled"].astype(np.float32)),
+        "pep_res": torch.tensor(z["peptide_residue"].astype(np.float32)),
+        "hla_res": torch.tensor(z["hla_residue"].astype(np.float32)),
+    }
+    banks = {k: v.to(DEVICE) for k, v in banks.items()}
+    bank_mb = sum(t.element_size() * t.nelement() for t in banks.values()) / 1e6
+    print(f"embedding banks {bank_mb:.0f} MB resident "
+          f"(per-row layout would be {22532 * 182 * 640 * 4 / 1e9:.1f} GB for train alone)")
 
     tensors = {}
     for split in ("train", "val"):
         sub = m[m.split == split].reset_index(drop=True)
         pi, ai = row_indices(sub, pep_index, all_index)
         tensors[split] = {
-            "pep_pool": torch.tensor(z["peptide_pooled"][pi].astype(np.float32)),
-            "hla_pool": torch.tensor(z["hla_pooled"][ai].astype(np.float32)),
-            "pep_res": torch.tensor(z["peptide_residue"][pi].astype(np.float32)),
-            "hla_res": torch.tensor(z["hla_residue"][ai].astype(np.float32)),
-            "y": torch.tensor(features.target(sub).astype(np.float32)),
+            "pi": torch.from_numpy(pi).to(DEVICE),
+            "ai": torch.from_numpy(ai).to(DEVICE),
+            "y": torch.tensor(features.target(sub).astype(np.float32)).to(DEVICE),
             "allele": sub.allele.to_numpy(),
             "meta": sub,
         }
@@ -197,7 +249,7 @@ def main():
 
     results, preds = {}, {}
     va = tensors["val"]
-    preds["y_true_log"] = va["y"].numpy().tolist()
+    preds["y_true_log"] = va["y"].cpu().numpy().tolist()
     preds["allele"] = va["allele"].tolist()
     preds["peptide"] = va["meta"].peptide.tolist()
     preds["cluster_id"] = va["meta"].cluster_id.tolist()
@@ -206,13 +258,13 @@ def main():
         seed_preds, per_seed = [], []
         for sd in SEEDS:
             t = time.time()
-            _, epoch, rho, pv = train_one(torch, nn, Model, tensors, sd)
+            _, epoch, rho, pv = train_one(torch, nn, Model, banks, tensors, sd)
             seed_preds.append(pv)
-            per_seed.append(metrics.evaluate(va["y"].numpy(), pv, va["allele"]))
+            per_seed.append(metrics.evaluate(va["y"].cpu().numpy(), pv, va["allele"]))
             print(f"  {name} seed {sd}: epoch {epoch}, {time.time()-t:.0f}s, "
                   f"rho_pooled {per_seed[-1]['spearman_pooled']:.3f}", flush=True)
         p = np.mean(seed_preds, axis=0)
-        r = metrics.evaluate(va["y"].numpy(), p, va["allele"])
+        r = metrics.evaluate(va["y"].cpu().numpy(), p, va["allele"])
         r["seeds"] = list(SEEDS)
         for k in ("spearman_pooled", "spearman_within_allele"):
             vals = [s[k] for s in per_seed if s[k] is not None]

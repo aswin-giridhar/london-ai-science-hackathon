@@ -16,3 +16,7 @@ __pycache__/
 
 # Local Graft session cache and telemetry.
 graft/.cache/
+
+# large regenerable artefacts
+cache/
+.venv-cu/

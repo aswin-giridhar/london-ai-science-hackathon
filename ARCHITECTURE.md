@@ -3,8 +3,9 @@
 The build spec for the plan of record, **`docs/GeoStab-FT-build-plan.pdf`**. That document governs;
 this one is its diagram and first-stage checklist. Where they disagree, it wins.
 
-**Status.** The split and its audits are built and frozen. Everything downstream is specified but not
-trained. Markers: ✅ built · ○ specified, not built · ✂ killable.
+**Status.** The split and its audits are frozen. The sequence ladder is built and measured through the
+**frozen**-encoder rungs: B0/B1/B1' and F150/X150 have run; L150 and the structural arm have not.
+Markers: ✅ built · ○ specified, not built · ✂ killable.
 
 ---
 
@@ -17,8 +18,8 @@ can never overwrite the full-data adapter, and the fallback for a missing struct
 flowchart TD
     D["dataset.csv · 28,166 pairs"]
     S["✅ frozen split, Hamming ≤ 2"]
-    B["○ B0 / B1 — supervised baselines<br/>median, then positional one-hot + allele id"]
-    X["○ F150 / X150 — frozen ESM-2 150M<br/>pooled head vs residue interaction head"]
+    B["✅ B0 / B1 — supervised baselines<br/>median, then positional one-hot + allele id"]
+    X["✅ F150 / X150 — frozen ESM-2 150M<br/>pooled head vs residue interaction head"]
     L["○ L150 — LoRA r=8 on K/V<br/>the encoder actually adapts"]
     FR["freeze the selected sequence model S*"]
     G["✂ Boltz-2 frozen → coordinates<br/>D[9,182] → 6 RBFs → attention bias"]
@@ -56,7 +57,7 @@ contaminates the analysis that claims to be train-only. Neither is fixed yet; se
 Separate **calibration** rows (carved from train, never val) are required before any per-prediction
 interval is shown. Metric confidence intervals are not prediction intervals.
 
-## 3. The sequence ladder ○
+## 3. The sequence ladder — measured through F150/X150
 
 | Rung | What | What its gap proves |
 |---|---|---|
@@ -166,8 +167,25 @@ equivalence.
 
 ---
 
-**B0 / B1 / B1′ are built and run** — see `results/README.md` for every number, what it shows, and
-what it does not establish. Headline: a per-allele median with *no peptide information* scores 0.563
-pooled Spearman, so every pooled figure must be read against 0.563 rather than zero.
+**B0 / B1 / B1′ and F150 / X150 are built and run** — see `results/README.md` for every number,
+what it shows, and what it does not establish.
 
-Next: **F150 / X150.** Needs no unresolved decision. Split counts measured from `splits/peptide_split.csv`.
+Measured (validation, 3 seeds, seed-ensemble mean):
+
+| Rung | ρ pooled | ρ within-allele |
+|---|---|---|
+| B0b per-allele median | 0.563 | undefined |
+| F150 frozen ESM-2, mean-pooled | 0.593 | 0.278 |
+| X150 frozen ESM-2, cross-attention | 0.754 | 0.558 |
+| B1′ one-hot peptide + allele id | 0.748 | 0.557 |
+| B1 one-hot + pseudoseq + allele | **0.780** | **0.633** |
+
+Two headlines. **H2 is answered**: the head design is worth +0.161 pooled / +0.280 within-allele
+against seed spreads of 0.025 / 0.039, so mean-pooling — not model size — was the binding constraint
+on the frozen rungs. And **the frozen PLM does not beat one-hot**: X150 and B1′ agree to within seed
+noise, while B1 beats both using no protein language model at all.
+
+Next: **L150.** That is the brief's question and the only rung that can overturn the table above.
+Run it on Modal (`modal_app.py`, A10 — F150/X150 took 64 s there against ~65 min on CPU); the
+embedding cache is **void** for L150 because the encoder trains. Split counts measured from
+`splits/peptide_split.csv`.

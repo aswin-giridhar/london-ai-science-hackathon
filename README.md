@@ -6,7 +6,44 @@ London AI × Science Hackathon · Serova Protein Engineering Track · 3–4 Octo
 
 Stability Lens asks a practical scientific question: given a nine-residue peptide and an HLA class I variant, can we predict how long their complex remains intact, and do expensive protein models add useful information beyond a small supervised sequence model? The planned comparison progresses from sequence features to predicted interface geometry and, optionally, inverse-folding compatibility. Every comparison uses measured half-life labels, controlled data partitions, and explicit records of cost and failure.
 
-**Current status:** this repository contains the challenge materials, frozen data splits, split generation/audit scripts, saved split statistics and diagnostic write-ups, and research proposals. Model training, structural inference, the evidence registries, and the demo are planned. There are no B1/F0 or structural-model performance results to report yet. A well-supported negative or inconclusive result is a valid outcome.
+**Current status:** the sequence ladder is **built and measured** through the frozen-encoder rungs. Baselines (B0/B1/B1'), the ESM-2 150M embedding cache, and both embedding heads (F150/X150) have run on the frozen split; every number, and what it does not establish, is in [`results/README.md`](results/README.md). LoRA adaptation (L150), the structural arm, and the demo are not built. A well-supported negative or inconclusive result is a valid outcome - and the headline result so far is of that kind.
+
+## Measured results
+
+Validation rows, frozen split, three seeds per rung, seed-ensemble mean reported. The test split has
+not been read by anything. `rho` is Spearman; *within-allele* is the mean over alleles with at least
+12 rows, which is the clinically relevant question - rank one patient's candidate peptides inside
+their own allele.
+
+| Rung | rho pooled | rho within-allele | Uses a protein language model? |
+|---|---|---|---|
+| B0a global median | undefined | undefined | no |
+| B0b per-allele median | 0.563 | undefined | no |
+| F150 frozen ESM-2 150M, mean-pooled head | 0.593 | 0.278 | **yes** |
+| X150 frozen ESM-2 150M, residue cross-attention | 0.754 | 0.558 | **yes** |
+| B1' one-hot peptide + allele identity | 0.748 | 0.557 | no |
+| B1 one-hot peptide + HLA pseudosequence + allele | **0.780** | **0.633** | no |
+
+Three findings, in the order we would present them:
+
+**1. Pooled Spearman has a floor of 0.563, and it contains no peptide information at all.** B0b
+predicts the training median of whichever allele a row belongs to. Its within-allele correlation is
+*undefined by construction* - it predicts a constant inside each allele - and it still scores 0.563
+pooled. Pooled figures on this endpoint are largely measuring which groove, not which peptide, so we
+report within-allele as primary.
+
+**2. The head design matters more than the foundation model.** F150 and X150 share the same frozen
+embeddings and differ only in how they read them. Replacing mean-pooling with residue-level
+cross-attention is worth **+0.161 pooled and +0.280 within-allele**, against seed spreads of 0.025
+and 0.039. Mean-pooling a 9-mer averages away position, and position is where the P2/P9 anchor
+residues live.
+
+**3. A frozen protein language model does not beat one-hot encoding here.** X150 (0.754 / 0.558) and
+B1' (0.748 / 0.557) agree to within seed noise, and B1 - which uses no protein language model at all
+- beats both. Whether adaptation changes this is exactly what L150 tests, and L150 has not been run.
+
+We do not compare these to published figures on other splits. A number measured on a different
+partition, with a different HLA input and a different model, is context, not a scoreboard.
 
 ## Contents
 
@@ -164,7 +201,9 @@ SPEARMINT's curated dataset, full-chain inputs, split, and published performance
 
 ## Model ladder
 
-The delivery floor is a completed comparison of **B0/B1/F0 on the full dataset**. The main extension is a bounded, paired structure experiment. All rows below describe planned work.
+The delivery floor is a completed comparison of **B0/B1/F0 on the full dataset**. The main extension is a bounded, paired structure experiment.
+
+> **Note.** The table below is the *original* plan and uses the earlier naming (F0 = ESM-2 35M). What was actually built is the ladder in [ARCHITECTURE.md](ARCHITECTURE.md) section 3 - B0/B1/B1' then F150/X150 on ESM-2 **150M** - with results in [results/README.md](results/README.md). The rows below that are still unbuilt are S0/S1/I1/U1.
 
 | ID | Inputs and approach | Question answered |
 |---|---|---|

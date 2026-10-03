@@ -99,8 +99,19 @@ def main():
         OUT / "esm2_150m.npz",
         peptide_residue=pep_res, peptide_pooled=pep_pool,
         hla_residue=hla_res, hla_pooled=hla_pool,
-        peptides=np.array(peptides), alleles=hla.allele.to_numpy(),
+        # dtype matters: pandas hands back object arrays, and np.load(allow_pickle=False)
+        # refuses those -- the file writes fine and is unreadable. Force fixed-width unicode.
+        peptides=np.array(peptides, dtype="U"),
+        alleles=hla.allele.to_numpy().astype("U"),
     )
+
+    # read the cache back the way consumers will. The first run of this script exited 0 and
+    # left a file esm_heads.py could not open; an exit code is not a check.
+    chk = np.load(OUT / "esm2_150m.npz", allow_pickle=False)
+    assert chk["peptide_residue"].shape == pep_res.shape
+    assert chk["hla_residue"].shape == hla_res.shape
+    assert list(chk["peptides"]) == peptides
+    assert list(chk["alleles"]) == hla.allele.tolist()
 
     manifest = {
         "model": MODEL_ID,
@@ -124,6 +135,7 @@ def main():
     print(f"\nencoded {len(peptides)+len(hla):,} sequences in {elapsed:.0f}s")
     print(f"wrote {OUT/'esm2_150m.npz'}  ({size_mb:.0f} MB)")
     print(f"  peptide residue {pep_res.shape}, hla residue {hla_res.shape}")
+    print("  read back with allow_pickle=False: shapes and keys match")
 
 
 if __name__ == "__main__":

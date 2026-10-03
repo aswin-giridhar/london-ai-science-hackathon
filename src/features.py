@@ -7,6 +7,7 @@ training rows only; none are needed at this stage.
 
 from __future__ import annotations
 
+import hashlib
 from pathlib import Path
 
 import numpy as np
@@ -22,9 +23,27 @@ AA_INDEX = {a: i for i, a in enumerate(AMINO_ACIDS)}
 PEPTIDE_LEN = 9
 PSEUDOSEQ_LEN = 34
 
+# The frozen split, by content. Every run asserts this before reading a label, so a job that
+# somehow receives a regenerated or truncated split fails immediately instead of quietly
+# reporting a number against different data. This matters most for remote jobs, where the file
+# travels over a network and a silent substitution would look exactly like a successful run.
+# Reproduce with: sha256sum splits/peptide_split.csv
+SPLIT_SHA256 = "210775dc4ad179df635b3386bdb9671e4bca515cef1892bc70fb38f9b1b73f47"
+
 
 def load() -> pd.DataFrame:
     """Dataset joined to the frozen split. Fails loudly if the contract is violated."""
+    digest = hashlib.sha256(SPLIT.read_bytes()).hexdigest()
+    if digest != SPLIT_SHA256:
+        raise RuntimeError(
+            "frozen split has changed.\n"
+            f"  expected {SPLIT_SHA256}\n"
+            f"  found    {digest}\n"
+            f"  file     {SPLIT}\n"
+            "Every number in results/ was measured against the expected split. "
+            "Restore it from git rather than re-running make_splits.py."
+        )
+
     df = pd.read_csv(DATA)
     sp = pd.read_csv(SPLIT)
     m = df.merge(sp, on="peptide", validate="many_to_one")
