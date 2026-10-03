@@ -100,10 +100,16 @@ their work** — put this in the README from the first commit.
    the same peptide on both sides. Split by peptide group, better by sequence-identity cluster.
    (The identity-clustering recipe is from the SPEARMINT preprint, not the brief — the brief only
    says to establish splits early with a sensible hypothesis.)
-2. **20% of labels are exactly 0.0** (5,679 rows; 57% of the lowest histogram bin). A detection
-   floor, not a measurement of zero. Options: censored-regression likelihood, two-stage
-   classify-then-regress, or an explicit "unstable" class. **The SPEARMINT paper does not address
-   this** — `log(1+0)=0` straight into MSE — so it is a genuine open gap.
+2. **20% of labels are exactly 0.0** (5,679 rows). **Settled from the data** by
+   `scripts/investigate_zero_labels.py`: 98.4% of non-zero values are exact multiples of 0.1 h and
+   only one row in the entire dataset falls below 0.1, so the reporting scale is 0.1 h and anything
+   under 0.05 h rounds to 0.0. **`0.0` means "half-life < 0.05 h" — left-censored at 3 minutes, not
+   a true zero.** There is no gap above zero, so this is a rounding floor rather than a hard
+   instrument threshold. **The SPEARMINT paper does not address it** — `log(1+0)=0` straight into
+   MSE — so a censored likelihood is a genuine open gap.
+   The zeros are strongly allele-dependent: seven alleles are more than half zeros, including all
+   three engineered `(C67S)` constructs at 75–92%. Dropping zero rows removes 20% of the data and
+   effectively deletes those alleles.
 3. **The target needs a transform.** `log1p` drops skew from 5.87 to 0.91.
 4. **`hla_pseudoseq` cannot separate two alleles.** `B*14:01(C67S)` and `B*14:02(C67S)` share one,
    producing 368 colliding (peptide, pseudoseq) pairs. Key on `hla_seq` or the allele name.

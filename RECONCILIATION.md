@@ -72,9 +72,8 @@ rather than edited out — the audit trail is worth more than a clean story.
 - `experiments/001` names ESM-2 650M; their delivery baseline starts at 35M. A model-size ladder
   (BRAINSTORM `R4`) would settle it with evidence instead of a preference, and directly serves the
   brief's cost-benefit question.
-- They flag the zero-label censoring claim as a hypothesis pending source evidence. Fair: we have
-  measured that 5,679 labels are exactly 0.0, but the assay meaning of that value is **not**
-  established by the CSV. `BRAINSTORM` §5 should be read with that caveat.
+- They flagged the zero-label censoring claim as a hypothesis pending source evidence. That was the
+  right call, and it has now been **settled from the data** — see §8 below.
 
 ---
 
@@ -202,3 +201,50 @@ arguing against it.
 
 That is a lot of agreement for two independently produced plans, and it is the part the brief
 actually scores.
+
+---
+
+## 8. UPDATE 16:10 — the zero labels are settled, and both plans were wrong about them
+
+Everyone's notes hedged on `thalf_hours == 0.0`. My first version asserted "detection floor" with no
+evidence; their README correctly demanded source evidence; the official brief, the background primer
+and the SPEARMINT preprint are all silent on it. It turns out the data answers the question on its
+own — `scripts/investigate_zero_labels.py`.
+
+**Two tests.**
+
+1. *Is there a gap above zero?* A hard censoring threshold at some value leaves a point mass at 0
+   and nothing until that value. There is no gap — 0.05 and 0.1 both occur. So "below the
+   instrument's threshold" does not fit by itself.
+2. *What is the reporting precision?* **98.4% of non-zero values are exact multiples of 0.1 h**
+   (22,133 of 22,487), and **exactly one row in the entire dataset falls below 0.1 h**. The
+   reporting scale is 0.1 h.
+
+**Conclusion: `0.0` means "measured half-life below 0.05 h" — left-censored at three minutes, not a
+complex with zero lifetime.** The censoring threshold is therefore *known* (0.05 h), which makes a
+Tobit-style likelihood directly implementable rather than speculative. `log1p` treats that boundary
+as a point observation, and so does the published work.
+
+**The more immediately practical finding** is that the zeros are strongly allele-dependent:
+
+| allele | rows | zero fraction |
+|---|---|---|
+| `HLA-B*39:06(C67S)` | 379 | 92.1% |
+| `HLA-B*14:01(C67S)` | 374 | 89.0% |
+| `HLA-B*14:02(C67S)` | 382 | 74.9% |
+| `HLA-B*45:01` | 368 | 67.1% |
+| `HLA-B*41:01` | 368 | 59.8% |
+| `HLA-B*55:01` | 378 | 55.6% |
+| `HLA-B*51:01` | 353 | 50.7% |
+
+Median across alleles is 13.2%; five alleles have none at all. **Dropping zero rows would remove 20%
+of the dataset and effectively delete the seven alleles above**, including all three engineered
+constructs. Anyone filtering them needs to say so and report which alleles it costs.
+
+This also supports the plan's existing instruction to quarantine the `(C67S)` constructs from the
+structural arm: at 75–92% zeros, those three contribute very little gradient signal and their
+measurements may reflect the construct rather than the biology.
+
+**Reconciles a discrepancy too.** The primer and preprint both state **72** alleles; we measure 75.
+75 − 3 engineered = 72 exactly, so the `(C67S)` constructs are additional to the published corpus,
+not a counting error on either side.
