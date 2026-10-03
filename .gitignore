@@ -13,3 +13,6 @@ __pycache__/
 .remember/
 .claude/
 .codegraph/
+
+# Local Graft session cache and telemetry.
+graft/.cache/
