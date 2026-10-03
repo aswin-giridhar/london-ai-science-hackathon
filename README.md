@@ -34,9 +34,11 @@ Stability Lens asks a practical scientific question: given a nine-residue peptid
 | [Distance diagnostic](scripts/measure_leakage_by_distance.py) | Exploratory label-agreement analysis used when revising the grouping threshold; not a half-life model benchmark |
 | [Experiment index](experiments/README.md) and [template](experiments/TEMPLATE.md) | Hypotheses, ownership, time boxes, and eventual result write-ups |
 | [Science Skills revision plan](SCIENCE_SKILLS_PLAN.md) | Detailed proposed construct verification, reference retrieval, structural controls, and delivery gates |
+| [Earlier hackathon plan](HACKATHON_PLAN.md) | Detailed research rationale and implementation proposals; historical decisions may be superseded by this README and the saved split files |
+| [Peptide–HLA background primer](Peptide-HLA%20Stability%20Primer.md) | Background written on 2 October 2026, before the event; retained as reference material |
 | [Working notes](context/NOTES.md), [SPEARMINT summary](context/SPEARMINT_SUMMARY.md), and [paper PDF](context/spearmint.pdf) | Background and earlier analysis; these are not new experimental results |
 
-The Science Skills document is a revision proposal, not an execution log. It refers to a separate local `HACKATHON_PLAN.md` and records workspace conditions from before this directory was connected to GitHub. This README makes the proposed research direction understandable without that local document.
+The Science Skills document proposes revisions to the earlier hackathon plan; both are planning records rather than execution logs. They retain historical descriptions from before this directory was connected to GitHub. The current README and saved split files describe the current project state. The background primer predates the event and is included as reference material, not as work claimed to have been built during the hackathon.
 
 Earlier experiment proposals have not all been synchronized with the newer plan. In particular, experiment 001 names ESM-2 650M, whereas the proposed delivery baseline below starts with ESM-2 35M. The current **80/10/10 train/validation/test split with Hamming distance ≤2 grouping remains authoritative**; older one-edit grouping descriptions and a planning example involving a fourth calibration partition do not override the saved assignments. Optional experiments must record their final checkpoint and protocol before running. Treat claims in working notes about zero-label censoring, novelty, or expected scores as hypotheses unless supported by source evidence.
 
