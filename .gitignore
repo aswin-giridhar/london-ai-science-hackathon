@@ -1,0 +1,15 @@
+# Local-only. context/ IS committed (track materials); support/ is not —
+# it holds the event brief and participant-only sponsor credentials.
+support/
+HACKATHON.md
+PRIVATE_CREDITS.md
+
+.env
+.env.*
+__pycache__/
+.venv/
+
+.playwright-mcp/
+.remember/
+.claude/
+.codegraph/
