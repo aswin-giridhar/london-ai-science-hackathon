@@ -1,0 +1,160 @@
+{
+  "generated": "scripts/make_splits.py",
+  "seed": 42,
+  "cluster_max_hamming": 1,
+  "identity_threshold": 0.889,
+  "targets": {
+    "train": 0.8,
+    "val": 0.1,
+    "test": 0.1
+  },
+  "dataset": {
+    "rows": 28166,
+    "peptides": 5633,
+    "alleles": 75
+  },
+  "threshold_sensitivity": {
+    "1": {
+      "identity": 0.889,
+      "n_clusters": 5494,
+      "largest_cluster": 5,
+      "largest_cluster_pct_of_peptides": 0.09,
+      "singletons": 5376
+    },
+    "2": {
+      "identity": 0.778,
+      "n_clusters": 5410,
+      "largest_cluster": 8,
+      "largest_cluster_pct_of_peptides": 0.14,
+      "singletons": 5230
+    }
+  },
+  "peptide_split": {
+    "name": "peptide_split",
+    "keyed_on": "peptide",
+    "rows": {
+      "train": {
+        "n": 22532,
+        "pct": 80.0
+      },
+      "val": {
+        "n": 2817,
+        "pct": 10.0
+      },
+      "test": {
+        "n": 2817,
+        "pct": 10.0
+      }
+    },
+    "label_stats": {
+      "train": {
+        "median_thalf": 1.1,
+        "mean_thalf": 5.351,
+        "frac_zero": 0.2026
+      },
+      "val": {
+        "median_thalf": 1.2,
+        "mean_thalf": 5.772,
+        "frac_zero": 0.1885
+      },
+      "test": {
+        "median_thalf": 1.1,
+        "mean_thalf": 5.909,
+        "frac_zero": 0.2066
+      }
+    },
+    "alleles": {
+      "train": 75,
+      "val": 72,
+      "test": 74
+    },
+    "peptides": {
+      "train": 4506,
+      "val": 561,
+      "test": 566
+    },
+    "alleles_per_peptide": {
+      "train": {
+        "mean": 5.0,
+        "median": 4.0,
+        "max": 34
+      },
+      "val": {
+        "mean": 5.02,
+        "median": 4.0,
+        "max": 34
+      },
+      "test": {
+        "mean": 4.98,
+        "median": 4.0,
+        "max": 36
+      }
+    }
+  },
+  "allele_split": {
+    "name": "allele_split",
+    "keyed_on": "allele",
+    "rows": {
+      "train": {
+        "n": 22039,
+        "pct": 78.25
+      },
+      "val": {
+        "n": 3068,
+        "pct": 10.89
+      },
+      "test": {
+        "n": 3059,
+        "pct": 10.86
+      }
+    },
+    "label_stats": {
+      "train": {
+        "median_thalf": 1.1,
+        "mean_thalf": 5.65,
+        "frac_zero": 0.2064
+      },
+      "val": {
+        "median_thalf": 0.7,
+        "mean_thalf": 5.808,
+        "frac_zero": 0.2047
+      },
+      "test": {
+        "median_thalf": 1.3,
+        "mean_thalf": 3.645,
+        "frac_zero": 0.1641
+      }
+    },
+    "alleles": {
+      "train": 64,
+      "val": 5,
+      "test": 6
+    },
+    "peptides": {
+      "train": 4540,
+      "val": 2740,
+      "test": 1978
+    },
+    "alleles_per_peptide": {
+      "train": {
+        "mean": 4.85,
+        "median": 5.0,
+        "max": 30
+      },
+      "val": {
+        "mean": 1.12,
+        "median": 1.0,
+        "max": 3
+      },
+      "test": {
+        "mean": 1.55,
+        "median": 1.0,
+        "max": 6
+      }
+    }
+  },
+  "verification": {
+    "detector_self_test_passed": true,
+    "cross_split_neighbours": 0
+  }
+}

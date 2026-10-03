@@ -17,9 +17,13 @@ experiment that failed and was written up is worth more to us than one that quie
 ## Ground rules
 
 **1. Everything reports on the same frozen split.** This is the one rule that matters. The brief
-withholds splits deliberately and the whole evaluation rests on ours. Once `splits/` exists, nobody
-re-splits — if you think the split is wrong, open an experiment arguing that, don't silently use
-your own. Numbers from different splits cannot be compared and will sink the submission.
+withholds splits deliberately and the whole evaluation rests on ours. **The split now exists:
+`../splits/peptide_split.csv`** — identity-clustered at 80%, verified to have zero cross-split
+neighbours. Nobody re-splits. If you think the split is wrong, open an experiment arguing that,
+don't silently use your own. Numbers from different splits cannot be compared and will sink the
+submission. See `../splits/README.md` for how to load it and what it guarantees.
+
+Use `val` for model selection and early stopping; touch `test` once, at the end.
 
 **2. Compare against the baseline, not against the literature.** The brief rules NetMHCstabpan out
 as a comparator. Our own simple supervised net (exp 000) is the number everything is measured
@@ -81,6 +85,7 @@ come from the brief's §5, which explicitly invites going beyond embeddings:
 | Path | What |
 |---|---|
 | `experiments/` | these proposals and their write-ups |
-| `splits/` | the frozen split — created once, never regenerated |
+| `splits/` | the frozen split — created, verified, never regenerated |
+| `scripts/make_splits.py` | how the split was built, with its own assertions |
 | `../context/NOTES.md` | the brief, the dataset profile, the constraints |
 | `../context/dataset.csv` | the data |
