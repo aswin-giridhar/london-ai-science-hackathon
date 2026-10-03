@@ -76,12 +76,16 @@ Start there rather than from a blank file.
 
 | # | Experiment | Owner | Status | Headline result |
 |---|---|---|---|---|
-| 000 | [Baselines — B0 / B1 / B1′](000-supervised-baseline.md) | — | proposed | — |
-| 001 | [ESM-2 — F150 / X150 / L150](001-esm2-embeddings-head.md) | — | proposed | — |
-| 002 | [Zero-training likelihood scoring](002-likelihood-scoring.md) | — | proposed | — |
+| 000 | [Baselines — B0 / B1 / B1′](000-supervised-baseline.md) | Claude | **done** | **B0b scores 0.563 pooled with no peptide information** — the floor every pooled figure must be read against. B1 0.780 / 0.633 |
+| 001 | [ESM-2 — F150 / X150 / L150](001-esm2-embeddings-head.md) | Claude | **F150/X150 done, L150 running** | **The head beat the model.** Mean-pool → cross-attention is +0.161 pooled / +0.280 within. X150 0.754 / 0.558 ties B1′ and still loses to B1 |
+| 002 | [Zero-training likelihood scoring](002-likelihood-scoring.md) | — | proposed | — · **highest value-per-hour item left**: no training, no leakage surface, and masked-position scoring is the demo |
 | 003 | Hurdle model for the zero class — a *declared experiment*, not an assumed correction | — | proposed | — |
 
 Status: `proposed` → `running` → `done` / `abandoned` / `inconclusive`.
+
+All measured numbers live in [`../results/README.md`](../results/README.md), which is append-only —
+a superseded number stays, with the reason it was superseded. These result sections summarise; that
+file is the evidence.
 
 ## Backlog — the short version
 

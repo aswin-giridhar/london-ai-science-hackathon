@@ -4,7 +4,7 @@
 > head), **X150** (residue interaction head) and **L150** (LoRA r=8 on K/V). The F150→X150 gap tests
 > the head design; X150→L150 tests whether genuine adaptation helps. See `../ARCHITECTURE.md` §3.
 
-**Owner:** — · **Status:** proposed · **Time box:** 4h · **Compute:** 1 GPU for embedding extraction; head trains on CPU
+**Owner:** Claude · **Status:** **F150/X150 done, L150 running** · **Time box:** 4h · **Compute:** measured — 188 s CPU to build the cache, 64 s on a Modal A10 for both heads
 
 ## Hypothesis
 Frozen ESM-2 embeddings of the peptide and the HLA α1/α2 domain contain stability signal beyond what
@@ -40,21 +40,64 @@ Fits inside HF ZeroGPU or a small Modal instance.
 ---
 
 ## Result
-*Fill in after running.*
 
-**Outcome:**
+**Outcome:** F150 and X150 done, 2026-10-03. L150 running at time of writing. Full evidence in
+`../results/README.md` Runs 3 and 4. Three seeds (42/43/44), seed-ensemble mean, validation rows
+only — the test split has not been read.
 
 **Numbers:**
 
-| Variant | Spearman ρ | vs baseline 000 |
-|---|---|---|
-| exp 000 baseline |  | — |
-| ESM-2 peptide + ESM-2 HLA |  |  |
-| ESM-2 peptide + one-hot allele |  |  |
-| one-hot peptide + one-hot allele |  |  |
+| Variant | ρ pooled | ρ within-allele | vs baseline 000 (B1 = 0.780 / 0.633) |
+|---|---|---|---|
+| B0b per-allele median — *no peptide information* | 0.563 | undefined | the floor, not zero |
+| **F150** ESM-2 peptide + ESM-2 HLA, **mean-pooled** | 0.593 | 0.278 | **−0.187 / −0.355** |
+| **X150** same embeddings, **residue cross-attention** | 0.754 | 0.558 | −0.026 / −0.075 |
+| B1′ one-hot peptide + one-hot allele | 0.748 | 0.557 | −0.032 / −0.076 |
+| B1 one-hot peptide + pseudoseq + allele | **0.780** | **0.633** | — |
+| **L150** LoRA r=8 on K/V, X150 head | *running* | *running* | *pending* |
+
+Parameter counts: F150 344,449 · X150 561,793 (heads only; the 148M encoder is frozen).
 
 **What actually happened:**
 
-**What I'd do with more time:**
+The hypothesis at the top of this file — "frozen ESM-2 embeddings contain stability signal beyond
+hand-crafted sequence features" — **was not supported**. Two distinct results, and the second is the
+one worth presenting.
 
-**Does this change the team's answer to "are foundation models useful here"?**
+**1. The head design mattered more than the foundation model did.** F150 and X150 read *identical*
+frozen embeddings and differ only in how. Replacing mean-pooling with residue-level cross-attention
+is worth **+0.161 pooled and +0.280 within-allele**, against seed spreads of 0.025 and 0.039 — so
+within-allele Spearman roughly *doubles* from a change that touches no weights of the encoder.
+
+Mean-pooling a 9-mer averages away position, and position is exactly where anchor residues live:
+P2 and P9 dock into the B and F pockets. F150's within-allele 0.278 is what survives that averaging.
+This indicts a standard practice, because "ESM-2 embeddings + MLP" is usually implemented as
+mean-pool, and on this endpoint that implementation detail costs more than model size would.
+
+**2. The falsification proposed in this file fired.** The one-hot-allele control was called "the
+single most informative control in the whole folder", and it was right. X150 (0.754 / 0.558) and B1′
+(0.748 / 0.557) agree **to within seed noise**. A frozen 150M protein language model with a
+residue-level interaction head performs no better than a one-hot peptide encoding plus an allele
+lookup — and B1, which adds the 34-residue pseudosequence and uses no protein language model at all,
+beats both.
+
+Note too that F150 — the configuration closest to a conventional "ESM-2 embeddings" baseline —
+clears the *no-peptide-information* floor of 0.563 by only +0.030 pooled.
+
+**On cost, since the brief weighs it:** the caching argument in the Method section held. 28,166 rows
+contain 5,633 distinct peptides and 75 distinct HLA domains, so the cache needed 5,708 encodes
+instead of 28,166 — 4.9× fewer, 188 s on a CPU. Both heads then trained in **64 s** on a Modal A10,
+against ~65 minutes on four CPU threads. The caching is valid *only* while the encoder is frozen,
+which is recorded in the cache manifest; L150 voids it and re-encodes every batch.
+
+**What I'd do with more time:**
+- ESM-2 650M with the X150 head, to separate "the embedding is wrong for this task" from "the model
+  is too small".
+- Masked-position scoring across P1–P9 — zero training, and it would test the anchor explanation for
+  finding 1 directly rather than by inference.
+- Paired cluster bootstrap on the saved predictions for real intervals.
+
+**Does this change the team's answer to "are foundation models useful here"?** Yes, and it is the
+project's headline. On this endpoint and this split, a frozen protein language model does not beat
+one-hot encoding, and the way you *read* its embeddings matters more than the fact you have them.
+L150 is the only remaining rung that can overturn this, which is exactly why it is running.
