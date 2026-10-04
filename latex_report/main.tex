@@ -220,6 +220,29 @@ selection rule. A guard file in \texttt{src/test\_evaluation.py} refuses a secon
 \emph{after} seeing the test table; it was closed later by keeping the validation-selected
 checkpoint and scoring inside the same run (Section~\ref{sec:results}).
 
+\subsection{Which comparators are admissible}
+
+Model availability and model admissibility are different questions, and conflating them would have
+produced a flattering but meaningless comparison. This is settled here, before any result is
+reported, because it governs which numbers may appear at all.
+
+\begin{table}[H]
+\centering\small
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Model} & \textbf{Fine-tuned on} & \textbf{Admissible here} \\
+\midrule
+NetMHCstabpan \citep{rasmussen2016netmhcstabpan} & \textbf{this dataset} & no --- leakage \\
+SPEARMINT (Stage 3) \citep{karthikeyan2026spearmint} & pMHC \textbf{stability} & no --- same endpoint \\
+\texttt{mint-stage2-stability} & pMHC \textbf{stability} & no --- same endpoint \\
+\texttt{mint-stage1-affinity} & pMHC \textbf{affinity} only & \textbf{yes} \\
+\bottomrule
+\end{tabular}
+\caption{All four are downloadable today. Three are excluded because a model trained on the
+endpoint we are predicting measures memorisation rather than skill, and we could not prove
+otherwise.}
+\end{table}
+
 \section{Models}
 
 \subsection{The ladder}
@@ -507,28 +530,6 @@ penalty would masquerade as ``MINT does not work here'', so both conditions were
 was examined: 182 residues, and the same sequence extended by a constant $\alpha_3$ domain, which
 is near-invariant across class~I alleles and so can only change length, never allele-specific
 signal. \textbf{The difference is 0.0012.} Length is not the explanation.
-
-\section{Which comparators are admissible}
-
-Model availability and model admissibility are different questions, and conflating them would have
-produced a flattering but meaningless comparison.
-
-\begin{table}[H]
-\centering\small
-\begin{tabular}{@{}lll@{}}
-\toprule
-\textbf{Model} & \textbf{Fine-tuned on} & \textbf{Admissible here} \\
-\midrule
-NetMHCstabpan \citep{rasmussen2016netmhcstabpan} & \textbf{this dataset} & no --- leakage \\
-SPEARMINT (Stage 3) \citep{karthikeyan2026spearmint} & pMHC \textbf{stability} & no --- same endpoint \\
-\texttt{mint-stage2-stability} & pMHC \textbf{stability} & no --- same endpoint \\
-\texttt{mint-stage1-affinity} & pMHC \textbf{affinity} only & \textbf{yes} \\
-\bottomrule
-\end{tabular}
-\caption{All four are downloadable today. Three are excluded because a model trained on the
-endpoint we are predicting measures memorisation rather than skill, and we could not prove
-otherwise.}
-\end{table}
 
 \section{Uncertainty: intervals that state their own limits}
 
