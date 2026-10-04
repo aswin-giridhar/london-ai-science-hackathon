@@ -279,7 +279,7 @@ There are **zero** replicate measurements, so assay reproducibility cannot be es
 But alleles differing at **one of 34 contact positions** are biophysically almost the same pocket,
 and the same ~346 peptides through both grooves agree at **ρ 0.823** (best pair **0.921**).
 
-Our best model reaches **0.633 within-allele**. So roughly **0.19 of Spearman remains available**,
+Our best model reaches **0.633 within-allele**. So roughly **0.19 of within-allele Spearman remains available**,
 and nothing we tested found it. The negative result is *"ESM-2 did not reach the remaining
 signal"*, not *"the problem is saturated"*.
 
