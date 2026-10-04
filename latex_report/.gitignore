@@ -1,0 +1,8 @@
+# LaTeX build products -- main.tex and the PDF are what matter
+*.aux
+*.log
+*.out
+*.toc
+*.fls
+*.fdb_latexmk
+*.synctex.gz
