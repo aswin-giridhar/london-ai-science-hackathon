@@ -1746,6 +1746,61 @@ The fix that actually unblocked it was not a better guess - it was making the re
 return its stderr, after three failures in which the real traceback never left the container.
 Recorded because "the error was invisible" was the binding constraint, not any of the four bugs.
 
+## Run 28 - L150 on the test set, the deliberate omission closed - 2026-10-04 11:18
+
+`modal_app.py::l150`, 3x A100 in parallel, ~55 min. Val-selected checkpoint scored once on test.
+
+Run 22 read the test set and reported four rungs. **L150 was deliberately left out**, because the
+LoRA script of the time discarded its weights after validation and kept only predictions - so
+scoring it on test would have meant retraining, and retraining *after* seeing the test table is
+how a held-out split stops being held out. The script now keeps the best state dict and scores
+test from it inside the same run, before any test number is visible to anyone.
+
+| seed | best epoch | VAL pooled | VAL within | TEST pooled | TEST within |
+|---|---|---|---|---|---|
+| 42 | 16 | 0.721 | 0.500 | 0.724 | 0.469 |
+| 43 | 21 | 0.721 | 0.508 | 0.727 | 0.483 |
+| 44 | 15 | 0.706 | 0.479 | 0.709 | 0.446 |
+| **seed ensemble** | - | **0.757** | **0.572** | **0.758** | **0.525** |
+
+The three seeds were asserted row-aligned on all 2,817 test rows before averaging; averaging
+predictions that are not in the same order produces a plausible number from nothing.
+
+### The completed test table
+
+| rung | TEST pooled | TEST within-allele |
+|---|---|---|
+| B0b per-allele median | 0.573 | undefined |
+| F150 frozen ESM-2, mean-pooled | 0.606 | 0.244 |
+| X150 frozen ESM-2, cross-attention | 0.756 | 0.535 |
+| **L150 LoRA-adapted ESM-2** | **0.758** | **0.525** |
+| B1' one-hot + allele identity | 0.767 | 0.566 |
+| **B1 one-hot + pseudosequence + allele** | **0.806** | **0.645** |
+
+**B1 - L150 on test: +0.048 pooled, +0.120 within-allele.** On validation the same gap was +0.023
+and +0.060, so it **doubles** on held-out data.
+
+### What it establishes
+
+**Fine-tuning does not change the conclusion, and the honest version is slightly worse than the
+validation figure suggested.** L150 is the most expensive model in this project - 614,400 trainable
+parameters, three A100s, ~55 minutes - and on test it clears frozen X150 by 0.002 pooled while
+*losing* 0.010 within-allele. Against the free baseline it is 0.048 and 0.120 behind.
+
+**Validation flattered it.** L150's validation advantage over X150 (+0.003) was already inside the
+bootstrap CI. On test the pooled advantage is +0.002 and the within-allele advantage is negative.
+The ranking of L150 against X150 is, on both splits, not established in either direction - which is
+itself the finding: 55 A100-minutes of adaptation bought nothing measurable over the frozen model.
+
+### What Run 28 does NOT establish
+
+- **One LoRA configuration.** r=8, alpha=16, K/V of all 30 layers. A rank sweep was not run.
+- **No bootstrap CI on the test figures.** The test set is read once; the CIs in this project come
+  from validation. The test numbers are point estimates.
+- **The test set has now informed this write-up.** It has not informed any model choice - every
+  architecture, budget and selection rule was frozen before Run 22 - but no further model
+  selection can honestly happen against it.
+
 ## Files
 
 | File | What |
@@ -1783,6 +1838,7 @@ Recorded because "the error was invisible" was the binding constraint, not any o
 | `conditioned_likelihood.json` | Peptide PLL alone, in the groove, and the difference |
 | `conformal.json` | Split-conformal intervals, marginal and per-allele coverage |
 | `family_sweep.json` | ProtBERT and ProtT5 through the X150 head |
+| `l150_test_metrics.json` | L150's seed ensemble on the test split |
 | `complementarity.json` | Residual correlations, ensemble combinations, and the (B1+X150) - B1 interval |
 | `learning_curve.json` | One-hot vs frozen ESM-2 at 5/10/25/50/100% of training clusters |
 | `allele_split_metrics.json` | The ladder re-run against the allele split (every val allele unseen) |
@@ -1817,6 +1873,7 @@ Recorded because "the error was invisible" was the binding constraint, not any o
 | 25 | `python -m modal run modal_app.py::condlik` |
 | 26 | `python src/conformal.py` |
 | 27 | `python -m modal run modal_app.py::families` |
+| 28 | `python -m modal run modal_app.py::l150` |
 | audit | `python scripts/audit_results.py` - re-checks every number here against its source |
 
 `src/features.py` asserts the frozen split's sha256 before reading any label, so a run against a

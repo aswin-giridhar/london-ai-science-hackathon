@@ -5,9 +5,9 @@ and how much signal is still on the table.**
 
 Serova Protein Engineering Track · London AI × Science Hackathon · 3–4 October 2026
 
-Every number below is reproducible from `results/README.md`, which logs 27 runs with the
+Every number below is reproducible from `results/README.md`, which logs 28 runs with the
 command that produced each one. `scripts/audit_results.py` re-checks every figure quoted anywhere
-in this repository against the file that produced it; it currently passes **111/111**.
+in this repository against the file that produced it; it currently passes **115/115**.
 
 ---
 
@@ -87,6 +87,7 @@ parameters without reaching it.
 | B0b per-allele median | 0.573 | undefined |
 | F150 frozen ESM-2, mean-pooled | 0.606 | 0.244 |
 | X150 frozen ESM-2, cross-attention | 0.756 | 0.535 |
+| **L150 LoRA-adapted ESM-2** | 0.758 | 0.525 |
 | B1′ one-hot + allele identity | 0.767 | 0.566 |
 | **B1 one-hot + pseudosequence + allele** | **0.806** | **0.645** |
 
@@ -94,6 +95,12 @@ parameters without reaching it.
 within-allele on test**, against +0.026 and +0.075 on validation. The test split was read exactly
 once, after the model choice was frozen by 21 prior runs, and a guard file prevents a silent
 second read.
+
+L150 was deliberately omitted from that first read, because scoring it would have meant
+retraining *after* seeing the test table. Run 28 closed it properly - the LoRA script now keeps
+its validation-selected checkpoint and scores test inside the same run. **B1 − L150 on test is
++0.048 pooled and +0.120 within-allele, double the validation gap.** The most expensive model in
+the project clears the frozen one by 0.002 pooled and *loses* 0.010 within-allele.
 
 ### Every obvious fix, tried
 

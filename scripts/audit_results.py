@@ -249,6 +249,12 @@ CLAIMS = [
      ["results", "ProtBERT 420M", "params_millions"], 420),
     ("family range", "family_sweep.json", "range_across_families", 0.042),
     ("family worst seed spread", "family_sweep.json", "worst_seed_spread", 0.039),
+
+    # --- Run 28 L150 on test
+    ("L150 test pooled", "l150_test_metrics.json", "spearman_pooled", 0.758),
+    ("L150 test within", "l150_test_metrics.json", "spearman_within_allele", 0.525),
+    ("L150 test n", "l150_test_metrics.json", "n", 2817),
+    ("L150 test alleles", "l150_test_metrics.json", "alleles_supported", 68),
 ]
 
 

@@ -1,0 +1,24 @@
+{
+  "rung": "L150_lora_kv",
+  "split": "test",
+  "n": 2817,
+  "spearman_pooled": 0.7584286783090894,
+  "spearman_within_allele": 0.5249935208354474,
+  "alleles_supported": 68,
+  "per_seed_pooled": [
+    0.724,
+    0.727,
+    0.709
+  ],
+  "per_seed_within": [
+    0.469,
+    0.483,
+    0.446
+  ],
+  "best_epochs": [
+    16,
+    21,
+    15
+  ],
+  "note": "val-selected checkpoint scored once on test; seeds verified row-aligned"
+}
