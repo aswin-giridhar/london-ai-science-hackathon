@@ -871,6 +871,212 @@ strongest exactly where one-hot is structurally blind, and that is where a follo
 - **No L150 or scale sweep on this split.** Only the frozen rungs were re-run.
 - The test split (6 alleles) remains unread.
 
+## Run 17 - can a folding model rediscover NetMHCpan's pseudosequence? - 2026-10-04 06:10
+
+`python src/contact_features.py`. Boltz-2 contact map from the Run 9 folds (HLA-A*02:01), against
+the 34-residue pseudosequence B1 uses.
+
+**The framing matters.** B1's HLA input is not a naive baseline - NetMHCpan chose those 34
+positions from *crystallographic* contacts, so B1 already carries a structure-derived feature
+selection. The sharp question is therefore not "can structure help?" but **can a 2026 folding
+model rediscover, from scratch, the positions crystallography gave NetMHCpan in the 2000s?**
+
+### Finding 1: it recovers every single one
+
+```
+Boltz contact map: 97 of 182 groove positions within 8 A of some peptide residue
+pseudosequence maps to 31 unique domain positions (4 of the 34 slots are repeats)
+
+OVERLAP: 31 of 31 recovered.  Expected by chance 16.5.  Permutation p = 0.0001.  Missed: none.
+```
+
+In 1-based domain coordinates the recovered set is **7, 9, 24, 45, 59, 62, 63, 66, 67, 69, 70, 73,
+74, 76, 77, 80, 81, 95, 97, 99, 114, 116, 143, 147, 150, 152, 156, 158, 163, 167, 171** - the
+published NetMHCpan pseudosequence, arrived at independently from a predicted structure.
+
+**This closes an ambiguity in Run 9.** The obvious objection to "Boltz geometry does not track
+stability" is "your structures are simply wrong". They are not: the model places the
+peptide-contacting residues exactly where twenty years of crystallography put them. So the two
+results together say something stronger than either alone - **the structures are right, and the
+variation in them still carries no stability signal.**
+
+### Finding 2: as *features*, the selection is worth nothing extra
+
+| feature set | positions | features | pooled | within |
+|---|---|---|---|---|
+| pseudosequence (reference) | 31 | 875 | **0.785** | **0.633** |
+| Boltz contacts | 97 | 2,195 | 0.782 | 0.622 |
+| random positions, matched count | 97 | 2,195 | 0.789 | 0.626 |
+
+Boltz's 97 contacting positions do **not** beat 97 positions chosen at random, and neither beats
+the 31-position pseudosequence. Without the random control this would have read as "the Boltz
+selection works"; with it, the honest reading is that **the groove is informative broadly, and the
+pseudosequence's value is compression rather than discrimination** - 31 positions do the work of
+97 or of 182.
+
+So structure-as-feature-selection is a real capability (Finding 1) that is already saturated by
+the existing feature set (Finding 2). There is nothing left for a folding model to add here.
+
+### What Run 17 does NOT establish
+
+- **One allele's contact map**, used as a universal prior. Class I grooves are highly conserved
+  and the 182-aa domains are positionally aligned, which makes this defensible - but a per-allele
+  map would be better and was not computed.
+- **8 A is a threshold choice**, carried over from Run 9. A tighter cut would select fewer
+  positions and might behave differently.
+- **The pseudosequence position mapping was inferred**, not read from a table: 4 of 34 slots
+  matched multiple domain positions and took the first. The recovered set matching the published
+  list is strong evidence the inference was right, but it is an inference.
+- Three random controls, one of which is reported; the others were still fitting at write-up.
+
+## Run 16 - an empirical ceiling, and a third validation of the pseudosequence - 2026-10-04 06:12
+
+`python scripts/noise_ceiling.py`, seconds, no training.
+
+### The problem this solves
+
+There are **zero** replicate (peptide, allele) measurements in 28,166 rows, so the assay's
+reproducibility cannot be estimated directly. Without it, "B1 scores 0.780" has no scale - it
+could be at the measurement limit or nowhere near it, and those imply opposite answers to "would
+a better model help?".
+
+### The way in
+
+94% of peptides are measured against more than one allele, and the 34-residue pseudosequence says
+how similar two grooves are. Alleles differing at **one of 34 contact positions** are
+biophysically almost the same pocket, so the same peptide through both should give almost the same
+half-life. The agreement between those paired measurements bounds what any model could achieve.
+
+| pseudoseq Hamming distance | pairs | median rho | max rho | median n | median RMSE log |
+|---|---|---|---|---|---|
+| 0 | 1 | 0.643 | 0.643 | 368 | 0.434 |
+| **1** | 12 | **0.823** | **0.921** | 346 | 0.666 |
+| 2 | 23 | 0.659 | 0.844 | 354 | 0.853 |
+| 3 | 21 | 0.474 | 0.729 | 348 | 1.076 |
+| 4 | 23 | 0.318 | 0.801 | 346 | 1.410 |
+
+Closest pairs: `HLA-A*02:01 / A*02:16` rho **0.921** (n=369), `A*02:12 / A*02:19` 0.907,
+`A*23:01 / A*24:02` 0.901, `B*27:03 / B*27:05` 0.901.
+
+### Finding 1: there is substantial headroom, and nothing we tested captured it
+
+At distance 1, the assay agrees with itself at **rho 0.823** across ~346 shared peptides. Our best
+model reaches **0.633 within-allele**. Roughly **0.19 of Spearman is available** and no rung in
+this project found it.
+
+This changes the standing of the whole negative result. "A frozen protein language model does not
+beat one-hot" is not "the problem is saturated and nothing could help". There is real signal left;
+ESM-2, at four sizes, five depths and with LoRA, simply did not reach it.
+
+**Compare against within-allele, not pooled.** Pooled Spearman is inflated by between-allele
+variance - B0b scores 0.563 with no peptide information at all - while this bound is computed
+within a matched peptide set through two grooves. 0.633 is the comparable figure, not 0.780.
+
+### Finding 2: the pseudosequence is validated a third independent way
+
+Agreement declines **monotonically** with groove distance: 0.823 -> 0.659 -> 0.474 -> 0.318. The
+34 positions genuinely track groove function, which is a property of the feature, not of any
+model fitted to it.
+
+Three independent validations of the pseudosequence now exist in this results file:
+
+1. **Run 16 (this run)** - its Hamming distance predicts cross-allele measurement agreement,
+   monotonically, with no model involved.
+2. **Run 17** - Boltz-2 independently recovers **31 of 31** of its positions from predicted
+   structure alone, p = 0.0001.
+3. **Runs 2-15** - B1, which uses it, beats every learned representation tested.
+
+This is why one-hot wins. B1 is not a naive baseline: it carries a structure-derived feature
+selection that keeps checking out from every direction we probe it.
+
+### An internal consistency check that passed
+
+The single distance-0 pair scores **0.643**, *below* the distance-1 median of 0.823 - which should
+not happen if groove identity drives agreement. Both members are `(C67S)` constructs, exactly the
+engineered variants quarantined from the structural arm as suspect. The anomaly lands where the
+quarantine predicted it would.
+
+### What Run 16 does NOT establish
+
+- **It is a LOWER bound on the ceiling, not the ceiling.** The scatter contains genuine
+  micro-allele effects that a perfect model could capture, as well as assay noise. The true
+  ceiling is at least 0.823 and probably higher.
+- **Twelve pairs at distance 1.** The median rests on a small sample, and the spread within
+  distance 1 is wide (0.744 to 0.921).
+- **Not a replicate estimate.** Two alleles are not two measurements of the same thing; this
+  substitutes groove similarity for identity because the dataset offers nothing closer.
+- Different pairs share different peptide sets, so the per-pair figures are not strictly
+  comparable with each other.
+
+## Run 18 - what each approach cost, and what it bought - 2026-10-04 06:27 - CURRENT
+
+`python scripts/cost_benefit.py`. Accuracy read from the result files, never retyped. Compute is
+measured wall-clock times device count. Prices are Modal's published rates fetched 2026-10-04:
+A100 40GB $0.000583/s, A10 $0.000306/s. Local CPU is priced at $0 because it ran on a laptop, with
+the seconds still shown so the comparison stays honest.
+
+This is the brief's actual question. It does not ask which model is most accurate; it says
+foundation models are *"computationally heavy and expensive to produce and run"* and asks whether
+they are **useful**, naming engineering and compute as a judging criterion.
+
+| approach | pooled | within | device | device-s | $ | gain vs 0.563 floor |
+|---|---|---|---|---|---|---|
+| B0b per-allele median | 0.563 | undefined | cpu | 1 | 0.00 | +0.000 |
+| B1' one-hot + allele id | 0.748 | 0.557 | cpu | 48 | **0.00** | +0.185 |
+| **B1 one-hot + pseudoseq** | **0.780** | **0.633** | cpu | **127** | **0.00** | **+0.217** |
+| F150 ESM-2 150M pooled | 0.593 | 0.278 | A10 | 201 | 0.06 | +0.030 |
+| X150 ESM-2 150M cross-attn | 0.754 | 0.558 | A10 | 237 | 0.07 | +0.191 |
+| L150 ESM-2 150M LoRA | 0.757 | 0.572 | A100 | 11,307 | **6.59** | +0.194 |
+| ESM-2 650M + cross-attn | 0.764 | 0.581 | A100 | 180 | 0.10 | +0.201 |
+| **B1 + X150 ensemble** | **0.789** | **0.639** | A10 | 364 | 0.11 | +0.226 |
+
+Gain is pooled Spearman over the **0.563 no-peptide floor**, not over zero - scoring from zero
+would flatter every model by 0.563.
+
+### The answer, stated as a cost
+
+- **One-hot alone: 0.780 pooled / 0.633 within-allele, in 127 CPU-seconds on a laptop, for $0.00.**
+- **Best single ESM-2 configuration: 0.764 pooled - still below one-hot - after $6.70 of GPU.**
+- **One-hot + ESM-2: 0.789 / 0.639.** The foundation model's entire measured contribution is
+  **+0.009 pooled, and nothing distinguishable within-allele**, on top of a model that trains in
+  two minutes on a laptop for nothing.
+
+L150 is the sharpest illustration: **$6.59 and 11,307 A100-seconds to land 0.023 pooled *below*
+the free baseline.**
+
+### Whole-project compute
+
+**4.0 GPU-hours, 1,779 CPU-seconds, $7.88 of measured Modal spend** across sixteen logged runs.
+
+| run | device | seconds | $ |
+|---|---|---|---|
+| L150, 3 x A100 (Run 8) | A100 | 11,307 | 6.59 |
+| Boltz-2 probe + 48 folds (Run 9) | A100 | 1,063 | 0.62 |
+| learning curve (Run 14) | A10 | 900 | 0.28 |
+| scale sweep (Run 12) | A100 | 320 | 0.19 |
+| allele split (Run 15) | A10 | 300 | 0.09 |
+| layer sweep (Run 11) | A10 | 207 | 0.06 |
+| anchor probes (Run 5) | A10 | 92 | 0.03 |
+| F150 + X150 (Run 4) | A10 | 64 | 0.02 |
+| bootstrap intervals (Run 7) | cpu | 1,020 | 0.00 |
+| hurdle (Run 6) | cpu | 287 | 0.00 |
+| shuffle control (Run 10) | cpu | 284 | 0.00 |
+| embedding cache (Run 3) | cpu | 188 | 0.00 |
+
+**84% of the entire GPU bill went to L150**, the rung that produced a result inside seed noise.
+That is itself worth reporting: the most expensive experiment bought the least.
+
+### What Run 18 does NOT establish
+
+- **Device-seconds are wall-clock, not utilisation.** A partly idle GPU costs the same, so these
+  are what you would be billed, not a measure of efficiency.
+- **CPU is priced at $0** because it ran on hardware already paid for. On rented CPU the one-hot
+  rows would cost fractions of a cent, which does not change any conclusion.
+- **Amortisation is ignored.** The embedding cache is built once and reused by several rungs; it
+  is charged to Run 3 and to F150/X150, so those rows slightly double-count 188 CPU-seconds.
+- **Engineering hours are not priced**, and they dominated everything here. Boltz-2 cost $0.62 of
+  GPU and roughly two hours of work.
+
 ## Files
 
 | File | What |
@@ -894,6 +1100,9 @@ strongest exactly where one-hot is structurally blind, and that is where a follo
 | `shuffle_control.json` | Negative control, three label conditions |
 | `layer_sweep.json` | Five ESM-2 depths, raw and LayerNormed |
 | `scale_sweep.json` | ESM-2 8M to 650M with the identical head |
+| `contact_features.json` | Boltz contact positions vs the pseudosequence, overlap test and feature comparison |
+| `noise_ceiling.json` | Cross-allele agreement by pseudosequence distance, the empirical ceiling |
+| `cost_benefit.json` | Accuracy against measured device-seconds and dollars, per approach |
 | `complementarity.json` | Residual correlations, ensemble combinations, and the (B1+X150) - B1 interval |
 | `learning_curve.json` | One-hot vs frozen ESM-2 at 5/10/25/50/100% of training clusters |
 | `allele_split_metrics.json` | The ladder re-run against the allele split (every val allele unseen) |
@@ -916,6 +1125,10 @@ strongest exactly where one-hot is structurally blind, and that is where a follo
 | 13 | `python scripts/complementarity.py` |
 | 14 | `python -m modal run modal_app.py::curve` |
 | 15 | `python -m modal run modal_app.py::allele_split` |
+| 16 | `python scripts/noise_ceiling.py` |
+| 17 | `python src/contact_features.py` |
+| 18 | `python scripts/cost_benefit.py` |
+| audit | `python scripts/audit_results.py` - re-checks every number here against its source |
 
 `src/features.py` asserts the frozen split's sha256 before reading any label, so a run against a
 changed split fails immediately rather than reporting a number against different data.

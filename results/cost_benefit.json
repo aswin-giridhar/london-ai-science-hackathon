@@ -1,0 +1,92 @@
+{
+  "rows": [
+    {
+      "approach": "B0b per-allele median",
+      "pooled": 0.5631530561989255,
+      "within": null,
+      "device": "cpu",
+      "device_seconds": 1,
+      "usd": 0.0,
+      "gain_vs_b0b": 0.0002,
+      "note": "a groupby; no training at all"
+    },
+    {
+      "approach": "B1' one-hot + allele id",
+      "pooled": 0.7484657885390985,
+      "within": 0.5571161561478136,
+      "device": "cpu",
+      "device_seconds": 48,
+      "usd": 0.0,
+      "gain_vs_b0b": 0.1855,
+      "note": "3 seeds x 11-21 s, laptop CPU"
+    },
+    {
+      "approach": "B1 one-hot + pseudoseq",
+      "pooled": 0.7802190587503978,
+      "within": 0.632849663354059,
+      "device": "cpu",
+      "device_seconds": 127,
+      "usd": 0.0,
+      "gain_vs_b0b": 0.2172,
+      "note": "3 seeds x 38-47 s, laptop CPU"
+    },
+    {
+      "approach": "F150 ESM-2 150M pooled",
+      "pooled": 0.592924790832193,
+      "within": 0.2784174491003618,
+      "device": "a10",
+      "device_seconds": 201,
+      "usd": 0.0615,
+      "gain_vs_b0b": 0.0299,
+      "note": "188 s CPU encode + 13 s A10 head"
+    },
+    {
+      "approach": "X150 ESM-2 150M x-attn",
+      "pooled": 0.7537633127709604,
+      "within": 0.5583888390775487,
+      "device": "a10",
+      "device_seconds": 237,
+      "usd": 0.0725,
+      "gain_vs_b0b": 0.1908,
+      "note": "188 s encode + 49 s A10 head"
+    },
+    {
+      "approach": "L150 ESM-2 150M LoRA",
+      "pooled": 0.7573955030094068,
+      "within": 0.5723771492213671,
+      "device": "a100",
+      "device_seconds": 11307,
+      "usd": 6.592,
+      "gain_vs_b0b": 0.1944,
+      "note": "3 seeds x A100, encoder trains so the cache is void"
+    },
+    {
+      "approach": "ESM-2 650M + x-attn head",
+      "pooled": 0.7635683327795525,
+      "within": 0.5805626990833553,
+      "device": "a100",
+      "device_seconds": 180,
+      "usd": 0.1049,
+      "gain_vs_b0b": 0.2006,
+      "note": "within the 320 s scale sweep; 2 learning rates"
+    },
+    {
+      "approach": "B1 + X150 ensemble",
+      "pooled": 0.7889913658562986,
+      "within": 0.6394096050383155,
+      "device": "a10",
+      "device_seconds": 364,
+      "usd": 0.1114,
+      "gain_vs_b0b": 0.226,
+      "note": "both models, summed"
+    }
+  ],
+  "project_total_usd": 7.88,
+  "gpu_seconds": 14253,
+  "cpu_seconds": 1779,
+  "rates": {
+    "a100_40gb": 0.000583,
+    "a10": 0.000306
+  },
+  "floor_pooled": 0.563
+}

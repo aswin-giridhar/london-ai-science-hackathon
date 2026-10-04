@@ -119,6 +119,30 @@ CLAIMS = [
      "B1prime_peptide_allele_only.spearman_pooled", 0.475),
     ("allele split B1 within", "allele_split_metrics.json",
      "B1_peptide_pseudoseq_allele.spearman_within_allele", 0.539),
+
+    # --- Run 16 noise ceiling
+    ("ceiling, pseudoseq dist 1", "noise_ceiling.json", "by_distance.1.median_spearman", 0.823),
+    ("ceiling, dist 1 max", "noise_ceiling.json", "by_distance.1.max_spearman", 0.921),
+    ("ceiling, dist 2", "noise_ceiling.json", "by_distance.2.median_spearman", 0.659),
+    ("ceiling, dist 3", "noise_ceiling.json", "by_distance.3.median_spearman", 0.474),
+    ("ceiling, dist 4", "noise_ceiling.json", "by_distance.4.median_spearman", 0.318),
+    ("ceiling, dist 0 anomaly", "noise_ceiling.json", "by_distance.0.median_spearman", 0.643),
+
+    # --- Run 17 contact features
+    ("Boltz contact positions", "contact_features.json", "n_contacts", 97),
+    ("pseudoseq unique positions", "contact_features.json", "n_pseudo", 31),
+    ("overlap recovered", "contact_features.json", "overlap", 31),
+    ("overlap expected by chance", "contact_features.json", "overlap_expected", 16.5),
+    ("overlap permutation p", "contact_features.json", "overlap_p", 0.0001),
+    ("pseudoseq as features", "contact_features.json",
+     "B1_pseudoseq_34 (reference).pooled", 0.785),
+    ("boltz contacts as features", "contact_features.json", "boltz_contacts_97.pooled", 0.782),
+
+    # --- Run 18 cost
+    ("B1 device-seconds", "cost_benefit.json", "rows.2.device_seconds", 127),
+    ("L150 cost usd", "cost_benefit.json", "rows.5.usd", 6.59),
+    ("project total usd", "cost_benefit.json", "project_total_usd", 7.88),
+    ("project gpu seconds", "cost_benefit.json", "gpu_seconds", 14253),
 ]
 
 

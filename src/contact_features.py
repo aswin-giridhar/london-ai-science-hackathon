@@ -143,39 +143,46 @@ def main():
 
     random_sets = [sorted(rng.choice(182, len(contacts), replace=False)) for _ in range(3)]
 
-    blocks = {
-        "B1_pseudoseq_34 (reference)": pseudo,
-        f"boltz_contacts_{len(contacts)}": list(contacts),
-        "full_domain_182": list(range(182)),
-    }
     results = {"n_contacts": int(len(contacts)), "n_pseudo": int(len(pseudo)),
                "overlap": int(len(inter)), "overlap_expected": float(exp),
                "overlap_p": float(p_over), "contacts": [int(x) for x in contacts],
                "pseudo_positions": [int(x) for x in pseudo], "fold_allele": fold_allele}
+    dest = OUT / "contact_features.json"
 
-    print(f"\n{'feature set':<34}{'positions':>10}{'pooled':>9}{'within':>9}")
-    for label, pos in blocks.items():
+    def run_set(label, pos):
+        """Fit one feature set and persist immediately.
+
+        Written after every set rather than at the end: the 182-position variant has 3,895
+        features and dominates the runtime, and an earlier version of this script spent 9,000
+        CPU-seconds without producing a single recoverable number. The decisive comparisons are
+        cheap and now land first.
+        """
+        t = time.time()
         Xt = np.hstack([pep_tr, onehot_positions(tr.hla_seq, pos), all_tr])
         Xv = np.hstack([pep_va, onehot_positions(va.hla_seq, pos), all_va])
         preds = [baselines.fit_mlp(Xt, y_tr, Xv, y_va, seed=s)[0].predict(Xv) for s in SEEDS]
         r = metrics.evaluate(y_va, np.mean(preds, axis=0), allele_va)
-        results[label] = {"n_positions": len(pos), "pooled": r["spearman_pooled"],
-                          "within": r["spearman_within_allele"]}
-        print(f"{label:<34}{len(pos):>10}{r['spearman_pooled']:>9.3f}"
-              f"{(r['within'] if False else (r['spearman_within_allele'] or float('nan'))):>9.3f}")
+        w = r["spearman_within_allele"]
+        out = {"n_positions": len(pos), "n_features": int(Xt.shape[1]),
+               "pooled": r["spearman_pooled"], "within": w,
+               "seconds": round(time.time() - t, 1)}
+        results[label] = out
+        dest.write_text(json.dumps(results, indent=2, default=float), encoding="utf-8")
+        print(f"{label:<34}{len(pos):>10}{Xt.shape[1]:>9}{r['spearman_pooled']:>9.3f}"
+              f"{(w if w is not None else float('nan')):>9.3f}{out['seconds']:>8.0f}s", flush=True)
+        return out
 
-    # the control: same count, random positions
+    # cheapest and most decisive first; the full-domain variant is a nice-to-have and goes last
+    print(f"\n{'feature set':<34}{'positions':>10}{'feats':>9}{'pooled':>9}{'within':>9}{'time':>9}")
+    run_set("B1_pseudoseq_34 (reference)", pseudo)
+    run_set(f"boltz_contacts_{len(contacts)}", list(contacts))
+
     rand_scores = []
     for i, pos in enumerate(random_sets):
-        Xt = np.hstack([pep_tr, onehot_positions(tr.hla_seq, pos), all_tr])
-        Xv = np.hstack([pep_va, onehot_positions(va.hla_seq, pos), all_va])
-        preds = [baselines.fit_mlp(Xt, y_tr, Xv, y_va, seed=s)[0].predict(Xv) for s in SEEDS]
-        r = metrics.evaluate(y_va, np.mean(preds, axis=0), allele_va)
-        rand_scores.append((r["spearman_pooled"], r["spearman_within_allele"]))
-        print(f"{'random_' + str(len(pos)) + '_positions #' + str(i + 1):<34}{len(pos):>10}"
-              f"{r['spearman_pooled']:>9.3f}"
-              f"{(r['spearman_within_allele'] or float('nan')):>9.3f}")
+        o = run_set(f"random_{len(pos)}_positions_{i + 1}", pos)
+        rand_scores.append((o["pooled"], o["within"]))
     results["random_controls"] = [{"pooled": a, "within": b} for a, b in rand_scores]
+    dest.write_text(json.dumps(results, indent=2, default=float), encoding="utf-8")
 
     # ------------------------------------------------------------------ verdict
     boltz_key = f"boltz_contacts_{len(contacts)}"
@@ -195,9 +202,16 @@ def main():
     else:
         print("  -> Boltz does not recover the crystallographic contact positions above chance.")
 
-    (OUT / "contact_features.json").write_text(json.dumps(results, indent=2, default=float),
-                                               encoding="utf-8")
-    print(f"\nwrote {OUT / 'contact_features.json'}")
+    # last, because 3,895 features dominate the runtime and it answers a secondary question:
+    # is the groove informative only at the contacts, or everywhere?
+    print("\n(full 182-position domain last -- slowest, and a secondary question)")
+    run_set("full_domain_182", list(range(182)))
+    fd = results["full_domain_182"]["pooled"]
+    print(f"\n  full domain {fd:.3f} vs pseudosequence {ps:.3f}  ->  "
+          f"{'selection helps' if ps > fd else 'the extra positions add something'}")
+
+    dest.write_text(json.dumps(results, indent=2, default=float), encoding="utf-8")
+    print(f"\nwrote {dest}")
     print(f"total {time.time() - t0:.0f}s")
 
 
