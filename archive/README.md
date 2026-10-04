@@ -21,25 +21,38 @@ root stays readable, and because the synthesis now carries their conclusions.
 | File | Note |
 |---|---|
 | `spearmint.pdf` | Karthikeyan, Vincent & Rubinsteyn, bioRxiv 2026. CC-BY 4.0, so redistribution is fine. Summarised in `../context/SPEARMINT_SUMMARY.md`; 12 MB, which is why it is here rather than in `context/` |
-| `Peptide-HLA Stability Primer.md` | **Pre-event, dated 2 October.** See the warning below. Three of its figures do not describe this dataset — it assumes a ~365-residue heavy chain where ours is 182, gives 27,000/21,626 rows against our 28,166, and describes the range as "minutes to half a day" where the maximum is 256.7 h. Corrections in `../RECONCILIATION.md` §6 |
+| ~~`Peptide-HLA Stability Primer.md`~~ | **Removed from the repository on 4 October 2026.** Pre-event, dated 2 October. See below. |
 
-## ⚠ Submission-eligibility warning on the primer
+## The pre-event primer was removed - resolved 4 October 2026
 
-`plans/HACKATHON_PLAN.md` says, in its own words:
+`plans/HACKATHON_PLAN.md` said, in its own words:
 
-> *"Do not commit or present the pre-event primer … as a newly built submission"*
-> *"because the primer predates kickoff, do not include it or copy its text into the judged artifact
-> without organizer approval"*
+> *"Do not commit or present the pre-event primer ... as a newly built submission"*
+> *"because the primer predates kickoff, do not include it or copy its text into the judged
+> artifact without organizer approval"*
 
-The event rules say *"Build entirely during the event. No prior commits to the repo."* The primer was
-written on 2 October; the event began on 3 October. Moving it into `archive/` does **not** resolve
-this — it is still committed to the judged repository.
+The event rules say *"Build entirely during the event. No prior commits to the repo."* The primer
+was written on 2 October; the event began on 3 October. Moving it into `archive/` did not resolve
+that - it was still committed to the judged repository.
 
-**This needs a human decision before submission:** remove it from the repo and keep it locally, or
-ask an organiser. The project README discloses it as reference material not claimed as hackathon
-work, which is honest, but the safest reading of the rule is removal. Do not leave this until Sunday
-afternoon.
+**Resolved by removing it.** `archive/background/Peptide-HLA Stability Primer.md` is no longer
+tracked (`git rm --cached`), is listed in `.gitignore`, and is kept only on the author's machine.
+The safest reading of the rule was removal, and that is what was done rather than asking for an
+exception.
 
+**One thing this does not do:** the file remains in the repository's *git history* and is
+reachable through earlier commits. Erasing it from history would require a rewrite and a
+force-push of a public repository, which is destructive and was not done unilaterally. If an
+organiser requires that the file never appear in the repository at all, that is the remaining
+step and it needs an explicit decision.
+
+**What never depended on it.** No code, split, result or figure in this project derives from the
+primer. Three of its figures are wrong for this dataset - it assumes a ~365-residue heavy chain
+where ours is 182, gives 27,000/21,626 rows against our 28,166, and describes the range as
+"minutes to half a day" where the measured maximum is 256.7 h. Those corrections are recorded in
+`superseded-decisions/RECONCILIATION.md` section 6, which is itself an archived document. The
+authoritative challenge description is and always was `../context/serova_primer.pdf`, the
+official brief supplied by Serova to every participant, which is unaffected by this removal.
 
 ## `superseded-decisions/` — our own working documents, now resolved
 

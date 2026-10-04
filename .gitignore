@@ -20,3 +20,8 @@ graft/.cache/
 # large regenerable artefacts
 cache/
 .venv-cu/
+
+# Pre-event primer, written 2 Oct, the day before kickoff. The event rules say
+# "build entirely during the event, no prior commits to the repo", so it is kept
+# locally for reference and deliberately not tracked. Removed 4 Oct 2026.
+archive/background/Peptide-HLA Stability Primer.md
