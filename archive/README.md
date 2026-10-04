@@ -63,3 +63,21 @@ parallel-track architecture, and a stale duplicate of a superseded diagram is wo
 | `../context/serova_primer.pdf` | The official brief — the authoritative source, not superseded by anything |
 | `../context/NOTES.md`, `../context/SPEARMINT_SUMMARY.md` | Working notes, still current |
 | `../splits/`, `../scripts/`, `../experiments/` | Built artifacts and live code |
+
+## `older_architecture.md` — a point-in-time snapshot, not a decision
+
+A **verbatim byte copy of `../ARCHITECTURE.md` as of commit `8e722e1` (3 Oct, 19:39)** — the last
+version before `087b5e8` (20:07) folded `HACKATHON_PLAN.pdf`'s findings in. Kept because that fold-in
+was the point the eligibility, construct-quarantine and Boltz-2-vs-threading material entered the
+spec, and it is useful to see the document without it.
+
+It is **three commits stale** beyond that: `9661900` (GeoStab-FT adopted as plan of record),
+`f37eaa5` (Boltz-2 scope in §5) and `e2ac9de` (baseline results) all landed after it. Its own
+"Status at 16:45 Saturday" header is the honest marker. **Read `../ARCHITECTURE.md` for anything
+current.**
+
+Reproduce or re-verify it with:
+
+```sh
+git show 8e722e1:ARCHITECTURE.md | diff --strip-trailing-cr - archive/older_architecture.md
+```

@@ -1680,6 +1680,72 @@ Reporting both is the difference between a usable uncertainty estimate and a rea
 - **One model.** Intervals were calibrated for B1 only.
 - The refit model is not the reported B1: it saw 85% of the training clusters.
 
+## Run 27 - other model families: is the negative about ESM-2, or about PLMs? - 2026-10-04 10:42
+
+`modal_app.py::families`, A100, 171 s total. Validation only; the test set was not touched.
+
+Every foundation-model result before this one used **ESM-2**. Run 12 varied its size across 80x,
+Run 11 varied its depth - but both hold the *family* fixed. So the defensible claim had been
+"a frozen ESM-2 does not beat one-hot", while a reader naturally hears "protein language models
+do not". Section 9 of `FINDINGS.md` listed this as a stated limitation. This closes it.
+
+Two genuinely different families, each through the **identical X150 head**, same split, same
+normalisation, same three seeds, same two-learning-rate choice every model got in Run 12:
+
+| family | architecture | corpus | params | hidden | pooled | within-allele |
+|---|---|---|---|---|---|---|
+| **ProtBERT** | BERT encoder | UniRef100 | 420M | 1024 | 0.729 | 0.529 |
+| **ProtT5-XL** | T5 encoder | UniRef50 | **1,208M** | 1024 | 0.729 | 0.511 |
+| ESM-2 150M *(Run 12)* | ESM transformer | UR50 | 148M | 640 | **0.771** | **0.585** |
+| **B1 one-hot** | - | - | - | - | **0.780** | **0.633** |
+
+Both new families chose lr 3e-4. Per-seed pooled: ProtBERT [0.702, 0.685, 0.664] (spread 0.039),
+ProtT5 [0.677, 0.675, 0.672] (spread 0.006).
+
+### What it establishes
+
+**Three architectures, three corpora, an 8x parameter spread, and all three lose to one-hot.**
+The headline is no longer about one model. The gap from B1 to the *best* family is 0.009 pooled
+and 0.048 within-allele; to the worst, 0.051 and 0.122 - the latter well outside the 0.039 worst
+seed spread.
+
+**Scale is not the axis, across families as well as within one.** ProtT5 at 1.2B parameters ties
+ProtBERT at 420M and loses to ESM-2 at 148M. Run 12 found a 0.007 range across 80x *within*
+ESM-2; this reproduces that insensitivity *across* architectures, which is the stronger version
+of the same claim.
+
+### Where the result is marginal, stated plainly
+
+The range across the three families is **0.042**, against a worst seed spread of **0.039**. The
+script's own separation check prints "family matters" - and that is true as far as it goes, but
+the margin is thin enough that the *ranking among the three PLMs* should not be read as
+established. What is outside noise is the thing that matters: **every family sits below the
+one-hot baseline**, and for both new families that gap exceeds the spread.
+
+### What Run 27 does NOT establish
+
+- **No per-family layer search.** `last_hidden_state` was used for all three, as Run 11 justified
+  for ESM-2. That justification does not transfer; ProtBERT or ProtT5 might have a better layer.
+- **Frozen only.** Run 13's LoRA was ESM-2; neither new family was fine-tuned.
+- **ProtT5-XL is the half-precision encoder-only checkpoint**, the one Rostlab publishes for
+  feature extraction. The full encoder-decoder was not run.
+- **ESM-C and SaProt are still untested.** ESM-C has no official loadable Hub checkpoint; SaProt
+  needs foldseek 3Di tokens for all 5,633 peptides and 75 domains, and Run 9 folded 24.
+- **MINT remains the interesting one and remains untested** - it is the only model here designed
+  for two chains, and Run 21 showed that is the axis that would matter.
+
+### An engineering note worth recording
+
+This run failed four times before producing a number, and three of the four were avoidable:
+a missing `sentencepiece`, then transformers 5.x having dropped the slow tokenizers that both
+2020-era checkpoints ship (hand-rolled from `vocab.txt` and `spiece.model` instead), then
+`Rostlab/prot_bert`'s `config.json` predating the `model_type` key that `AutoModel` dispatches on
+(named `BertModel` explicitly), with an escaped-newline bug in my own error handler in between.
+
+The fix that actually unblocked it was not a better guess - it was making the remote subprocess
+return its stderr, after three failures in which the real traceback never left the container.
+Recorded because "the error was invisible" was the binding constraint, not any of the four bugs.
+
 ## Files
 
 | File | What |
@@ -1716,6 +1782,7 @@ Reporting both is the difference between a usable uncertainty estimate and a rea
 | `split_verification.json` | The frozen split re-checked: boundary probe, neighbours, partition, hash |
 | `conditioned_likelihood.json` | Peptide PLL alone, in the groove, and the difference |
 | `conformal.json` | Split-conformal intervals, marginal and per-allele coverage |
+| `family_sweep.json` | ProtBERT and ProtT5 through the X150 head |
 | `complementarity.json` | Residual correlations, ensemble combinations, and the (B1+X150) - B1 interval |
 | `learning_curve.json` | One-hot vs frozen ESM-2 at 5/10/25/50/100% of training clusters |
 | `allele_split_metrics.json` | The ladder re-run against the allele split (every val allele unseen) |
@@ -1749,6 +1816,7 @@ Reporting both is the difference between a usable uncertainty estimate and a rea
 | 24 | `python scripts/measure_leakage_by_distance.py` and `python scripts/verify_split.py` |
 | 25 | `python -m modal run modal_app.py::condlik` |
 | 26 | `python src/conformal.py` |
+| 27 | `python -m modal run modal_app.py::families` |
 | audit | `python scripts/audit_results.py` - re-checks every number here against its source |
 
 `src/features.py` asserts the frozen split's sha256 before reading any label, so a run against a

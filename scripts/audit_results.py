@@ -232,6 +232,22 @@ CLAIMS = [
     ("coverage 95 test", "conformal.json", ["alphas", "0.05", "test_coverage"], 0.954),
     ("coverage 80 test", "conformal.json", ["alphas", "0.2", "test_coverage"], 0.802),
     ("width 90 hours", "conformal.json", ["alphas", "0.1", "test_median_width_hours"], 6.63),
+
+    # --- Run 27 model families
+    ("ProtBERT pooled", "family_sweep.json",
+     ["results", "ProtBERT 420M", "spearman_pooled"], 0.729),
+    ("ProtBERT within", "family_sweep.json",
+     ["results", "ProtBERT 420M", "spearman_within_allele"], 0.529),
+    ("ProtT5 pooled", "family_sweep.json",
+     ["results", "ProtT5-XL enc", "spearman_pooled"], 0.729),
+    ("ProtT5 within", "family_sweep.json",
+     ["results", "ProtT5-XL enc", "spearman_within_allele"], 0.511),
+    ("ProtT5 params", "family_sweep.json",
+     ["results", "ProtT5-XL enc", "params_millions"], 1208),
+    ("ProtBERT params", "family_sweep.json",
+     ["results", "ProtBERT 420M", "params_millions"], 420),
+    ("family range", "family_sweep.json", "range_across_families", 0.042),
+    ("family worst seed spread", "family_sweep.json", "worst_seed_spread", 0.039),
 ]
 
 

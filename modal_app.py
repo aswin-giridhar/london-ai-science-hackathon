@@ -129,11 +129,18 @@ def families_gpu() -> dict:
     out.mkdir(exist_ok=True)
     env = {**os.environ, "RESULTS_DIR": str(out)}
     t0 = time.time()
-    r = subprocess.run([sys.executable, "-u", f"{REMOTE}/src/family_sweep.py"], env=env)
+    # Captured here on purpose: three runs failed with the subprocess traceback invisible in the
+    # local log, so the error itself has to travel back with the exception.
+    r = subprocess.run([sys.executable, "-u", f"{REMOTE}/src/family_sweep.py"],
+                       env=env, capture_output=True, text=True)
     f = out / "family_sweep.json"
     if r.returncode != 0 or not f.exists():
-        raise RuntimeError(f"family sweep failed: rc {r.returncode}, "
-                           f"output {'missing' if not f.exists() else 'present'}")
+        raise RuntimeError(
+            f"family sweep failed: rc {r.returncode}, "
+            f"output {'missing' if not f.exists() else 'present'}\n"
+            f"--- stdout tail ---\n{r.stdout[-2500:]}\n"
+            f"--- stderr tail ---\n{r.stderr[-4000:]}")
+    print(r.stdout[-4000:])
     return {"seconds": round(time.time() - t0, 1), "gpu": torch.cuda.get_device_name(0),
             "payload": json.loads(f.read_text(encoding="utf-8"))}
 

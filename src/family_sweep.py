@@ -65,37 +65,71 @@ ESM2_150M_POOLED, ESM2_150M_WITHIN = 0.771, 0.585     # Run 12, same head and no
 
 
 def load_encoder(torch, kind, model_id):
-    from transformers import AutoTokenizer, T5EncoderModel, AutoModel
+    """Load the model, and build a tokeniser by hand.
 
-    tok = AutoTokenizer.from_pretrained(model_id, do_lower_case=False)
-    model = (T5EncoderModel if kind == "t5" else AutoModel).from_pretrained(model_id)
-    return tok, model
-
-
-def encode(torch, tok, model, seqs, device, batch, desc):
-    """Per-residue embeddings, special tokens removed via the tokenizer's own mask.
-
-    Both families want space-separated residues. Getting this wrong does not error -- it
-    silently tokenises subwords and yields embeddings of the wrong thing.
+    transformers 5.x dropped slow tokenizers, and both Rostlab checkpoints are from 2020 and
+    ship only slow-tokenizer files -- `vocab.txt` for ProtBERT (81 bytes), `spiece.model` for
+    ProtT5. `AutoTokenizer.from_pretrained` therefore raises on both. Rather than pin an older
+    transformers, the vocabularies are read directly: a protein alphabet is tiny, every residue
+    is one token, and doing it by hand makes that assumption assertable instead of assumed.
     """
-    spaced = [" ".join(s) for s in seqs]
+    from huggingface_hub import hf_hub_download
+    from transformers import BertModel, T5EncoderModel
+
+    # BertModel, not AutoModel: Rostlab/prot_bert's config.json predates the `model_type` key,
+    # which older transformers inferred and 5.x requires, so AutoModel cannot dispatch on it.
+    # Naming the class states what the checkpoint is instead of asking the library to guess.
+    model = (T5EncoderModel if kind == "t5" else BertModel).from_pretrained(model_id)
+
+    if kind == "bert":
+        vocab_path = hf_hub_download(model_id, "vocab.txt")
+        vocab = {t.strip(): i for i, t in
+                 enumerate(Path(vocab_path).read_text(encoding="utf-8").splitlines())}
+        cls, sep, unk = vocab["[CLS]"], vocab["[SEP]"], vocab["[UNK]"]
+
+        def tokenize(seq):
+            return [cls] + [vocab.get(a, unk) for a in seq] + [sep], 1
+
+    else:
+        import sentencepiece as spm
+
+        sp = spm.SentencePieceProcessor(model_file=hf_hub_download(model_id, "spiece.model"))
+
+        def tokenize(seq):
+            # ProtT5 expects space-separated residues; sentencepiece then gives one id each
+            ids = sp.encode(" ".join(seq), out_type=int)
+            assert len(ids) == len(seq), (
+                f"ProtT5 tokenised {len(seq)} residues into {len(ids)} tokens -- the "
+                f"one-token-per-residue assumption does not hold")
+            return ids, 0          # no BOS, and we append no EOS
+
+    return tokenize, model
+
+
+def encode(torch, tokenize, model, seqs, device, batch, desc):
+    """Per-residue embeddings. Every sequence here is the same length, so no padding is needed.
+
+    `offset` is where the residues start in the token sequence: 1 for ProtBERT ([CLS] first),
+    0 for ProtT5. The residue count is asserted on the way out rather than trusted.
+    """
+    n_res = len(seqs[0])
+    assert all(len(s) == n_res for s in seqs), "encode() assumes equal-length sequences"
+    toks = [tokenize(s) for s in seqs]
+    offset = toks[0][1]
+    ids_all = torch.tensor([t[0] for t in toks], dtype=torch.long)
     out, t0 = [], time.time()
-    for i in range(0, len(spaced), batch):
-        enc = tok(spaced[i:i + batch], return_tensors="pt", padding=True,
-                  return_special_tokens_mask=True)
-        stm = enc.pop("special_tokens_mask").bool()
-        enc = {k: v.to(device) for k, v in enc.items()}
+    for i in range(0, len(seqs), batch):
+        ids = ids_all[i:i + batch].to(device)
+        att = torch.ones_like(ids)
         with torch.no_grad():
-            h = model(**enc).last_hidden_state
-        keep = (~stm).to(device) & enc["attention_mask"].bool()
-        for r in range(h.shape[0]):
-            out.append(h[r][keep[r]].cpu().numpy().astype(np.float16))
+            h = model(input_ids=ids, attention_mask=att).last_hidden_state
+        h = h[:, offset:offset + n_res, :]
+        assert h.shape[1] == n_res, f"{desc}: got {h.shape[1]} residues, expected {n_res}"
+        out.append(h.cpu().numpy().astype(np.float16))
         if i % (batch * 40) == 0:
-            print(f"    {desc} {min(i + batch, len(spaced)):,}/{len(spaced):,} "
+            print(f"    {desc} {min(i + batch, len(seqs)):,}/{len(seqs):,} "
                   f"({time.time() - t0:.0f}s)", flush=True)
-    lens = {len(o) for o in out}
-    assert len(lens) == 1, f"ragged residue counts after stripping specials: {sorted(lens)[:5]}"
-    return np.stack(out)
+    return np.concatenate(out)
 
 
 def main():
@@ -131,15 +165,15 @@ def main():
     for model_id, short, kind, batch in FAMILIES:
         t0 = time.time()
         print(f"\n=== {short} ({model_id}) ===", flush=True)
-        tok, enc_model = load_encoder(torch, kind, model_id)
+        tokenize, enc_model = load_encoder(torch, kind, model_id)
         enc_model = enc_model.to(device).eval()
         n_params = sum(p.numel() for p in enc_model.parameters())
         d_res = enc_model.config.hidden_size if hasattr(enc_model.config, "hidden_size") \
             else enc_model.config.d_model
         print(f"  {n_params / 1e6:.0f}M parameters, hidden {d_res}", flush=True)
 
-        pep = encode(torch, tok, enc_model, peptides, device, batch, "peptides")
-        hla_e = encode(torch, tok, enc_model, hla.hla_seq.tolist(), device, batch, "hla")
+        pep = encode(torch, tokenize, enc_model, peptides, device, batch, "peptides")
+        hla_e = encode(torch, tokenize, enc_model, hla.hla_seq.tolist(), device, batch, "hla")
         assert pep.shape[1] == 9, f"peptide residues came back as {pep.shape[1]}, expected 9"
         assert hla_e.shape[1] == 182, f"HLA residues came back as {hla_e.shape[1]}, expected 182"
         encode_s = time.time() - t0

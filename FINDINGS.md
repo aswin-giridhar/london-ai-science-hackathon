@@ -16,16 +16,18 @@ repository against the file that produced it; it currently passes **81/81**.
 | claim | evidence |
 |---|---|
 | A one-hot MLP beats every ESM-2 configuration tested | Runs 2, 4, 8, 11, 12 |
+| It also beats **ProtBERT and ProtT5** - three families, three corpora, 8x params | Run 27 |
 | Depth, scale and fine-tuning all land **inside seed noise** | Runs 8, 11, 12 |
 | ESM-2's total contribution is **+0.009 pooled, nothing within-allele** | Run 13 |
 | It costs **$6.59 and 11,307 A100-seconds** to land *below* a free baseline | Run 18 |
 | The data-efficiency defence fails, and runs **backwards** | Run 14 |
-| We know **why**: ESM-2's salience is orthogonal to the endpoint | Runs 5, 19 |
+| We know **why**: ESM-2's salience is orthogonal to the endpoint | Runs 5, 19, 25 |
 | Roughly **0.19 of Spearman is still available** | Run 16 |
 
-The useful claim is not "foundation models don't work". It is **"a single-chain foundation model
-contributes about one hundredth of a Spearman point here, for several dollars and several GPU
-hours, and we can show where the remaining signal is instead."**
+The useful claim is not "foundation models don't work". It is **"a frozen single-chain protein
+language model - ESM-2, ProtBERT and ProtT5 alike - contributes about one hundredth of a Spearman
+point here, for several dollars and several GPU hours, and we can show where the remaining signal
+is instead."**
 
 ---
 
@@ -95,10 +97,21 @@ second read.
 | **more labels** — 5% → 100% of training clusters | no crossover at any budget | gap *widest* at 25% |
 | **cross-chain attention** — joint 191-residue encoding | −0.017 pooled | within noise |
 | **as an ensemble member** | +0.009 [+0.001, +0.017] | real, and tiny |
+| **a different family** - ProtBERT 420M, ProtT5-XL **1.2B** | both 0.729 pooled | below ESM-2, below B1 |
+| **the groove itself** - peptide scored inside the complex | 0.001 pooled | and the delta, 0.004 |
 
 ---
 
 ## 4. Why it fails — three independent measurements
+
+**The groove does not rescue it either.** Scoring each peptide inside the 191-residue
+peptide-plus-HLA concatenation, rather than alone, moves the correlation with stability from
+0.002 to 0.001; the difference between the two scores predicts nothing (0.004). The two scores
+rank-correlate at only 0.669, so the groove genuinely does reorder which peptides ESM-2 finds
+likely - something real happens, and it is uncorrelated with what we are predicting. The caveat
+is stated and not glossed: ESM-2 has no chain-break token, so this cannot separate *the groove
+explains nothing about stability* from *ESM-2 cannot condition on a chain it does not know is
+separate*.
 
 **ESM-2's notion of which residues matter is orthogonal to this endpoint.** Ablating each peptide
 position in the trained model gives a sharply peaked profile — **P9 ≫ P2 > P1 > P3**, with P4–P8
@@ -139,6 +152,18 @@ out from three independent directions:
 Both models also recover **published binding motifs they were never shown** — L first at A\*02:01
 P2, R first at B\*27:05 P2 — from 10,320 scored sequences of which 99.4% never appear in the
 dataset. Neither recovers them better than the other.
+
+### And it ships with intervals that say what they mean
+
+Split-conformal calibration on 3,412 held-out train rows, carved as whole peptide clusters so the
+residuals measure unseen-cluster difficulty exactly as validation and test do, gives intervals
+whose coverage on test matches the target to within half a point at every level: 80.2%, 90.5% and
+95.4% against 80%, 90% and 95%, at median widths of 4.2, 6.6 and 9.7 hours.
+
+Per allele it is a different story, and reporting only the first number would have been the
+dishonest version: coverage ranges **68.8% to 100%** across 68 test alleles, 7 of them below 80%.
+Conformal's guarantee is marginal by construction, not conditional. A clinician reading 90% off
+the label would be wrong for HLA-A*01:01 by twenty points.
 
 ---
 
@@ -198,16 +223,23 @@ has least data.
 
 ## 9. What we did not do, and would not claim
 
-- **One model family.** ESM-2 only. MINT, ESM-C, ProtT5 and SaProt are untested; the SPEARMINT
-  comparison in §4 is across studies and splits, and only the *deltas* are comparable.
+- **Three families, not all of them.** ESM-2, ProtBERT and ProtT5 all lose to one-hot (Run 27),
+  which is what lets this be a claim about frozen PLMs rather than about ESM-2 alone. **MINT,
+  ESM-C and SaProt remain untested** - and MINT is the one that matters, being the only model
+  here built for two chains. ESM-C has no official loadable Hub checkpoint; SaProt needs foldseek
+  3Di tokens we cannot build. The SPEARMINT comparison in §4 is across studies and splits, and
+  only the *deltas* are comparable.
 - **No hyper-parameter search.** Every model got the same budget and selection rule, so the
   comparison is fair, but no model is at its ceiling.
 - **Affinity pre-training not attempted.** It is the largest published lever here
   (0.574 → 0.745) and needs the NetMHCpan corpus decontaminated against our test clusters — a
   day's work, not an evening's.
-- **No prediction intervals.** Honest per-prediction uncertainty needs calibration rows carved
-  from train, which we did not do. B1's calibration slope of 0.978 is a property of the set, not
-  of any one prediction.
+- **Prediction intervals hold marginally, not per allele.** Split-conformal intervals calibrated
+  on whole held-out train clusters cover 90.5% against a 90% target on test. Per allele they
+  range 68.8% to 100%, with 7 of 68 below 80% - so an interval advertised as 90% gives
+  HLA-A*01:01 patients 68.8%. Conformal guarantees the average and nothing within a subgroup;
+  restoring per-allele guarantees needs Mondrian conformal and more calibration rows than the
+  smallest alleles have.
 - **9-mers, 75 alleles, one assay.** Class I binds 8–11mers; this is the 9-mer slice.
 - **We cannot and do not compare against NetMHCstabpan.** This dataset is its training data, so
   its apparent performance here is leakage, not skill.
@@ -216,9 +248,15 @@ has least data.
 
 ## 10. Reproducing any of it
 
-`results/README.md` carries 21 run entries, each with the exact command, what it established, and
-a *"what this does NOT establish"* section. `scripts/audit_results.py` verifies every quoted
-number against its source file and every figure restated in the write-ups.
+`results/README.md` carries 26 run entries, each with the exact command, what it established, and
+a *"what this does NOT establish"* section. `scripts/audit_results.py` verifies all 103 quoted
+numbers against their source files and every figure restated in the write-ups; it is the check
+that caught two drifted numbers during the project rather than after it.
+
+`requirements.txt` pins the local environment. Run 14 measured B1 differing by 0.010 between
+Anaconda and PyPI scikit-learn - the same size as several findings reported here - which is why
+the pin exists and why the file also states, rather than hides, that `modal_app.py` still builds
+its images unpinned.
 
 The frozen split is content-addressed: `splits/peptide_split.csv`,
 sha256 `210775dc4ad179df635b3386bdb9671e4bca515cef1892bc70fb38f9b1b73f47`.

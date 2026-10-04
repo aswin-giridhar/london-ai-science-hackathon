@@ -1,0 +1,73 @@
+{
+  "results": {
+    "ProtBERT 420M": {
+      "n": 2817,
+      "spearman_pooled": 0.7291662763203915,
+      "spearman_within_allele": 0.5290569222581809,
+      "alleles_supported": 68,
+      "pearson_log": 0.7319791029579735,
+      "rmse_log": 0.740251927536192,
+      "mae_log": 0.5504356537990862,
+      "mae_hours": 3.7044728999355203,
+      "spearman_pooled_per_seed": [
+        0.7022,
+        0.6852,
+        0.6636
+      ],
+      "spearman_pooled_seed_spread": 0.0387,
+      "spearman_within_allele_per_seed": [
+        0.4785,
+        0.4618,
+        0.4187
+      ],
+      "spearman_within_allele_seed_spread": 0.0598,
+      "model": "Rostlab/prot_bert",
+      "short": "ProtBERT 420M",
+      "params_millions": 419.9,
+      "hidden": 1024,
+      "lr": 0.0003,
+      "encode_seconds": 23.1,
+      "total_seconds": 82.5
+    },
+    "ProtT5-XL enc": {
+      "n": 2817,
+      "spearman_pooled": 0.7293924165093626,
+      "spearman_within_allele": 0.5110913294322399,
+      "alleles_supported": 68,
+      "pearson_log": 0.7407258231803807,
+      "rmse_log": 0.7318491950597148,
+      "mae_log": 0.537804295655365,
+      "mae_hours": 3.5913282041556718,
+      "spearman_pooled_per_seed": [
+        0.6774,
+        0.6748,
+        0.6718
+      ],
+      "spearman_pooled_seed_spread": 0.0057,
+      "spearman_within_allele_per_seed": [
+        0.4382,
+        0.4395,
+        0.4314
+      ],
+      "spearman_within_allele_seed_spread": 0.0081,
+      "model": "Rostlab/prot_t5_xl_half_uniref50-enc",
+      "short": "ProtT5-XL enc",
+      "params_millions": 1208.1,
+      "hidden": 1024,
+      "lr": 0.0003,
+      "encode_seconds": 27.4,
+      "total_seconds": 87.6
+    }
+  },
+  "esm2_150m_reference": {
+    "pooled": 0.771,
+    "within": 0.585
+  },
+  "b1_reference": {
+    "pooled": 0.78,
+    "within": 0.633
+  },
+  "range_across_families": 0.04183372367960847,
+  "worst_seed_spread": 0.0387,
+  "seconds": 170.5
+}
