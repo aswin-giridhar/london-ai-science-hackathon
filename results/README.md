@@ -1801,6 +1801,87 @@ itself the finding: 55 A100-minutes of adaptation bought nothing measurable over
   architecture, budget and selection rule was frozen before Run 22 - but no further model
   selection can honestly happen against it.
 
+## Run 29 - a published pMHC foundation model, zero-shot - 2026-10-04 11:52
+
+`modal_app.py::mint`, A100, 206 s. 2,817 validation rows. **No training anywhere.**
+
+Every foundation-model result so far used a model *we* assembled behind *our* head. This is the
+other kind of answer to the challenge question: a released, published model built for exactly
+this molecular system, used exactly as its authors shipped it.
+
+### Why this model is admissible when three closely related ones are not
+
+`dkarthikeyan1/mint-stage1-affinity` is the MINT backbone - ESM2-650M with cross-chain multimer
+attention, pretrained on 96M STRING protein-protein interactions - fine-tuned on **NetMHCpan 4.1
+binding affinity**, ~126K samples, against `1 - log(IC50)/log(50000)`. 814M parameters.
+
+**It has never seen a half-life label.** That is the whole reason it can be used here:
+
+| model | fine-tuned on | admissible? |
+|---|---|---|
+| NetMHCstabpan | **this dataset** | no - leakage |
+| SPEARMINT (Stage 3) | pMHC **stability** | no - same endpoint |
+| `mint-stage2-stability` | pMHC **stability** | no - same endpoint |
+| **`mint-stage1-affinity`** | pMHC **affinity** only | **yes** |
+
+This closes two items the project had listed as not attempted: **MINT**, which Run 21 identified
+as the missing arm (the only model here built for two chains), and **affinity pre-training**, the
+published lever declined as hours of decontamination work. The decontamination is unnecessary
+precisely because the endpoint differs.
+
+### The result, and why the two columns disagree
+
+| condition | MHC length | pooled | **within-allele** |
+|---|---|---|---|
+| groove only, as our dataset ships it | 182 | 0.522 | 0.407 |
+| groove + constant alpha-3 domain | 275 | 0.523 | **0.421** |
+| *B0b per-allele median, no peptide information* | - | *0.563* | *undefined* |
+| *X150 ours, trained* | - | *0.754* | *0.558* |
+| *B1 one-hot, trained* | - | *0.780* | *0.633* |
+
+**Read only the pooled column and the conclusion is "no signal" - it sits below the no-peptide
+floor. Read within-allele and there is substantial real signal, 0.421, from a model that has
+never seen this endpoint.** Both are correct, and the disagreement is the finding.
+
+A zero-shot affinity score has no reason to be calibrated *across* alleles against half-life:
+different alleles have systematically different stability distributions, and an IC50-trained
+scalar does not encode them. So the across-allele component is close to noise and drags the
+pooled figure below a floor that is handed allele identity for free, while the within-allele
+ranking - the clinical question, one patient's candidates inside their own allele - is genuinely
+good.
+
+This is the strongest vindication in the project of **reporting within-allele as primary**. On
+this run the metric choice is the entire difference between "this model does nothing" and "this
+model carries real signal with the wrong calibration". It is also precisely the gap SPEARMINT's
+assay-conditioned FiLM recalibration head exists to close, which makes their architecture legible
+from our own measurement rather than from their abstract.
+
+### The obvious objection, pre-registered and measured
+
+The model documents its input as a **full ~365-residue heavy chain**; our dataset carries the
+182-residue alpha-1/alpha-2 groove. A truncation penalty would masquerade as "MINT does not work
+here", so both conditions were run before looking at either: the 182 residues we have, and the
+same sequence extended with a constant alpha-3 domain. Alpha-3 is near-invariant across class I
+alleles, so a shared suffix cannot carry allele-specific signal - only length.
+
+**The difference is 0.0012 pooled.** Length is not the explanation. The objection cost one extra
+forward pass to remove entirely, rather than a paragraph of hedging.
+
+### What Run 29 does NOT establish
+
+- **This is zero-shot, so it is not the same comparison as Runs 12 or 27.** Those trained a head;
+  this trains nothing. A fair "does MINT beat one-hot" test needs MINT embeddings behind our X150
+  head, which is a different and still-unrun experiment.
+- **It does not isolate cross-chain pretraining.** MINT's advantage over ESM-2, if any, is
+  confounded here with its affinity fine-tuning. Only the embedding experiment separates them.
+- **Peptide overlap is unverified.** NetMHCpan 4.1 affinity data very likely contains peptides
+  that appear in our split. Our labels are half-lives it never saw, so this is transfer learning
+  rather than label leakage - but a familiarity advantage cannot be ruled out without their
+  training set, and we do not have it.
+- **Validation rows only.** The test set was not touched.
+- The alpha-3 sequence is the HLA-A*02:01 consensus, used as a constant for every allele; it is a
+  length control, not a per-allele reconstruction.
+
 ## Files
 
 | File | What |
@@ -1839,6 +1920,7 @@ itself the finding: 55 A100-minutes of adaptation bought nothing measurable over
 | `conformal.json` | Split-conformal intervals, marginal and per-allele coverage |
 | `family_sweep.json` | ProtBERT and ProtT5 through the X150 head |
 | `l150_test_metrics.json` | L150's seed ensemble on the test split |
+| `mint_affinity.json` | MINT Stage-1 affinity, zero-shot, two MHC lengths |
 | `complementarity.json` | Residual correlations, ensemble combinations, and the (B1+X150) - B1 interval |
 | `learning_curve.json` | One-hot vs frozen ESM-2 at 5/10/25/50/100% of training clusters |
 | `allele_split_metrics.json` | The ladder re-run against the allele split (every val allele unseen) |
@@ -1874,6 +1956,7 @@ itself the finding: 55 A100-minutes of adaptation bought nothing measurable over
 | 26 | `python src/conformal.py` |
 | 27 | `python -m modal run modal_app.py::families` |
 | 28 | `python -m modal run modal_app.py::l150` |
+| 29 | `python -m modal run modal_app.py::mint` |
 | audit | `python scripts/audit_results.py` - re-checks every number here against its source |
 
 `src/features.py` asserts the frozen split's sha256 before reading any label, so a run against a

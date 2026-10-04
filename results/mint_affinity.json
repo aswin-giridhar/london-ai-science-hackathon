@@ -1,0 +1,44 @@
+{
+  "model": "dkarthikeyan1/mint-stage1-affinity",
+  "params_millions": 814.0,
+  "trained_on": "NetMHCpan 4.1 binding affinity (~126K), never half-life",
+  "zero_shot": true,
+  "results": {
+    "groove_182": {
+      "n": 2817,
+      "spearman_pooled": 0.5217323706488413,
+      "spearman_within_allele": 0.4068084947670827,
+      "alleles_supported": 68,
+      "pearson_log": 0.4714692508744846,
+      "rmse_log": 1.1196139030637526,
+      "mae_log": 0.7909683786137705,
+      "mae_hours": 4.795531903188987,
+      "mhc_length": 182,
+      "seconds": 70.1,
+      "score_mean": 0.5711689591407776,
+      "score_std": 0.2730821967124939
+    },
+    "groove_plus_alpha3": {
+      "n": 2817,
+      "spearman_pooled": 0.5228900651131484,
+      "spearman_within_allele": 0.4206377363770384,
+      "alleles_supported": 68,
+      "pearson_log": 0.47066060297213447,
+      "rmse_log": 1.1307404314116722,
+      "mae_log": 0.7973163490918515,
+      "mae_hours": 4.809026823407826,
+      "mhc_length": 275,
+      "seconds": 103.6,
+      "score_mean": 0.5577059984207153,
+      "score_std": 0.2526884973049164
+    }
+  },
+  "truncation_delta_pooled": 0.0011576944643071352,
+  "reference": {
+    "B0b": 0.563,
+    "X150": 0.754,
+    "B1_pooled": 0.78,
+    "B1_within": 0.633
+  },
+  "seconds": 206.0
+}

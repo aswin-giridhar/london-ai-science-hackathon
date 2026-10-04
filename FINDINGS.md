@@ -5,9 +5,9 @@ and how much signal is still on the table.**
 
 Serova Protein Engineering Track · London AI × Science Hackathon · 3–4 October 2026
 
-Every number below is reproducible from `results/README.md`, which logs 28 runs with the
+Every number below is reproducible from `results/README.md`, which logs 29 runs with the
 command that produced each one. `scripts/audit_results.py` re-checks every figure quoted anywhere
-in this repository against the file that produced it; it currently passes **115/115**.
+in this repository against the file that produced it; it currently passes **121/121**.
 
 ---
 
@@ -22,6 +22,7 @@ in this repository against the file that produced it; it currently passes **115/
 | It costs **$6.59 and 11,307 A100-seconds** to land *below* a free baseline | Run 18 |
 | The data-efficiency defence fails, and runs **backwards** | Run 14 |
 | We know **why**: ESM-2's salience is orthogonal to the endpoint | Runs 5, 19, 25 |
+| A **published** pMHC model, zero-shot, scores 0.421 within-allele and *below the floor* pooled | Run 29 |
 | Roughly **0.19 of Spearman is still available** | Run 16 |
 
 The useful claim is not "foundation models don't work". It is **"a frozen single-chain protein
@@ -182,6 +183,44 @@ the label would be wrong for HLA-A*01:01 by twenty points.
 
 ---
 
+## 5b. The metric choice is load-bearing, and Run 29 proves it
+
+`mint-stage1-affinity` is a released 814M model built for peptide-MHC class I: the MINT backbone
+(ESM2-650M, cross-chain attention, 96M STRING interactions) fine-tuned on NetMHCpan 4.1 **binding
+affinity**. It has never seen a half-life, which is exactly why it is admissible here when
+NetMHCstabpan, SPEARMINT and `mint-stage2-stability` are not - all three are trained on the
+endpoint we are predicting.
+
+Scored zero-shot on our validation split, with no training of any kind:
+
+| | pooled | within-allele |
+|---|---|---|
+| **MINT Stage-1, zero-shot** | **0.523** | **0.421** |
+| B0b per-allele median, *no peptide information* | 0.563 | undefined |
+| B1 one-hot, trained | 0.780 | 0.633 |
+
+**Report pooled alone and this model appears to have no signal - it is below the no-peptide
+floor. Report within-allele and it has a great deal, 0.421, having never seen the endpoint.**
+
+Both numbers are right. A zero-shot affinity score has no reason to be calibrated across alleles
+against half-life, because alleles differ systematically in their stability distributions and an
+IC50-trained scalar does not encode that. The across-allele component is close to noise and drags
+pooled beneath a floor that receives allele identity for free; the within-allele ranking - which
+is the clinical question - survives intact.
+
+This is the clearest case in the project for the decision made in §2 to treat **within-allele as
+primary**. Here the metric choice is the whole difference between *"this model does nothing"* and
+*"this model carries real signal with the wrong calibration"*, and only the second is true. It is
+also the exact gap SPEARMINT's assay-conditioned FiLM head is built to close - their architecture
+becomes legible from our measurement.
+
+The obvious objection was pre-registered rather than answered afterwards. MINT documents a full
+~365-residue heavy chain; we have the 182-residue groove. Both were run - 182, and 182 plus a
+constant alpha-3 domain that is near-invariant across alleles and so can only change length, not
+allele-specific signal. **The difference is 0.0012.** Truncation is not the explanation.
+
+---
+
 ## 6. The structural arm: correct structures, no usable signal
 
 Boltz-2 poses **do** depend on the peptide — across-peptide variation is **4.1×** the model's own
@@ -238,12 +277,17 @@ has least data.
 
 ## 9. What we did not do, and would not claim
 
-- **Three families, not all of them.** ESM-2, ProtBERT and ProtT5 all lose to one-hot (Run 27),
-  which is what lets this be a claim about frozen PLMs rather than about ESM-2 alone. **MINT,
-  ESM-C and SaProt remain untested** - and MINT is the one that matters, being the only model
-  here built for two chains. ESM-C has no official loadable Hub checkpoint; SaProt needs foldseek
-  3Di tokens we cannot build. The SPEARMINT comparison in §4 is across studies and splits, and
-  only the *deltas* are comparable.
+- **Four families now, and one of them published for this exact system.** ESM-2, ProtBERT and
+  ProtT5 all lose to one-hot (Run 27), which is what lets this be a claim about frozen PLMs
+  rather than about ESM-2 alone. Run 29 adds **MINT Stage-1**, the released 814M cross-chain
+  model fine-tuned on binding affinity and never on half-life, scored zero-shot. **Still
+  untested: MINT behind our own head** (which is the experiment that would isolate cross-chain
+  pretraining from affinity fine-tuning), **ESM-C** (no official loadable Hub checkpoint) and
+  **SaProt** (needs foldseek 3Di tokens we cannot build). SPEARMINT itself and
+  `mint-stage2-stability` are **inadmissible** here, not unavailable: both are fine-tuned on
+  pMHC stability, the endpoint we are predicting, which is the same objection that excludes
+  NetMHCstabpan. The SPEARMINT comparison in §4 remains across studies and splits, and only the
+  *deltas* are comparable.
 - **No hyper-parameter search.** Every model got the same budget and selection rule, so the
   comparison is fair, but no model is at its ceiling.
 - **Affinity pre-training not attempted.** It is the largest published lever here

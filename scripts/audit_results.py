@@ -255,6 +255,18 @@ CLAIMS = [
     ("L150 test within", "l150_test_metrics.json", "spearman_within_allele", 0.525),
     ("L150 test n", "l150_test_metrics.json", "n", 2817),
     ("L150 test alleles", "l150_test_metrics.json", "alleles_supported", 68),
+
+    # --- Run 29 MINT stage-1 affinity, zero-shot
+    ("MINT 182 pooled", "mint_affinity.json",
+     ["results", "groove_182", "spearman_pooled"], 0.522),
+    ("MINT 182 within", "mint_affinity.json",
+     ["results", "groove_182", "spearman_within_allele"], 0.407),
+    ("MINT 275 pooled", "mint_affinity.json",
+     ["results", "groove_plus_alpha3", "spearman_pooled"], 0.523),
+    ("MINT 275 within", "mint_affinity.json",
+     ["results", "groove_plus_alpha3", "spearman_within_allele"], 0.421),
+    ("MINT truncation delta", "mint_affinity.json", "truncation_delta_pooled", 0.0012),
+    ("MINT params", "mint_affinity.json", "params_millions", 814.0),
 ]
 
 
