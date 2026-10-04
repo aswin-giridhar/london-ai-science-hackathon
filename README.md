@@ -6,7 +6,7 @@ London AI × Science Hackathon · Serova Protein Engineering Track · 3–4 Octo
 
 Stability Lens asks a practical scientific question: given a nine-residue peptide and an HLA class I variant, can we predict how long their complex remains intact, and do expensive protein models add useful information beyond a small supervised sequence model? The planned comparison progresses from sequence features to predicted interface geometry and, optionally, inverse-folding compatibility. Every comparison uses measured half-life labels, controlled data partitions, and explicit records of cost and failure.
 
-**Current status:** the sequence ladder is **built and measured** through the frozen-encoder rungs. Baselines (B0/B1/B1'), the ESM-2 150M embedding cache, and both embedding heads (F150/X150) have run on the frozen split; every number, and what it does not establish, is in [`results/README.md`](results/README.md). LoRA adaptation (L150), the structural arm, and the demo are not built. A well-supported negative or inconclusive result is a valid outcome - and the headline result so far is of that kind.
+**Current status:** the sequence ladder is **complete and measured**, from baselines through LoRA fine-tuning, with cluster-bootstrap confidence intervals on every claim. Eight logged runs; every number, and what it does not establish, is in [`results/README.md`](results/README.md). The structural arm and the demo are not built. A well-supported negative or inconclusive result is a valid outcome - and the headline result so far is of that kind.
 
 ## Measured results
 
@@ -15,14 +15,17 @@ not been read by anything. `rho` is Spearman; *within-allele* is the mean over a
 12 rows, which is the clinically relevant question - rank one patient's candidate peptides inside
 their own allele.
 
-| Rung | rho pooled | rho within-allele | Uses a protein language model? |
+| Rung | rho pooled (95% CI) | rho within-allele (95% CI) | Protein LM? |
 |---|---|---|---|
-| B0a global median | undefined | undefined | no |
-| B0b per-allele median | 0.563 | undefined | no |
-| F150 frozen ESM-2 150M, mean-pooled head | 0.593 | 0.278 | **yes** |
-| X150 frozen ESM-2 150M, residue cross-attention | 0.754 | 0.558 | **yes** |
-| B1' one-hot peptide + allele identity | 0.748 | 0.557 | no |
-| B1 one-hot peptide + HLA pseudosequence + allele | **0.780** | **0.633** | no |
+| B0b per-allele median, **no peptide information** | 0.563 [0.522, 0.598] | undefined | no |
+| F150 frozen ESM-2 150M, mean-pooled | 0.593 [0.556, 0.625] | 0.278 [0.222, 0.320] | **yes** |
+| B1' one-hot peptide + allele identity | 0.748 [0.719, 0.775] | 0.557 [0.508, 0.585] | no |
+| X150 frozen ESM-2 150M, residue cross-attention | 0.754 [0.727, 0.777] | 0.558 [0.508, 0.585] | **yes** |
+| L150 **LoRA-adapted** ESM-2 150M, same head | 0.757 [0.732, 0.780] | 0.572 [0.524, 0.599] | **yes** |
+| **B1 one-hot peptide + HLA pseudosequence + allele** | **0.780 [0.756, 0.802]** | **0.633 [0.588, 0.654]** | no |
+
+Intervals are 2,000 paired draws resampling the 540 **peptide clusters**, seed 2026. Rows inside a
+cluster are within 2 substitutions, so resampling rows would claim precision we have not earned.
 
 Three findings, in the order we would present them:
 
@@ -38,9 +41,20 @@ cross-attention is worth **+0.161 pooled and +0.280 within-allele**, against see
 and 0.039. Mean-pooling a 9-mer averages away position, and position is where the P2/P9 anchor
 residues live.
 
-**3. A frozen protein language model does not beat one-hot encoding here.** X150 (0.754 / 0.558) and
-B1' (0.748 / 0.557) agree to within seed noise, and B1 - which uses no protein language model at all
-- beats both. Whether adaptation changes this is exactly what L150 tests, and L150 has not been run.
+**3. No ESM-2 rung beats one-hot encoding, and fine-tuning does not change that.** X150 and B1'
+are statistically indistinguishable (pooled difference -0.005, interval [-0.026, +0.014] - a
+*bounded* null, ruling out any PLM advantage above ~0.026). LoRA adaptation adds +0.003 pooled,
+interval [-0.012, +0.018], also spanning zero. And B1 beats the adapted model outright:
+**+0.023 [+0.007, +0.039] pooled and +0.060 [+0.027, +0.094] within-allele**, both excluding zero.
+
+**4. We also know why.** Ablating each peptide position in the trained model gives a sharply peaked
+profile - P9 > P2 > P1 > P3, with P4-P8 contributing nothing - which is the textbook
+B-pocket/F-pocket anchor picture recovered from data alone, and it holds in every seed
+independently. ESM-2's own masked-position likelihood profile over the same peptides is **flat**,
+and the two rank-correlate at **-0.03**. Its per-peptide likelihood predicts stability at
+**rho +0.002**. The model's notion of which residues matter is orthogonal to the one this endpoint
+needs, which is why a supervised head with per-residue access is the only thing that recovers the
+signal - and why a mean-pool destroys it.
 
 We do not compare these to published figures on other splits. A number measured on a different
 partition, with a different HLA input and a different model, is context, not a scoreboard.

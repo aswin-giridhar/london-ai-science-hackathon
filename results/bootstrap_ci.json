@@ -60,9 +60,36 @@
         0.588000007441282,
         0.654455242111462
       ]
+    },
+    "L150_lora_kv": {
+      "pooled": [
+        0.7573955030094068,
+        0.7316574991513837,
+        0.7803078425159554
+      ],
+      "within": [
+        0.572377149221367,
+        0.5235490461207963,
+        0.5987825029620057
+      ]
     }
   },
   "comparisons": {
+    "L150_lora_kv_minus_X150_interaction_head": {
+      "question": "H1 -- does adapting the encoder help?",
+      "pooled": {
+        "mean": 0.0032528331712689293,
+        "lo": -0.011722711785659196,
+        "hi": 0.017988146044673796,
+        "spans_zero": true
+      },
+      "within_allele": {
+        "mean": 0.013657093232564208,
+        "lo": -0.0201087935990494,
+        "hi": 0.0451516507819509,
+        "spans_zero": true
+      }
+    },
     "B1prime_peptide_allele_only_minus_X150_interaction_head": {
       "question": "does a one-hot allele lookup match the frozen PLM?",
       "pooled": {

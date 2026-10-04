@@ -209,7 +209,7 @@ different order, so early stopping selects a different epoch (CPU 30, GPU 26 for
   position-purity may suit an anchor-driven endpoint with 22,532 training rows. That is a
   **hypothesis**, untested.
 
-## Run 5 - anchor probes: where the signal lives - 2026-10-03 23:33 - CURRENT
+## Run 5 - anchor probes: where the signal lives - 2026-10-03 23:33
 
 `python -m modal run modal_app.py::anchors` on an NVIDIA A10, **91.5 s**. Two probes that measure
 deliberately different things and are reported separately.
@@ -407,6 +407,71 @@ tied, overwhelmingly on the t-half = 0 point mass, so a naive argsort rank would
 `power_analysis.spearman` to 2.2e-16 across 200 random subsets, and the vectorised within-allele
 metric against `metrics.evaluate` - the function that produced every published number - to 1.1e-16.
 
+## Run 8 - L150: LoRA adaptation, and the completed ladder - 2026-10-04 00:38 - CURRENT
+
+`python -m modal run modal_app.py::l150`. Three seeds, **one A100 each in parallel**, 4,491 s wall.
+LoRA r=8, alpha=16, dropout 0.05 on the key and value projections of all 30 layers: **60 modules,
+614,400 trainable parameters against 148,138,841 frozen (0.41%)**. B is zero-initialised, so at
+step 0 the model is exactly frozen X150.
+
+L150 reuses the **X150 head class itself** - same architecture, same initialisation, same optimiser,
+same seeds, same split, same 40-epoch / patience-6 budget. The only difference is that gradients
+reach the encoder, so `L150 - X150` is attributable to adaptation and nothing else.
+
+### H1: does adapting the encoder help?
+
+| | L150 | X150 | delta | 95% CI | verdict |
+|---|---|---|---|---|---|
+| pooled | 0.757 | 0.754 | +0.003 | [-0.012, +0.018] | **spans zero** |
+| within-allele | 0.572 | 0.558 | +0.014 | [-0.020, +0.045] | **spans zero** |
+
+Per-seed pooled 0.721 / 0.721 / 0.706, spread 0.015. Best epochs 16 / 21 / 15.
+
+**No.** And the interval bounds it: adaptation cannot be worth more than **+0.018 pooled or +0.045
+within-allele**. Training 614,400 parameters for 75 minutes of A100 time moved the result less than
+changing the random seed does.
+
+### The completed ladder, with intervals
+
+| Rung | rho pooled | rho within-allele | Protein LM? |
+|---|---|---|---|
+| B0b per-allele median | 0.563 [0.522, 0.598] | undefined | no |
+| F150 frozen, mean-pooled | 0.593 [0.556, 0.625] | 0.278 [0.222, 0.320] | yes |
+| B1' one-hot peptide + allele id | 0.748 [0.719, 0.775] | 0.557 [0.508, 0.585] | no |
+| X150 frozen, cross-attention | 0.754 [0.727, 0.777] | 0.558 [0.508, 0.585] | yes |
+| L150 **LoRA-adapted**, cross-attention | 0.757 [0.732, 0.780] | 0.572 [0.524, 0.599] | yes |
+| **B1 one-hot + pseudoseq + allele** | **0.780 [0.756, 0.802]** | **0.633 [0.588, 0.654]** | **no** |
+
+**A one-hot MLP with no protein language model anywhere beats every ESM-2 rung, including the
+fine-tuned one, and the margin excludes zero:**
+
+| comparison | pooled | within-allele |
+|---|---|---|
+| B1 - L150 | +0.023 [+0.007, +0.039] | **+0.060 [+0.027, +0.094]** |
+| B1 - X150 | +0.026 [+0.011, +0.042] | +0.074 [+0.042, +0.106] |
+
+### Why the epoch budget was the decisive implementation detail
+
+A first version of this rung used `MAX_EPOCHS=12, PATIENCE=3`. L150's selected epochs were
+**16 / 21 / 15** - all three seeds would have been cut off mid-climb, and at epoch 6 L150 was
+scoring 0.63-0.67. That run would have reported "adaptation actively hurts", which is false and
+would have been an artefact of a budget I chose, not a property of the model.
+
+X150 selected epochs 26 / 20 / 20 out of 40. Matching the budget is what makes the comparison a
+comparison. **A matched residual requires a matched selection budget**, and a shorter one for the
+new arm is not a conservative choice - it is a wrong one.
+
+### What Run 8 does NOT establish
+
+- **Not a claim about fine-tuning in general.** It is LoRA r=8 on K/V of ESM-2 **150M** for 40
+  epochs on 22,532 rows. Higher rank, more modules, a larger encoder, or longer training are all
+  untested. 650M in particular is untested and is where the published 0.574 figure came from.
+- **Nothing about test performance.** Validation rows, and validation drove early stopping.
+- **No claim that foundation models are useless for this endpoint.** The measured claim is narrower
+  and more useful: on this dataset, at this scale, the extracted signal does not exceed a one-hot
+  encoding of the same sequences, and adaptation does not close the gap.
+- Why is in Run 5: ESM-2's salience is orthogonal to the endpoint's.
+
 ## Files
 
 | File | What |
@@ -419,6 +484,10 @@ metric against `metrics.evaluate` - the function that produced every published n
 | `hurdle_val_metrics.json` | Hurdle vs plain, scored on all rows and on non-zero rows, plus classifier AUC |
 | `hurdle_val_predictions.json` | Predictions for both arms, with an `is_nonzero` flag |
 | `bootstrap_ci.json` | Per-rung and paired 95% intervals, with `spans_zero` flags |
+| `l150_val_metrics.json` | L150 metrics, per-seed values, best epochs, trainable parameter count |
+| `l150_val_predictions.json` | L150 ensemble and per-seed validation predictions |
+| `l150_seed{42,43,44}.json` | Raw per-seed payloads, written as each container returned |
+| `bootstrap_l150_vs_b1.json` | The B1 - L150 interval |
 
 ## How to reproduce
 
@@ -430,6 +499,7 @@ metric against `metrics.evaluate` - the function that produced every published n
 | 5 | `python -m modal run modal_app.py::anchors` |
 | 6 | `python src/hurdle.py` |
 | 7 | `python scripts/bootstrap_ci.py` (~17 min, CPU) |
+| 8 | `python -m modal run modal_app.py::l150` (3x A100, ~75 min) |
 
 `src/features.py` asserts the frozen split's sha256 before reading any label, so a run against a
 changed split fails immediately rather than reporting a number against different data.

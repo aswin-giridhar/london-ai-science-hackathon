@@ -20,7 +20,7 @@ flowchart TD
     S["✅ frozen split, Hamming ≤ 2"]
     B["✅ B0 / B1 — supervised baselines<br/>median, then positional one-hot + allele id"]
     X["✅ F150 / X150 — frozen ESM-2 150M<br/>pooled head vs residue interaction head"]
-    L["○ L150 — LoRA r=8 on K/V<br/>the encoder actually adapts"]
+    L["✅ L150 — LoRA r=8 on K/V<br/>the encoder actually adapts"]
     FR["freeze the selected sequence model S*"]
     G["✂ Boltz-2 frozen → coordinates<br/>D[9,182] → 6 RBFs → attention bias"]
     R["○ matched residual: G_conf vs G_pair"]
@@ -172,20 +172,28 @@ what it shows, and what it does not establish.
 
 Measured (validation, 3 seeds, seed-ensemble mean):
 
-| Rung | ρ pooled | ρ within-allele |
+| Rung | ρ pooled (95% CI) | ρ within-allele (95% CI) |
 |---|---|---|
-| B0b per-allele median | 0.563 | undefined |
-| F150 frozen ESM-2, mean-pooled | 0.593 | 0.278 |
-| X150 frozen ESM-2, cross-attention | 0.754 | 0.558 |
-| B1′ one-hot peptide + allele id | 0.748 | 0.557 |
-| B1 one-hot + pseudoseq + allele | **0.780** | **0.633** |
+| B0b per-allele median | 0.563 [0.522, 0.598] | undefined |
+| F150 frozen ESM-2, mean-pooled | 0.593 [0.556, 0.625] | 0.278 [0.222, 0.320] |
+| B1′ one-hot peptide + allele id | 0.748 [0.719, 0.775] | 0.557 [0.508, 0.585] |
+| X150 frozen ESM-2, cross-attention | 0.754 [0.727, 0.777] | 0.558 [0.508, 0.585] |
+| L150 LoRA-adapted, same head | 0.757 [0.732, 0.780] | 0.572 [0.524, 0.599] |
+| B1 one-hot + pseudoseq + allele | **0.780 [0.756, 0.802]** | **0.633 [0.588, 0.654]** |
 
 Two headlines. **H2 is answered**: the head design is worth +0.161 pooled / +0.280 within-allele
 against seed spreads of 0.025 / 0.039, so mean-pooling — not model size — was the binding constraint
 on the frozen rungs. And **the frozen PLM does not beat one-hot**: X150 and B1′ agree to within seed
 noise, while B1 beats both using no protein language model at all.
 
-Next: **L150.** That is the brief's question and the only rung that can overturn the table above.
-Run it on Modal (`modal_app.py`, A10 — F150/X150 took 64 s there against ~65 min on CPU); the
-embedding cache is **void** for L150 because the encoder trains. Split counts measured from
+**H1 is answered: adaptation does not help.** L150 − X150 is +0.003 pooled [−0.012, +0.018] and
++0.014 within-allele [−0.020, +0.045] — both spanning zero, so adaptation is worth at most +0.018
+pooled. And B1 still beats the adapted model: **+0.023 [+0.007, +0.039] pooled, +0.060
+[+0.027, +0.094] within-allele**, both excluding zero.
+
+Run 5 supplies the mechanism: position ablation on the trained model recovers the P2/P9 anchors
+from data alone, while ESM-2's own likelihood profile is flat and rank-correlates −0.03 with it.
+
+Next: the structural arm (B1 only — Boltz-2 runs, see `modal_boltz.py`), the demo, and a single
+read of the frozen test split once the model choice is final. Split counts measured from
 `splits/peptide_split.csv`.

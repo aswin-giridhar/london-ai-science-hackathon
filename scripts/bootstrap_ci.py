@@ -202,6 +202,10 @@ def main():
          "does peptide information add over an allele median?"),
     ]
     if "L150_lora_kv" in preds:
+        # H1 is X150 -> L150. But the claim that decides the headline is whether the BEST
+        # protein-language-model rung still loses to one-hot, so both are needed.
+        comparisons.insert(0, ("L150_lora_kv", "B1_peptide_pseudoseq_allele",
+                               "does one-hot still beat the best PLM rung, after adaptation?"))
         comparisons.insert(0, ("X150_interaction_head", "L150_lora_kv",
                                "H1 -- does adapting the encoder help?"))
 

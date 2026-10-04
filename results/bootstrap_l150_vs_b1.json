@@ -1,0 +1,15 @@
+{
+  "question": "does one-hot still beat the best PLM rung, after adaptation?",
+  "pooled": {
+    "mean": 0.023017177584246533,
+    "lo": 0.007232504433438963,
+    "hi": 0.03893808861779663,
+    "spans_zero": false
+  },
+  "within_allele": {
+    "mean": 0.05984753684569578,
+    "lo": 0.027315321201853104,
+    "hi": 0.09394508106669858,
+    "spans_zero": false
+  }
+}
