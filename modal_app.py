@@ -140,6 +140,41 @@ def mint_gpu() -> dict:
             "payload": json.loads(f.read_text(encoding="utf-8"))}
 
 
+@app.function(gpu="A100", timeout=10800, image=image)
+def minthead_gpu() -> dict:
+    """MINT's joint representation behind our own head -- the Run 21 question, tested directly."""
+    import os
+    import subprocess
+    import sys
+
+    import torch
+
+    if not torch.cuda.is_available():
+        raise RuntimeError("no CUDA device; refusing to report a GPU result")
+    out = Path("/tmp/results")
+    out.mkdir(exist_ok=True)
+    t0 = time.time()
+    r = subprocess.run([sys.executable, "-u", f"{REMOTE}/src/mint_head.py"],
+                       env={**os.environ, "RESULTS_DIR": str(out)},
+                       capture_output=True, text=True)
+    print(r.stdout[-8000:])
+    f = out / "mint_head.json"
+    if r.returncode != 0 or not f.exists():
+        raise RuntimeError(f"mint head failed: rc {r.returncode}\n"
+                           f"--- stderr ---\n{r.stderr[-4000:]}")
+    return {"seconds": round(time.time() - t0, 1), "gpu": torch.cuda.get_device_name(0),
+            "payload": json.loads(f.read_text(encoding="utf-8"))}
+
+
+@app.local_entrypoint()
+def minthead():
+    res = minthead_gpu.remote()
+    dest = REPO / "results" / "mint_head.json"
+    dest.write_text(json.dumps(res["payload"], indent=2), encoding="utf-8")
+    print(f"gpu {res['gpu']}   remote {res['seconds']}s")
+    print(f"wrote {dest}")
+
+
 @app.local_entrypoint()
 def mint():
     res = mint_gpu.remote()

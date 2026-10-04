@@ -323,6 +323,13 @@ def check_counts(n_claims):
     n_runs = len({int(m) for m in re.findall("^## Run ([0-9]+)", readme, re.M)})
     findings = (ROOT / "FINDINGS.md").read_text(encoding="utf-8")
     bad = []
+    # README.md is the front door a reader meets first, and it drifted the furthest -- it claimed
+    # "Eight logged runs" at run 29, and said the structural arm was unbuilt after it was built.
+    # Guarding FINDINGS.md alone would be a guard covering one of two paths.
+    readme_front = (ROOT / "README.md").read_text(encoding="utf-8")
+    if f"**{n_runs} logged runs**" not in readme_front:
+        bad.append(f"README.md does not say '**{n_runs} logged runs**' "
+                   f"(results/README.md has {n_runs} run entries)")
     if f"logs {n_runs} runs" not in findings:
         bad.append(f"FINDINGS.md does not say 'logs {n_runs} runs' "
                    f"(results/README.md has {n_runs} run entries)")
