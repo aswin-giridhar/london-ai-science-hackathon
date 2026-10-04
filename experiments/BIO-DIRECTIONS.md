@@ -28,6 +28,39 @@ token objective. Peptide–HLA stability is not a property of either chain; it i
 **interface**. We fed the model two chains separately and asked a head to reconstruct the
 interaction that the encoder never represented.
 
+> ## ⚠ CORRECTION, 2026-10-04 09:10
+>
+> **The section below contained an error, and correcting it produced the better result.**
+>
+> I presented the 2026 preprint *"Peptide:MHC Binding Stability Prediction Using Protein Language
+> Models"* as newly-discovered literature found by search. **It is SPEARMINT** — the paper already
+> in `archive/background/spearmint.pdf` and summarised in `context/SPEARMINT_SUMMARY.md` since the
+> first hours of this project. I wrote this section from a search snippet without checking our own
+> context folder, where line 86 already said: *"ESM-2 Direct → MINT Direct: 0.574 → 0.732 (+0.158)
+> from cross-chain attention."*
+>
+> Having now read the numbers, the recommendation below **reverses**:
+>
+> | | pooled ESM-2 | interaction-aware | gain |
+> |---|---|---|---|
+> | SPEARMINT, cross-chain **pretraining** (MINT) | 0.574 | 0.732 | **+0.158** |
+> | **Us**, cross-attention **head** on vanilla ESM-2 | 0.593 | 0.754 | **+0.161** |
+>
+> The gain SPEARMINT attributes to MINT's interaction-aware pretraining — 650M parameters, a
+> modified MLM objective, 96M protein–protein interactions from STRING-DB — is **reproduced to
+> within 0.003 by a 561K-parameter head on unmodified ESM-2 150M.**
+>
+> Absolute scores are not comparable: their split clusters at 80% identity (≈1 substitution on a
+> 9-mer) while ours uses Hamming ≤2, which is stricter. But each delta is measured against that
+> study's **own** pooled baseline, so delta-against-delta is a fair comparison, and the two agree.
+>
+> **So MINT is no longer the top-ranked next experiment.** Its headline gain appears to be
+> something the X150 head already captures. The sharper remaining question is whether cross-chain
+> *attention* adds anything **on top of** a cross-attention head — which `src/concat_encoding.py`
+> tests directly by encoding both chains as one sequence.
+>
+> The ranked plan in §8 should be read with MINT demoted accordingly.
+
 ### This is a known gap with a named fix
 
 [MINT (Multimeric INteraction Transformer)](https://www.nature.com/articles/s41467-025-67971-3)

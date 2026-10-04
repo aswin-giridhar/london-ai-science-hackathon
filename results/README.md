@@ -1172,7 +1172,7 @@ there.
 - **Additivity is assumed.** A PWM cannot represent position-position coupling, which is exactly
   what an attention head is supposed to capture.
 
-## Run 20 - metrics a user would act on, and a regime crossover Spearman hid - 2026-10-04 08:00 - CURRENT
+## Run 20 - metrics a user would act on, and a regime crossover Spearman hid - 2026-10-04 08:00
 
 `python src/operational_metrics.py`, seconds, CPU, no new training.
 
@@ -1273,6 +1273,126 @@ expected compression toward the middle that MSE on a constant predictor produces
 - **Top-k is computed within allele** and only for alleles with at least 2k rows, so it describes
   68 of 73 alleles.
 
+## Run 21 - does letting ESM-2 attend ACROSS the chains help? No. - 2026-10-04 09:04
+
+`modal_app.py::concat`, A100, 155 s. A reachable test of the interaction-awareness hypothesis
+without MINT, whose weights are not on HuggingFace and whose architecture is custom.
+
+Encode the peptide **concatenated with** the HLA domain as one 191-residue sequence, so ESM-2's
+self-attention spans both chains, then split the per-residue output back into a 9-row block and a
+182-row block and feed the **identical X150 head**. Same split, same seeds, same budget. The only
+difference anywhere is whether the encoder saw the two chains together.
+
+The concatenation is row-specific, so the 4.9x unique-sequence saving does not apply: all 25,349
+train and validation rows were encoded individually, 6.2 GB resident in fp16.
+
+| encoding | pooled | within-allele | per-seed pooled |
+|---|---|---|---|
+| separate chains (X150, Run 4) | **0.754** | **0.558** | 0.715 / 0.710 / 0.690 |
+| concatenated, joint attention | 0.737 | 0.523 | 0.683 / 0.698 / 0.675 |
+| **delta** | **-0.017** | **-0.036** | |
+
+Seed spreads 0.025 pooled and 0.044 within-allele, so **both deltas are inside seed noise.**
+Letting the encoder attend across chains neither helps nor hurts measurably.
+
+### Taken with Run 4 and SPEARMINT, this pins down the mechanism
+
+| intervention | effect on pooled Spearman | |
+|---|---|---|
+| joint attention across chains, **no interaction pretraining** (this run) | **-0.017** | within noise |
+| cross-attention **head** on separately-encoded chains (Run 4) | **+0.161** | far outside noise |
+| cross-chain **pretraining** (MINT; SPEARMINT's figure) | **+0.158** | their study, their split |
+
+**It is not that the encoder needs to see both chains.** We gave vanilla ESM-2 exactly that and it
+changed nothing. The interaction has to be **modelled by something trained to model it** - either
+a head trained on this task, or an encoder pretrained on interactions. Self-attention handed the
+opportunity does not spontaneously discover an interface.
+
+That single statement explains all three results at once: why MINT works, why our head works, and
+why concatenation does not.
+
+### What Run 21 does NOT establish
+
+- **ESM-2 has no chain-break token.** A concatenation is seen as one continuous protein, so the
+  model tries to fold residue 9 into residue 10 as though covalently bonded. This is a real
+  limitation of the proxy and exactly what MINT's architecture fixes. A null here therefore cannot
+  fully separate "cross-chain attention is useless for this endpoint" from "ESM-2 cannot exploit
+  it without being told where the chain breaks".
+- **No linker was inserted.** A glycine-serine linker was considered and rejected: it would add
+  residues the model must also interpret, trading one artefact for another.
+- One encoder, one head, one split.
+
+## Cross-study comparison - the head reproduces what interaction-aware pretraining buys
+
+Not a new run: a comparison between our Run 4 and SPEARMINT, after reading the latter's numbers
+properly. Added 2026-10-04 09:10.
+
+SPEARMINT (Karthikeyan, Vincent, Rubinsteyn; `archive/background/spearmint.pdf`) evaluates
+**MINT** - ESM-2 650M extended with dual intra-chain and cross-chain attention per layer, trained
+on ~96M protein-protein interactions - on this same endpoint. Their reported figures:
+
+| | their Spearman |
+|---|---|
+| ESM-2 Direct (pooled embeddings + head) | 0.574 |
+| **MINT Direct** (cross-chain pretrained) | **0.732** |
+| ESM-2 Transfer (+ affinity pre-training) | 0.745 |
+| MINT Transfer | 0.791 |
+
+Their attribution: **+0.158 from cross-chain attention** in the encoder.
+
+Our Run 4, on our own split:
+
+| | our Spearman |
+|---|---|
+| F150 (pooled embeddings + head) | 0.593 |
+| **X150** (residue cross-attention **head**) | **0.754** |
+
+Our gain: **+0.161 from a cross-attention head** on unmodified ESM-2 150M.
+
+### The two deltas agree to 0.003
+
+| | pooled baseline | interaction-aware | gain |
+|---|---|---|---|
+| SPEARMINT - cross-chain **pretraining**, 650M, 96M PPIs | 0.574 | 0.732 | **+0.158** |
+| This project - cross-attention **head**, 561K params on frozen 150M | 0.593 | 0.754 | **+0.161** |
+
+**What a 650M-parameter interaction-aware encoder buys over pooled embeddings is reproduced, to
+within 0.003, by a 561,793-parameter head on vanilla ESM-2.**
+
+Note also how closely the pooled baselines agree across two different splits and two different
+model sizes: **0.574 and 0.593**. Mean-pooling lands in the same place regardless.
+
+### Why this comparison is legitimate, and where it is not
+
+**Legitimate:** each delta is measured *within* its own study, against that study's own pooled
+baseline, on that study's own split. Comparing delta to delta does not require the splits to
+match.
+
+**Not legitimate:** comparing the absolute numbers. Their split clusters peptides at 80% identity
+by normalised Levenshtein - about one substitution on a 9-mer - while ours uses **Hamming <= 2**,
+which is strictly harder. Our 0.754 and their 0.732 are not on the same scale and neither "beats"
+the other.
+
+**Also unequal:** their head on MINT embeddings is not our head. Some of the 0.003 agreement is
+coincidence, and the comparison would be cleaner if both heads were identical.
+
+### What this changes
+
+The project's own diagnosis was that ESM-2 fails here because it is a **single-chain** model
+asked about an **interface**, and that the literature's fix is interaction-aware pretraining. The
+first half stands - mean-pooling scores 0.593 and recovers almost nothing. The second half needs
+amending: **the interaction modelling does not have to live in the pretraining.** Put it in the
+head and you get the same gain for four orders of magnitude fewer parameters.
+
+That demotes MINT from the highest-value untried experiment to a question about whether
+cross-chain attention adds anything *on top of* a cross-attention head. `src/concat_encoding.py`
+tests exactly that by encoding both chains as a single sequence.
+
+**Recorded as a correction.** `experiments/BIO-DIRECTIONS.md` originally cited SPEARMINT as newly
+discovered literature and recommended MINT as the top next experiment. It is the paper that has
+been in `context/` since the first hours of the project, whose summary already contained the
++0.158 figure. The error was writing from a search snippet without checking our own notes.
+
 ## Files
 
 | File | What |
@@ -1302,6 +1422,7 @@ expected compression toward the middle that MSE on a constant predictor produces
 | `motif_recovery.json` | Per-allele position weight matrices from both models, and anchor ranks |
 | `motif_supported.json` | Anchor ranks re-scored over residues with training support |
 | `operational_metrics.json` | Hours-MAE, top-k retrieval, per-allele table, calibration |
+| `concat_encoding.json` | Joint peptide++HLA encoding, X150 head, vs separately-encoded chains |
 | `complementarity.json` | Residual correlations, ensemble combinations, and the (B1+X150) - B1 interval |
 | `learning_curve.json` | One-hot vs frozen ESM-2 at 5/10/25/50/100% of training clusters |
 | `allele_split_metrics.json` | The ladder re-run against the allele split (every val allele unseen) |
@@ -1329,6 +1450,7 @@ expected compression toward the middle that MSE on a constant predictor produces
 | 18 | `python scripts/cost_benefit.py` |
 | 19 | `python -m modal run modal_app.py::motifs` then `python scripts/motif_supported.py` |
 | 20 | `python src/operational_metrics.py` |
+| 21 | `python -m modal run modal_app.py::concat` |
 | audit | `python scripts/audit_results.py` - re-checks every number here against its source |
 
 `src/features.py` asserts the frozen split's sha256 before reading any label, so a run against a

@@ -184,6 +184,12 @@ CLAIMS = [
     ("B1 calibration slope", "operational_metrics.json", "B1_onehot.calib_slope", 0.978),
     ("skill vs rows available", "operational_metrics.json", "skill_vs_n", -0.076),
     ("skill vs median half-life", "operational_metrics.json", "skill_vs_median_halflife", 0.475),
+
+    # --- Run 21 cross-chain concatenation
+    ("concat pooled", "concat_encoding.json", "spearman_pooled", 0.737),
+    ("concat within", "concat_encoding.json", "spearman_within_allele", 0.523),
+    ("concat delta pooled", "concat_encoding.json", "delta_vs_separate_pooled", -0.017),
+    ("concat delta within", "concat_encoding.json", "delta_vs_separate_within", -0.036),
 ]
 
 
