@@ -1,0 +1,224 @@
+# Can foundation models improve peptide-HLA stability prediction?
+
+**Answer: no, on this dataset — and we can say what they contribute, what it costs, why they fail,
+and how much signal is still on the table.**
+
+Serova Protein Engineering Track · London AI × Science Hackathon · 3–4 October 2026
+
+Every number below is reproducible from `results/README.md`, which logs 21 runs with the command
+that produced each one. `scripts/audit_results.py` re-checks every figure quoted anywhere in this
+repository against the file that produced it; it currently passes **81/81**.
+
+---
+
+## 1. The short version
+
+| claim | evidence |
+|---|---|
+| A one-hot MLP beats every ESM-2 configuration tested | Runs 2, 4, 8, 11, 12 |
+| Depth, scale and fine-tuning all land **inside seed noise** | Runs 8, 11, 12 |
+| ESM-2's total contribution is **+0.009 pooled, nothing within-allele** | Run 13 |
+| It costs **$6.59 and 11,307 A100-seconds** to land *below* a free baseline | Run 18 |
+| The data-efficiency defence fails, and runs **backwards** | Run 14 |
+| We know **why**: ESM-2's salience is orthogonal to the endpoint | Runs 5, 19 |
+| Roughly **0.19 of Spearman is still available** | Run 16 |
+
+The useful claim is not "foundation models don't work". It is **"a single-chain foundation model
+contributes about one hundredth of a Spearman point here, for several dollars and several GPU
+hours, and we can show where the remaining signal is instead."**
+
+---
+
+## 2. What we built, and the discipline underneath it
+
+**A leakage-controlled split, frozen and hash-asserted.** 94% of peptides are measured against
+more than one allele, so a random row split puts the same fragment on both sides. Peptides are
+clustered at **Hamming ≤ 2** (stricter than the field's usual 80%-identity convention, which on a
+9-mer permits one substitution) and whole clusters are assigned. `src/features.py` asserts the
+split's sha256 before reading a single label, so a job that somehow receives a different split
+fails immediately rather than quietly reporting a number against different data.
+
+**A floor, not zero.** A per-allele median containing **no peptide information** scores **0.563
+pooled Spearman**. Every pooled figure in this field — ours included — must be read against that,
+not against zero. This is why we report **within-allele** Spearman as primary: it is also the
+clinical question, ranking one patient's candidates inside their own allele.
+
+**Intervals on every claim.** 2,000 paired bootstrap draws resampling the 540 peptide *clusters*,
+never rows — rows inside a cluster are near-duplicates and resampling them would claim precision
+we have not earned.
+
+**A negative control that found something.** Shuffling training labels scored +0.104, which looked
+like leakage. It was not: a fixed-epoch rerun scored +0.02, isolating the +0.08 as
+**epoch-selection optimism**. Every validation number here carries it; paired differences do not,
+which retroactively justifies the bootstrap design.
+
+---
+
+## 3. The ladder
+
+Validation, three seeds, seed-ensemble mean, 95% CI from the cluster bootstrap.
+
+| rung | ρ pooled | ρ within-allele | protein LM? |
+|---|---|---|---|
+| B0b per-allele median — *no peptide information* | 0.563 [0.522, 0.598] | undefined | no |
+| F150 frozen ESM-2 150M, **mean-pooled** | 0.593 [0.556, 0.625] | 0.278 [0.222, 0.320] | yes |
+| B1′ one-hot peptide + allele identity | 0.748 [0.719, 0.775] | 0.557 [0.508, 0.585] | no |
+| X150 frozen ESM-2 150M, **cross-attention head** | 0.754 [0.727, 0.777] | 0.558 [0.508, 0.585] | yes |
+| L150 ESM-2 150M, **LoRA-adapted** | 0.757 [0.732, 0.780] | 0.572 [0.524, 0.599] | yes |
+| **B1 one-hot + HLA pseudosequence + allele** | **0.780 [0.756, 0.802]** | **0.633 [0.588, 0.654]** | **no** |
+
+**B1 − L150: +0.023 [+0.007, +0.039] pooled, +0.060 [+0.027, +0.094] within-allele.** Both exclude
+zero. The best non-foundation model beats the fine-tuned foundation model.
+
+### On held-out data — the test split, read once
+
+| rung | TEST ρ pooled | TEST ρ within-allele |
+|---|---|---|
+| B0b per-allele median | 0.573 | undefined |
+| F150 frozen ESM-2, mean-pooled | 0.606 | 0.244 |
+| X150 frozen ESM-2, cross-attention | 0.756 | 0.535 |
+| B1′ one-hot + allele identity | 0.767 | 0.566 |
+| **B1 one-hot + pseudosequence + allele** | **0.806** | **0.645** |
+
+**Every ordering survives, and the gap widens: B1 − X150 is +0.050 pooled and +0.110
+within-allele on test**, against +0.026 and +0.075 on validation. The test split was read exactly
+once, after the model choice was frozen by 21 prior runs, and a guard file prevents a silent
+second read.
+
+### Every obvious fix, tried
+
+| knob | result | against |
+|---|---|---|
+| **fine-tuning** — LoRA r=8 on K/V, 614,400 params, 3×A100 | +0.003 pooled | CI [−0.012, +0.018] — **spans zero** |
+| **depth** — five ESM-2 layers, identically normalised | 0.108 range | worst seed spread 0.157 — **within noise** |
+| **scale** — ESM-2 8M → 650M, **80× parameters** | **0.007 range** | worst seed spread 0.036 — **within noise** |
+| **more labels** — 5% → 100% of training clusters | no crossover at any budget | gap *widest* at 25% |
+| **cross-chain attention** — joint 191-residue encoding | −0.017 pooled | within noise |
+| **as an ensemble member** | +0.009 [+0.001, +0.017] | real, and tiny |
+
+---
+
+## 4. Why it fails — three independent measurements
+
+**ESM-2's notion of which residues matter is orthogonal to this endpoint.** Ablating each peptide
+position in the trained model gives a sharply peaked profile — **P9 ≫ P2 > P1 > P3**, with P4–P8
+contributing essentially nothing. That is the textbook B-pocket/F-pocket anchor picture recovered
+from data alone, and it holds in every seed independently. ESM-2's own masked-position likelihood
+profile over the same peptides is **flat**, and the two rank-correlate at **−0.03**. Its
+per-peptide likelihood predicts stability at **ρ +0.002**.
+
+**The useful signal must be extracted, not read off.** Mean-pooling nine residues destroys
+position and scores 0.593; a residue-level cross-attention head on the *same frozen embeddings*
+reaches 0.754. The head is worth **+0.161 pooled, +0.276 within-allele**, both far outside noise —
+the largest effect measured anywhere in this project, and larger than the choice to use a
+foundation model at all.
+
+**And it is the modelling, not the encoder, that matters.** SPEARMINT attributes **+0.158** to
+MINT's cross-chain *pretraining* (650M parameters, 96M protein–protein interactions). Our
+cross-attention *head* — 561,793 parameters on unmodified ESM-2 150M — is worth **+0.161**. The
+deltas agree to 0.003. Meanwhile, simply letting ESM-2 attend across both chains without such
+pretraining changes nothing (−0.017, within noise). **The interaction has to be modelled by
+something trained to model it; self-attention handed the opportunity does not discover an
+interface.**
+
+---
+
+## 5. Why the baseline is strong — it is not naive
+
+B1's HLA input is the 34-residue **pseudosequence**, chosen by NetMHCpan from crystallographic
+contacts. It carries decades of structural biology as a feature-selection decision, and it checks
+out from three independent directions:
+
+1. **Boltz-2 recovers 31 of its 31 positions** from predicted structure alone — expected by chance
+   16.5, permutation **p = 0.0001**, none missed.
+2. **Its Hamming distance predicts cross-allele measurement agreement monotonically** —
+   0.823 → 0.659 → 0.474 → 0.318 at distances 1 → 4, with no model involved.
+3. **Compression beats coverage.** 31 positions (0.785) beat Boltz's 97 (0.782), beat 97 random
+   (0.780), and beat the full 182-residue domain (0.768). More groove residues actively hurt.
+
+Both models also recover **published binding motifs they were never shown** — L first at A\*02:01
+P2, R first at B\*27:05 P2 — from 10,320 scored sequences of which 99.4% never appear in the
+dataset. Neither recovers them better than the other.
+
+---
+
+## 6. The structural arm: correct structures, no usable signal
+
+Boltz-2 poses **do** depend on the peptide — across-peptide variation is **4.1×** the model's own
+diffusion noise, so the pessimistic hypothesis (one canonical pose regardless of peptide) is false.
+But that variation does **not** track half-life: Mantel r = **−0.111**, p = 0.116, permuting
+peptide labels, with **92% power to detect a true r of 0.2**.
+
+Restricting to the positions the model actually uses does not rescue it. **P2's geometry is the
+most precisely resolved of any position — 8.2× the noise floor — and its correlation with
+half-life is +0.002.** This is not a signal diluted by averaging; there is none where it would
+matter.
+
+Combined with the 31/31 position recovery, the two results say something neither says alone: **the
+structures are right, and their variation still carries no stability information.**
+
+---
+
+## 7. What it cost
+
+| approach | pooled / within | compute | cost |
+|---|---|---|---|
+| **B1 one-hot** | **0.780 / 0.633** | 127 CPU-seconds, laptop | **$0.00** |
+| best single ESM-2 | 0.764 — *still below* | A100 | $6.70 |
+| one-hot + ESM-2 ensemble | 0.789 / 0.639 | A10 | $0.11 for **+0.009** |
+
+**L150 is the sharpest illustration: $6.59 and 11,307 A100-seconds to land 0.023 pooled *below* the
+free baseline.** Whole project: **4.0 GPU-hours, $7.88** — and **84% of the GPU bill went to the
+one rung whose result landed inside seed noise.**
+
+Where the ESM models *do* win is worth stating: on **median** absolute error (L150 0.87 h vs B1
+0.99 h) and on unstable complexes below 2 h (0.78 vs 0.95 h). B1 leads on the 141 stable rows above
+24 h, where errors are large enough to dominate the mean. A rank metric cannot see which regime the
+errors live in.
+
+---
+
+## 8. How much is left
+
+There are **zero** replicate measurements, so assay reproducibility cannot be estimated directly.
+But alleles differing at **one of 34 contact positions** are biophysically almost the same pocket,
+and the same ~346 peptides through both grooves agree at **ρ 0.823** (best pair **0.921**).
+
+Our best model reaches **0.633 within-allele**. So roughly **0.19 of Spearman remains available**,
+and nothing we tested found it. The negative result is *"ESM-2 did not reach the remaining
+signal"*, not *"the problem is saturated"*.
+
+Where that signal is **not**: the groove representation, validated three ways. Where it plausibly
+**is**: per-allele skill correlates **+0.475** with the allele's median half-life and **−0.076**
+with how many training rows it has. Failures concentrate where the **label** carries least
+information — against the 20% zero point mass and the 0.1 h reporting grid — not where the model
+has least data.
+
+---
+
+## 9. What we did not do, and would not claim
+
+- **One model family.** ESM-2 only. MINT, ESM-C, ProtT5 and SaProt are untested; the SPEARMINT
+  comparison in §4 is across studies and splits, and only the *deltas* are comparable.
+- **No hyper-parameter search.** Every model got the same budget and selection rule, so the
+  comparison is fair, but no model is at its ceiling.
+- **Affinity pre-training not attempted.** It is the largest published lever here
+  (0.574 → 0.745) and needs the NetMHCpan corpus decontaminated against our test clusters — a
+  day's work, not an evening's.
+- **No prediction intervals.** Honest per-prediction uncertainty needs calibration rows carved
+  from train, which we did not do. B1's calibration slope of 0.978 is a property of the set, not
+  of any one prediction.
+- **9-mers, 75 alleles, one assay.** Class I binds 8–11mers; this is the 9-mer slice.
+- **We cannot and do not compare against NetMHCstabpan.** This dataset is its training data, so
+  its apparent performance here is leakage, not skill.
+
+---
+
+## 10. Reproducing any of it
+
+`results/README.md` carries 21 run entries, each with the exact command, what it established, and
+a *"what this does NOT establish"* section. `scripts/audit_results.py` verifies every quoted
+number against its source file and every figure restated in the write-ups.
+
+The frozen split is content-addressed: `splits/peptide_split.csv`,
+sha256 `210775dc4ad179df635b3386bdb9671e4bca515cef1892bc70fb38f9b1b73f47`.

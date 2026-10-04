@@ -1393,6 +1393,110 @@ discovered literature and recommended MINT as the top next experiment. It is the
 been in `context/` since the first hours of the project, whose summary already contained the
 +0.158 figure. The error was writing from a search snippet without checking our own notes.
 
+## Run 22 - THE TEST SET READ, once - 2026-10-04 09:34 - CURRENT
+
+`modal_app.py::test_eval`, A10G. **The first and only read of the frozen test split.**
+
+Protocol, fixed before anything was run: train on the 22,532 training rows, select epochs on the
+2,817 validation rows, report on the 2,817 test rows. Test peptide overlap with train is asserted
+to be **0** inside the script. A guard file `results/TEST_READ.json` records the read; re-running
+refuses unless `--force` is passed and prints the earlier result. The danger was never reading it
+once - it is reading it repeatedly and quietly keeping the best number, which leaves no trace.
+
+Read at **2026-10-04T08:34:26Z**, with the model choice already frozen by 21 prior runs.
+
+| rung | **TEST pooled** | **TEST within** | val pooled | change |
+|---|---|---|---|---|
+| B0b per-allele median | 0.573 | undefined | 0.563 | +0.009 |
+| **B1 one-hot + pseudoseq + allele** | **0.806** | **0.645** | 0.780 | +0.026 |
+| B1' one-hot + allele identity | 0.767 | 0.566 | 0.748 | +0.018 |
+| F150 frozen ESM-2, mean-pooled | 0.606 | 0.244 | 0.593 | +0.013 |
+| X150 frozen ESM-2, cross-attention | 0.756 | 0.535 | 0.754 | +0.002 |
+
+### The conclusion holds on held-out data, and strengthens
+
+**B1 - X150 on test: +0.050 pooled, +0.110 within-allele** - against +0.026 and +0.075 on
+validation. The gap between the one-hot baseline and the frozen foundation model is *larger* on
+data neither model has seen.
+
+Every ordering established across 21 validation runs survives: B1 > B1' > X150 > F150 > B0b.
+
+### A prediction of mine that was wrong, and why
+
+Run 10 measured epoch-selection optimism at **+0.08 pooled** by training on shuffled labels, and I
+expected a corresponding **drop** from validation to test. Test came in **higher**, mean +0.0135
+across five rungs.
+
+The reconciliation matters and is not a get-out: Run 10 measured what epoch selection can
+**fabricate from pure noise**. That is a ceiling on manufactured signal, not a forecast of
+validation-to-test drift for a model with real signal. When the signal is genuine the selected
+epoch is actually good rather than lucky, so the optimism does not transfer. The remaining +0.014
+says the test clusters happen to be marginally easier than the validation ones - which is
+ordinary, since the two are different sets of peptide clusters.
+
+Had I published "expect about 0.70 on test", it would have been a confident, specific and wrong
+prediction derived from a correct measurement misapplied.
+
+### What Run 22 does NOT establish
+
+- **L150 was not evaluated on test.** It requires full retraining (3 x A100, ~75 min, $6.59) and
+  its validation result sits inside seed noise of X150, so the marginal information did not
+  justify the cost. **Stated rather than quietly omitted**: the test table has no fine-tuned rung.
+- **No confidence intervals on the test figures.** The cluster bootstrap was not re-run on test.
+- **One read.** No tuning happened after it, and none may.
+- The figures carry no selection optimism of their own, but they were produced by models whose
+  epochs were selected on validation - which is the correct protocol, not a caveat.
+
+## Run 23 - is one-hot the right encoding? BLOSUM62 says yes - 2026-10-04 09:37
+
+`python src/peptide_encoding.py`, 988 s CPU.
+
+The HLA side of B1 has been validated three ways. The **peptide** side had been validated zero
+ways: a positional one-hot treats every substitution as equally foreign, so L to M and L to D are
+the same distance though one is conservative and the other swaps hydrophobic for charged.
+
+BLOSUM62 encodes exactly that chemistry and is what NetMHCpan has always used. The matrix was
+fetched from the NCBI distribution and checked against known values (L/L=4, L/I=2, L/D=-4,
+W/W=11, symmetric) rather than recalled. A PCA-5 variant was included because Run 17 found
+compression beats coverage on the HLA side.
+
+| configuration | features | pooled | within | vs B1 |
+|---|---|---|---|---|
+| **one-hot peptide + one-hot HLA (B1)** | 935 | **0.780** | **0.633** | - |
+| one-hot peptide + BLOSUM HLA | 935 | 0.753 | 0.569 | -0.028 |
+| BLOSUM peptide + BLOSUM HLA | 935 | 0.748 | 0.567 | -0.032 |
+| BLOSUM peptide + one-hot HLA | 935 | 0.739 | 0.546 | **-0.042** |
+| BLOSUM-PCA5 both chains | 290 | 0.702 | 0.510 | **-0.078** |
+
+**One-hot wins on both chains, and every chemistry-aware encoding is worse.**
+
+### Why, and it is not an accident
+
+This confirms a hypothesis offered at Run 4 with no evidence behind it at the time: one-hot is
+maximally **position-pure** - slot 2 means exactly "the residue at P2, nothing else" - and for an
+anchor-driven endpoint that is the better inductive bias.
+
+BLOSUM62 is built from what **evolution tolerates in folded proteins**. That is a different
+question from what maximises a **kinetic off-rate in a groove**. It blurs L, I and M toward each
+other because they substitute freely over evolutionary time, but their effects on complex
+half-life need not be similar at all - and with 22,532 training rows the model can afford to learn
+each residue independently. Smoothing them together destroys information it had enough data to
+use.
+
+The PCA-5 result sharpens this: compressing 20 dimensions to 5 costs **-0.078**, the largest drop
+of any variant, even though those 5 components retain 81% of BLOSUM's variance. Retaining the
+variance of a substitution matrix is not the same as retaining what this endpoint needs.
+
+### What Run 23 does NOT establish
+
+- **BLOSUM62 only.** BLOSUM50, PAM, or a learned embedding could differ, though the mechanism
+  above would predict similarly.
+- **No physicochemical descriptors.** Hydrophobicity, volume and charge scales were not tested;
+  they would have required constants from memory, which this project avoids.
+- **One model class.** This is the sklearn MLP. A model with a learned residue embedding could
+  recover chemistry where a fixed matrix imposes it.
+- Validation rows.
+
 ## Files
 
 | File | What |
@@ -1423,6 +1527,9 @@ been in `context/` since the first hours of the project, whose summary already c
 | `motif_supported.json` | Anchor ranks re-scored over residues with training support |
 | `operational_metrics.json` | Hours-MAE, top-k retrieval, per-allele table, calibration |
 | `concat_encoding.json` | Joint peptide++HLA encoding, X150 head, vs separately-encoded chains |
+| `test_metrics.json` | **The test-set read.** Per-rung metrics and predictions on held-out rows |
+| `TEST_READ.json` | Guard: records that the test split was read, and when |
+| `peptide_encoding.json` | One-hot vs BLOSUM62 vs BLOSUM-PCA5 on both chains |
 | `complementarity.json` | Residual correlations, ensemble combinations, and the (B1+X150) - B1 interval |
 | `learning_curve.json` | One-hot vs frozen ESM-2 at 5/10/25/50/100% of training clusters |
 | `allele_split_metrics.json` | The ladder re-run against the allele split (every val allele unseen) |
@@ -1451,6 +1558,8 @@ been in `context/` since the first hours of the project, whose summary already c
 | 19 | `python -m modal run modal_app.py::motifs` then `python scripts/motif_supported.py` |
 | 20 | `python src/operational_metrics.py` |
 | 21 | `python -m modal run modal_app.py::concat` |
+| 22 | `python -m modal run modal_app.py::test_eval` — **one read only** |
+| 23 | `python src/peptide_encoding.py` |
 | audit | `python scripts/audit_results.py` - re-checks every number here against its source |
 
 `src/features.py` asserts the frozen split's sha256 before reading any label, so a run against a

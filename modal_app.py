@@ -50,6 +50,12 @@ repo_files = (
     .add_local_dir(REPO / "src", f"{REMOTE}/src", ignore=["__pycache__", "*.pyc"])
     .add_local_dir(REPO / "splits", f"{REMOTE}/splits")
     .add_local_file(REPO / "context" / "dataset.csv", f"{REMOTE}/context/dataset.csv")
+    # validation metrics travel with every image: several scripts compare against them, and a
+    # remote job that silently cannot find them is worse than one that cannot start
+    .add_local_file(REPO / "results" / "baselines_val_metrics.json",
+                    f"{REMOTE}/results/baselines_val_metrics.json")
+    .add_local_file(REPO / "results" / "esm_heads_val_metrics.json",
+                    f"{REMOTE}/results/esm_heads_val_metrics.json")
 )
 
 image = repo_files(base).add_local_file(
@@ -58,10 +64,7 @@ image = repo_files(base).add_local_file(
 
 # L150 trains the encoder, so the embedding cache is void for it and is not shipped. X150's
 # measured metrics are, so the H1 comparison reads the real file instead of a retyped number.
-l150_image = repo_files(base).add_local_file(
-    REPO / "results" / "esm_heads_val_metrics.json",
-    f"{REMOTE}/results/esm_heads_val_metrics.json",
-)
+l150_image = repo_files(base)
 
 app = modal.App("stability-lens", image=image)
 
@@ -106,6 +109,56 @@ def esm_heads_gpu() -> dict:
 
 
 SEEDS = (42, 43, 44)
+
+
+@app.function(gpu="A10G", timeout=7200, image=image)
+def test_eval_gpu() -> dict:
+    """THE test-set read. Train on train, select epochs on val, report on test, once."""
+    import os
+    import subprocess
+    import sys
+
+    import torch
+
+    if not torch.cuda.is_available():
+        raise RuntimeError("no CUDA device in the container; refusing to report a GPU result")
+    out = Path("/tmp/results")
+    out.mkdir(exist_ok=True)
+    env = {**os.environ, "RESULTS_DIR": str(out)}
+    t0 = time.time()
+    r = subprocess.run([sys.executable, "-u", f"{REMOTE}/src/test_evaluation.py"], env=env)
+    f = out / "test_metrics.json"
+    if r.returncode != 0 or not f.exists():
+        raise RuntimeError(f"test evaluation failed: rc {r.returncode}, "
+                           f"output {'missing' if not f.exists() else 'present'}")
+    return {"seconds": round(time.time() - t0, 1), "gpu": torch.cuda.get_device_name(0),
+            "payload": json.loads(f.read_text(encoding="utf-8"))}
+
+
+@app.local_entrypoint()
+def test_eval():
+    res = test_eval_gpu.remote()
+    pay = res["payload"]
+    (REPO / "results" / "test_metrics.json").write_text(json.dumps(pay, indent=2),
+                                                        encoding="utf-8")
+    # the read guard is written locally, where it governs future local runs
+    b1 = pay["results"]["B1_peptide_pseudoseq_allele"]
+    x1 = pay["results"]["X150_interaction_head"]
+    (REPO / "results" / "TEST_READ.json").write_text(json.dumps({
+        "read_at": pay["read_at"],
+        "headline": {"B1_pooled": b1["spearman_pooled"], "B1_within": b1["spearman_within_allele"],
+                     "X150_pooled": x1["spearman_pooled"],
+                     "X150_within": x1["spearman_within_allele"]},
+        "note": "The test split was read once, on this date, with the model choice already "
+                "frozen. Re-reading requires --force and must be disclosed in results/README.md.",
+    }, indent=2), encoding="utf-8")
+    print(f"{'rung':<32}{'TEST pooled':>13}{'TEST within':>13}")
+    for k, v in pay["results"].items():
+        p, w = v["spearman_pooled"], v["spearman_within_allele"]
+        print(f"{k:<32}{(p if p is not None else float('nan')):>13.3f}"
+              f"{(w if w is not None else float('nan')):>13.3f}")
+    print(f"\nmean validation-to-test drop {pay['mean_val_to_test_drop']:+.3f}")
+    print(f"gpu {res['gpu']}   remote {res['seconds']}s")
 
 
 @app.function(gpu="A100", timeout=7200, image=l150_image)

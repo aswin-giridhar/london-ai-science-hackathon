@@ -1,0 +1,39 @@
+{
+  "pca5_variance_retained": 0.8121883273124695,
+  "B1 one-hot pep + one-hot HLA (reference)": {
+    "n_features": 935,
+    "pooled": 0.7802190587503978,
+    "within": 0.632849663354059,
+    "seconds": 125.7
+  },
+  "BLOSUM pep + one-hot HLA": {
+    "n_features": 935,
+    "pooled": 0.7386265028065142,
+    "within": 0.5456143007252015,
+    "seconds": 152.4
+  },
+  "BLOSUM-PCA5 pep + one-hot HLA": {
+    "n_features": 800,
+    "pooled": 0.6944821903900932,
+    "within": 0.48120220826981,
+    "seconds": 100.4
+  },
+  "one-hot pep + BLOSUM HLA": {
+    "n_features": 935,
+    "pooled": 0.7525395245881281,
+    "within": 0.5692377274394016,
+    "seconds": 393.3
+  },
+  "BLOSUM pep + BLOSUM HLA": {
+    "n_features": 935,
+    "pooled": 0.7477722527553109,
+    "within": 0.566820490436978,
+    "seconds": 173.9
+  },
+  "BLOSUM-PCA5 pep + BLOSUM-PCA5 HLA": {
+    "n_features": 290,
+    "pooled": 0.7020131237415358,
+    "within": 0.510116492288937,
+    "seconds": 42.5
+  }
+}

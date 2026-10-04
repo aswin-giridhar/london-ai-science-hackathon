@@ -190,6 +190,29 @@ CLAIMS = [
     ("concat within", "concat_encoding.json", "spearman_within_allele", 0.523),
     ("concat delta pooled", "concat_encoding.json", "delta_vs_separate_pooled", -0.017),
     ("concat delta within", "concat_encoding.json", "delta_vs_separate_within", -0.036),
+
+    # --- Run 22 TEST SET
+    ("TEST B1 pooled", "test_metrics.json",
+     "results.B1_peptide_pseudoseq_allele.spearman_pooled", 0.806),
+    ("TEST B1 within", "test_metrics.json",
+     "results.B1_peptide_pseudoseq_allele.spearman_within_allele", 0.645),
+    ("TEST X150 pooled", "test_metrics.json",
+     "results.X150_interaction_head.spearman_pooled", 0.756),
+    ("TEST X150 within", "test_metrics.json",
+     "results.X150_interaction_head.spearman_within_allele", 0.535),
+    ("TEST F150 within", "test_metrics.json",
+     "results.F150_pooled_head.spearman_within_allele", 0.244),
+    ("TEST B0b pooled", "test_metrics.json",
+     "results.B0b_per_allele_median.spearman_pooled", 0.573),
+    ("mean val-to-test change", "test_metrics.json", "mean_val_to_test_drop", 0.0135),
+
+    # --- Run 23 encodings
+    ("BLOSUM pep pooled", "peptide_encoding.json", "BLOSUM pep + one-hot HLA.pooled", 0.739),
+    ("BLOSUM-PCA5 both pooled", "peptide_encoding.json",
+     "BLOSUM-PCA5 pep + BLOSUM-PCA5 HLA.pooled", 0.702),
+    ("one-hot pep + BLOSUM HLA", "peptide_encoding.json",
+     "one-hot pep + BLOSUM HLA.pooled", 0.753),
+    ("pca5 variance retained", "peptide_encoding.json", "pca5_variance_retained", 0.81),
 ]
 
 
