@@ -1815,6 +1815,13 @@ this molecular system, used exactly as its authors shipped it.
 attention, pretrained on 96M STRING protein-protein interactions - fine-tuned on **NetMHCpan 4.1
 binding affinity**, ~126K samples, against `1 - log(IC50)/log(50000)`. 814M parameters.
 
+Pinned to commit `8bf8e51906cf63336706d6cfc4f85e95a8109c86`. The checkpoint ships custom modelling
+code, so loading it runs Python fetched from the Hub; unpinned, that is whatever `main` holds when
+the job starts. Beyond the supply-chain surface, an unpinned model is inconsistent with this
+repository's own standard - the data split is content-addressed by sha256 and a changed hash is a
+hard failure, and the model should not be held to a looser one. The checkpoint was last modified
+2026-07-01, three months before these runs, so this is the revision Runs 29 and 30 executed.
+
 **It has never seen a half-life label.** That is the whole reason it can be used here:
 
 | model | fine-tuned on | admissible? |

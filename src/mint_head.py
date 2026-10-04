@@ -60,6 +60,18 @@ import metrics
 ROOT = Path(__file__).resolve().parent.parent
 OUT = Path(os.environ.get("RESULTS_DIR", ROOT / "results"))
 MODEL_ID = "dkarthikeyan1/mint-stage1-affinity"
+# Pinned to an exact commit. Two reasons, and the second is the one this project cares about:
+#
+#   1. `trust_remote_code=True` executes Python fetched from the Hub. Unpinned, that is whatever
+#      the repository's main branch holds at the moment the job runs -- a supply-chain surface we
+#      do not control.
+#   2. Reproducibility. This repository content-addresses its data split by sha256 and refuses to
+#      read a split whose hash has changed. Loading a model from a moving reference and then
+#      reporting a number against it holds the model to a visibly lower standard than the data.
+#
+# The checkpoint was last modified 2026-07-01, months before this run, so this SHA is what Runs 29
+# and 30 executed. Pinning records that rather than assuming it stays true.
+REVISION = "8bf8e51906cf63336706d6cfc4f85e95a8109c86"
 EMBED_DIM, HIDDEN_DIM = 1280, 512
 SEEDS = (42, 43, 44)
 MAX_EPOCHS, PATIENCE, BATCH = 40, 6, 256
@@ -158,9 +170,11 @@ def main():
         print(f"{s}: {len(d):,} rows", flush=True)
 
     print(f"loading {MODEL_ID} ...", flush=True)
-    model = AutoModel.from_pretrained(MODEL_ID, trust_remote_code=True).to(device).eval()
+    model = AutoModel.from_pretrained(MODEL_ID, revision=REVISION,
+                                      trust_remote_code=True).to(device).eval()
     Tok = get_class_from_dynamic_module("modeling_mint_stability.MintTokenizer",
-                                        MODEL_ID, trust_remote_code=True)
+                                        MODEL_ID, revision=REVISION,
+                                        trust_remote_code=True)
     tokenizer = Tok()
     target = find_head_linear(torch, model)
 
