@@ -19,6 +19,7 @@ reported as MISSING rather than silently skipped.
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -291,6 +292,34 @@ def check_prose():
     return bad
 
 
+def check_counts(n_claims):
+    """The front page states how many runs and how many audited numbers stand behind it.
+
+    Both were hand-maintained constants, and both were wrong -- FINDINGS.md claimed 21 runs and
+    81 audited numbers when the true figures were 27 and 111. A number a human has to remember
+    to update is a number that will eventually be stale, so derive them and compare.
+    """
+    print("")
+    print("Checking the front page's own counts against what the repo contains.")
+    readme = (ROOT / "results" / "README.md").read_text(encoding="utf-8")
+    n_runs = len({int(m) for m in re.findall("^## Run ([0-9]+)", readme, re.M)})
+    findings = (ROOT / "FINDINGS.md").read_text(encoding="utf-8")
+    bad = []
+    if f"logs {n_runs} runs" not in findings:
+        bad.append(f"FINDINGS.md does not say 'logs {n_runs} runs' "
+                   f"(results/README.md has {n_runs} run entries)")
+    if f"**{n_claims}/{n_claims}**" not in findings:
+        bad.append(f"FINDINGS.md does not say '{n_claims}/{n_claims}' "
+                   f"(the audit checks {n_claims} numbers)")
+    if bad:
+        print("  STALE:")
+        for b in bad:
+            print(f"    {b}")
+    else:
+        print(f"  front page correctly states {n_runs} runs and {n_claims} audited numbers")
+    return bad
+
+
 def main():
     cache, ok, bad, missing = {}, 0, [], []
     print(f"Auditing {len(CLAIMS)} numbers quoted in results/README.md "
@@ -327,6 +356,7 @@ def main():
         print()
     print(f"verified {ok} / {len(CLAIMS)}   mismatched {len(bad)}   uncheckable {len(missing)}")
     stale = check_prose()
+    stale = stale + check_counts(len(CLAIMS))
     print()
     if not bad and not missing and not stale:
         print("CLEAN: every audited number matches its source, and every figure restated in the")

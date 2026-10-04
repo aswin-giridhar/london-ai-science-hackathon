@@ -5,9 +5,9 @@ and how much signal is still on the table.**
 
 Serova Protein Engineering Track · London AI × Science Hackathon · 3–4 October 2026
 
-Every number below is reproducible from `results/README.md`, which logs 21 runs with the command
-that produced each one. `scripts/audit_results.py` re-checks every figure quoted anywhere in this
-repository against the file that produced it; it currently passes **81/81**.
+Every number below is reproducible from `results/README.md`, which logs 27 runs with the
+command that produced each one. `scripts/audit_results.py` re-checks every figure quoted anywhere
+in this repository against the file that produced it; it currently passes **111/111**.
 
 ---
 
@@ -64,6 +64,8 @@ Validation, three seeds, seed-ensemble mean, 95% CI from the cluster bootstrap.
 |---|---|---|---|
 | B0b per-allele median — *no peptide information* | 0.563 [0.522, 0.598] | undefined | no |
 | F150 frozen ESM-2 150M, **mean-pooled** | 0.593 [0.556, 0.625] | 0.278 [0.222, 0.320] | yes |
+| ProtT5-XL enc **1.2B**, cross-attention head | 0.729 † | 0.511 † | yes |
+| ProtBERT 420M, cross-attention head | 0.729 † | 0.529 † | yes |
 | B1′ one-hot peptide + allele identity | 0.748 [0.719, 0.775] | 0.557 [0.508, 0.585] | no |
 | X150 frozen ESM-2 150M, **cross-attention head** | 0.754 [0.727, 0.777] | 0.558 [0.508, 0.585] | yes |
 | L150 ESM-2 150M, **LoRA-adapted** | 0.757 [0.732, 0.780] | 0.572 [0.524, 0.599] | yes |
@@ -71,6 +73,12 @@ Validation, three seeds, seed-ensemble mean, 95% CI from the cluster bootstrap.
 
 **B1 − L150: +0.023 [+0.007, +0.039] pooled, +0.060 [+0.027, +0.094] within-allele.** Both exclude
 zero. The best non-foundation model beats the fine-tuned foundation model.
+
+† The two non-ESM families were not bootstrapped; their figures are seed-ensemble point
+estimates with a worst per-seed spread of 0.039 (Run 27). Every rung above the one-hot baseline
+is a protein language model only in the sense that it *contains* one - **the top rung has none**,
+and the three families between 0.729 and 0.771 span three architectures, three corpora and 8x
+parameters without reaching it.
 
 ### On held-out data — the test split, read once
 
