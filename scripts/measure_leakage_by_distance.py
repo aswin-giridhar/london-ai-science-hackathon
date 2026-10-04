@@ -42,9 +42,38 @@ df = pd.read_csv(ROOT / "context" / "dataset.csv")
 sp = pd.read_csv(ROOT / "splits" / "peptide_split.csv")
 m = df.merge(sp, on="peptide")
 
-zdf = df.assign(z=np.log1p(df.thalf_hours))
-zdf["z"] = zdf.groupby("allele").z.transform(lambda s: (s - s.mean()) / (s.std() or 1))
-Z = {(p, a): v for p, a, v in zip(zdf.peptide, zdf.allele, zdf.z)}
+# D1 FIX (2026-10-04). The per-allele normalisation used to be fitted over the WHOLE dataset:
+#
+#     zdf.groupby("allele").z.transform(lambda s: (s - s.mean()) / (s.std() or 1))
+#
+# so every allele's mean and standard deviation absorbed validation and test labels. Analysis A
+# below then printed "no evaluation labels are read in this analysis", which was false: the
+# labels did not appear as data points, but they shaped the scale every data point was measured
+# on. That is exactly the kind of leakage that leaves no trace in any output.
+#
+# Statistics are now fitted on TRAINING rows only and applied to all rows -- the ordinary
+# fit-on-train discipline. Analysis A is now genuinely train-only. Analysis B legitimately reads
+# evaluation labels on the evaluation side, but measures them against a train-derived scale.
+_tr = m[m.split == "train"]
+_stats = _tr.assign(z=np.log1p(_tr.thalf_hours)).groupby("allele").z.agg(["mean", "std"])
+_global = float(np.log1p(_tr.thalf_hours).mean()), float(np.log1p(_tr.thalf_hours).std())
+
+_unseen = sorted(set(df.allele) - set(_stats.index))
+if _unseen:
+    print(f"note: {len(_unseen)} allele(s) absent from train; "
+          f"falling back to the global training mean/std for them: {_unseen}")
+
+
+def _z(row_allele, raw):
+    if row_allele in _stats.index:
+        mu, sd = _stats.loc[row_allele, "mean"], _stats.loc[row_allele, "std"]
+    else:
+        mu, sd = _global
+    return (raw - mu) / (sd if sd and not np.isnan(sd) else 1.0)
+
+
+_raw = np.log1p(df.thalf_hours.to_numpy())
+Z = {(p, a): _z(a, v) for p, a, v in zip(df.peptide, df.allele, _raw)}
 
 
 def encode(ps):

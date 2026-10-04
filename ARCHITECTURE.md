@@ -49,10 +49,10 @@ Rows are (peptide, allele) pairs and **94% involve a peptide measured against mo
 so a random row split puts the same fragment on both sides. Clustered at Hamming ≤ 2; no eval peptide
 is within 2 substitutions of any training peptide.
 
-**Two known gaps, both flagged P0 by the plan of record.** `audit_splits.py` currently asserts
-distance ≤ 1 while the contract is ≤ 2, so a distance-2 violation would pass. And
-`measure_leakage_by_distance.py` fits its per-allele normalisation over **all** rows, which
-contaminates the analysis that claims to be train-only. Neither is fixed yet; see §7.
+**All four P0 gaps are now closed** (A1, M1, D1, D4 — see §7). `scripts/verify_split.py`
+re-checks the frozen split end to end: the detector fires at Hamming 2 and stays quiet at 3, there
+are 0 cross-split neighbours, the partition is disjoint and complete, and the file's sha256
+matches the constant `src/features.py` asserts before reading any label.
 
 Separate **calibration** rows (carved from train, never val) are required before any per-prediction
 interval is shown. Metric confidence intervals are not prediction intervals.
@@ -162,8 +162,8 @@ equivalence.
 |---|---|
 | **A1** | `audit_splits.py` enforces Hamming ≤1 while the contract is ≤2 |
 | **M1** | `peptide_lookup_score` returns `0.0` as a sentinel on low coverage — our reported "Spearman 0.000" is that sentinel, not a measurement. The **0% coverage** is the real evidence |
-| **D1** | `measure_leakage_by_distance.py` normalises over all rows, so its "train-only" analysis is not train-only |
-| **D4** | The split detector plants a 1-edit positive; the contract boundary is 2 edits |
+| **D1** | ✅ **fixed 2026-10-04.** Per-allele z-statistics are now fitted on training rows only and applied everywhere. Analysis A is genuinely train-only; the break still falls between distance 2 and 3, so the threshold stands |
+| **D4** | ✅ **fixed 2026-10-04.** The detector is now probed *at* the contract boundary: a 2-edit positive must fire and a 3-edit negative, verified clear of every training peptide, must not. Re-runnable against the frozen split via `scripts/verify_split.py` |
 
 ---
 

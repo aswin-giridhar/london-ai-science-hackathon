@@ -1,0 +1,22 @@
+{
+  "contract_max_hamming": 2,
+  "detector_probe": {
+    "positive": {
+      "victim": "AAAAFEAAL",
+      "planted": "CCAAFEAAL",
+      "distance": 2,
+      "fired": true
+    },
+    "negative": {
+      "victim": "AAAAFEAAL",
+      "planted": "CCCAFEAAL",
+      "distance": 3,
+      "fired": false
+    }
+  },
+  "cross_split_neighbours": 0,
+  "partition_disjoint": true,
+  "partition_complete": true,
+  "sha256": "210775dc4ad179df635b3386bdb9671e4bca515cef1892bc70fb38f9b1b73f47",
+  "hash_matches_features_py": true
+}

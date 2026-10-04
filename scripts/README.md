@@ -26,12 +26,13 @@ Two are fixed, two are not. Do not present a result that depends on an unfixed o
 |---|---|---|
 | **A1** | ✅ fixed | `audit_splits.py` asserted Hamming ≤ 1 while the contract is ≤ 2, so a distance-2 violation would have passed. Now enforces `CONTRACT_MAX_DIST = 2`, and the split passes it — the split was right, the guard was loose |
 | **M1** | ✅ fixed | `peptide_lookup_score` returned `0.0` on low coverage, which we reported as "Spearman 0.000". That was a sentinel, not a measurement. Now returns `None` and prints "undefined (no overlap)". **The 0% coverage is the real evidence** |
-| **D1** | ❌ open | `measure_leakage_by_distance.py` fits its per-allele z-normalisation over **all** rows (line 46), then uses it in the analysis that claims "no evaluation labels are read". That claim is currently false. Fix: fit on training rows only, and assert that perturbing held-out labels cannot change analysis A's output |
-| **D4** | ❌ open | `validate_detector` in `make_splits.py` plants a **1-edit** known-positive, but the contract boundary is **2 edits** — the self-test never exercises the actual cutoff. Fix: plant a 2-edit positive and a 3-edit negative |
+| **D1** | ✅ fixed 2026-10-04 | `measure_leakage_by_distance.py` used to fit its per-allele z-normalisation over **all** rows, so the analysis that claims "no evaluation labels are read" was measuring train pairs on a scale set partly by eval labels. Statistics are now fitted on **training rows only** and applied everywhere. The break still falls between distance 2 and 3 (0.634 then 0.406), so the Hamming <= 2 threshold stands and is now justified without touching eval |
+| **D4** | ✅ fixed 2026-10-04 | `validate_detector` planted a **1-edit** known-positive while the contract boundary is **2 edits**, so a detector blind to 2-edit neighbours would have passed. It now plants a 2-edit positive (must fire) **and** a 3-edit negative verified clear of every training peptide (must not). Re-runnable against the frozen split with `scripts/verify_split.py` |
 
-D1 matters most: it undercuts the train-only re-derivation of the threshold. The conclusion may well
-survive the fix — distances 1 and 2 behaved alike and 3 dropped sharply — but that has to be shown,
-not assumed.
+All four P0 defects (A1, M1, D1, D4) are now closed. `scripts/verify_split.py` re-checks the frozen split end to end and writes `results/split_verification.json`: detector fires at Hamming 2 and stays quiet at 3, 0 cross-split neighbours, partition disjoint and complete, and the file's sha256 matches the constant `src/features.py` asserts.
+The D1 fix was the one that could have changed a decision, and it did not: distances 1 and 2 still
+behave alike (0.616, 0.634) and 3 still drops sharply (0.406). That was predicted before the fix
+and is now shown rather than assumed.
 
 ## Conventions
 

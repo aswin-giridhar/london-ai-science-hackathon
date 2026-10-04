@@ -1393,7 +1393,7 @@ discovered literature and recommended MINT as the top next experiment. It is the
 been in `context/` since the first hours of the project, whose summary already contained the
 +0.158 figure. The error was writing from a search snippet without checking our own notes.
 
-## Run 22 - THE TEST SET READ, once - 2026-10-04 09:34 - CURRENT
+## Run 22 - THE TEST SET READ, once - 2026-10-04 09:34
 
 `modal_app.py::test_eval`, A10G. **The first and only read of the frozen test split.**
 
@@ -1497,6 +1497,80 @@ variance of a substitution matrix is not the same as retaining what this endpoin
   recover chemistry where a fixed matrix imposes it.
 - Validation rows.
 
+## Run 24 - the last two P0 defects, fixed and verified - 2026-10-04 09:50
+
+`python scripts/measure_leakage_by_distance.py` and `python scripts/verify_split.py`.
+
+Four P0 defects were flagged when the GeoStab-FT plan was adopted. A1 and M1 were fixed the same
+evening; D1 and D4 stayed open through 23 runs because they affect diagnostics rather than any
+reported model number. Both are now closed.
+
+### D1 - the "train-only" analysis was not train-only
+
+`measure_leakage_by_distance.py` fitted its per-allele z-normalisation over **all** rows:
+
+    zdf.groupby("allele").z.transform(lambda s: (s - s.mean()) / (s.std() or 1))
+
+so every allele's mean and standard deviation absorbed validation and test labels. Analysis A then
+printed *"no evaluation labels are read in this analysis"*. The labels never appeared as data
+points, but they set the scale every data point was measured on - leakage that leaves no trace in
+any output.
+
+Statistics are now fitted on **training rows only** and applied to all rows. Re-run:
+
+| edit distance | identity | pairs | Spearman |
+|---|---|---|---|
+| 1 | 0.889 | 437 | 0.616 |
+| **2** | 0.778 | 297 | **0.634** |
+| **3** | 0.667 | 728 | **0.406** |
+| 4 | 0.556 | 5,501 | 0.354 |
+| 5 | 0.444 | 2,944 | 0.237 |
+| random (null) | - | 14,650 | **0.009** |
+
+**The break still falls between distance 2 and 3**, so the Hamming <= 2 clustering threshold
+stands - and is now justified without reference to evaluation labels, which is what the analysis
+always claimed. The decision did not change; the basis for it is now sound.
+
+### D4 - a self-test that never exercised the contract
+
+`validate_detector` planted a **1-edit** known-positive while the contract promises no evaluation
+peptide within **2 edits** of a training peptide. A detector that caught 1-edit neighbours and
+silently missed 2-edit ones would have passed, and the reported "0 violations" would have meant
+nothing.
+
+It now probes the boundary in **both** directions, because only the pair is informative:
+
+```
+positive  CCAAFEAAL  (2 edits from AAAAFEAAL)                        -> DETECTED
+negative  CCCAFEAAL  (3 edits, verified clear of EVERY train peptide) -> correctly ignored
+```
+
+A detector that fired on everything would have passed the old test while making "0 violations"
+an artefact. Testing that a check *can* fire shows it is not dead; testing that it *stays quiet*
+shows its silence carries information. The negative is only valid because the planted peptide is
+checked against every training peptide, not just the one it was derived from - a coincidental
+neighbour would otherwise make a correct detector look broken.
+
+### A re-runnable contract check
+
+`make_splits.py` refuses to overwrite the frozen split, which is correct, but that also meant its
+verification could only run at generation time - so a fix to the verifier could not be exercised
+against the split actually in use. `scripts/verify_split.py` now runs the whole contract against
+the files on disk:
+
+```
+1. detector probed at the boundary, both directions   pass
+2. cross-split neighbours at Hamming <= 2             0
+3. partition  train 4,514 / val 563 / test 556        disjoint, complete
+4. sha256 210775dc4ad179df...  matches features.py    True
+```
+
+Check 4 ties the split to the rest of the codebase: if this hash disagreed with the constant
+`src/features.py` asserts before reading any label, either the split moved or the constant is
+stale, and every result here would be suspect.
+
+**All four P0 defects are now closed.**
+
 ## Files
 
 | File | What |
@@ -1530,6 +1604,7 @@ variance of a substitution matrix is not the same as retaining what this endpoin
 | `test_metrics.json` | **The test-set read.** Per-rung metrics and predictions on held-out rows |
 | `TEST_READ.json` | Guard: records that the test split was read, and when |
 | `peptide_encoding.json` | One-hot vs BLOSUM62 vs BLOSUM-PCA5 on both chains |
+| `split_verification.json` | The frozen split re-checked: boundary probe, neighbours, partition, hash |
 | `complementarity.json` | Residual correlations, ensemble combinations, and the (B1+X150) - B1 interval |
 | `learning_curve.json` | One-hot vs frozen ESM-2 at 5/10/25/50/100% of training clusters |
 | `allele_split_metrics.json` | The ladder re-run against the allele split (every val allele unseen) |
@@ -1560,6 +1635,7 @@ variance of a substitution matrix is not the same as retaining what this endpoin
 | 21 | `python -m modal run modal_app.py::concat` |
 | 22 | `python -m modal run modal_app.py::test_eval` — **one read only** |
 | 23 | `python src/peptide_encoding.py` |
+| 24 | `python scripts/measure_leakage_by_distance.py` and `python scripts/verify_split.py` |
 | audit | `python scripts/audit_results.py` - re-checks every number here against its source |
 
 `src/features.py` asserts the frozen split's sha256 before reading any label, so a run against a

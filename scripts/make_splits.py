@@ -210,20 +210,74 @@ def verify_no_cross_split_neighbours(df, peptide_split, max_dist):
     return violations
 
 
-def validate_detector(df, peptide_split, max_dist):
-    """A check that cannot fail is not a check. Confirm the neighbour detector actually fires.
+def _mutate(peptide, k):
+    """Change exactly k residues, deterministically, to something different at each position."""
+    out = list(peptide)
+    for i in range(k):
+        out[i] = "A" if out[i] != "A" else "C"
+    assert sum(a != b for a, b in zip(peptide, out)) == k
+    return "".join(out)
 
-    Plant a known positive: take a training peptide, mutate one residue, and confirm it is
-    reported as a violation when pretended to be a test peptide.
+
+def _min_distance_to_train(candidate, train):
+    return min(sum(a != b for a, b in zip(candidate, t)) for t in train)
+
+
+def validate_detector(df, peptide_split, max_dist):
+    """A check that cannot fail is not a check. Probe the detector AT THE CONTRACT BOUNDARY.
+
+    D4 FIX (2026-10-04). The earlier version planted a **1-edit** neighbour while the contract
+    promises no evaluation peptide within **max_dist = 2** edits of a training peptide. A detector
+    that caught 1-edit neighbours and silently missed 2-edit ones would have passed that test,
+    and the reported "0 violations" would have meant nothing.
+
+    Both halves are now tested, because only the pair is informative:
+
+        distance max_dist       MUST fire      - the boundary we actually promise
+        distance max_dist + 1   MUST NOT fire  - or the detector over-fires, and reporting
+                                                 zero violations is meaningless because it
+                                                 would report violations for anything
+
+    The negative is only valid if the planted peptide is genuinely further than max_dist from
+    **every** training peptide, not just from the one it was derived from. That is checked
+    rather than assumed, and victims are tried until one satisfies it.
     """
     train = sorted({p for p, s in peptide_split.items() if s == "train"})
+    report = {}
+
+    # --- known positive, exactly at the contract boundary
     victim = train[0]
-    mutated = ("A" if victim[0] != "A" else "C") + victim[1:]
+    pos = _mutate(victim, max_dist)
     planted = dict(peptide_split)
-    planted[mutated] = "test"
+    planted[pos] = "test"
     found = verify_no_cross_split_neighbours(df, planted, max_dist)
-    fired = any(v[0] == mutated for v in found)
-    return fired, victim, mutated
+    report["positive"] = {
+        "victim": victim, "planted": pos, "distance": max_dist,
+        "fired": any(v[0] == pos for v in found),
+    }
+
+    # --- known negative, one step beyond the boundary, verified to be clear of ALL train
+    neg = neg_victim = None
+    for cand_victim in train[:200]:
+        cand = _mutate(cand_victim, max_dist + 1)
+        if cand in peptide_split:
+            continue
+        if _min_distance_to_train(cand, train) > max_dist:
+            neg, neg_victim = cand, cand_victim
+            break
+    if neg is None:
+        report["negative"] = {"skipped": "no clean beyond-boundary peptide found in 200 tries"}
+    else:
+        planted = dict(peptide_split)
+        planted[neg] = "test"
+        found = verify_no_cross_split_neighbours(df, planted, max_dist)
+        report["negative"] = {
+            "victim": neg_victim, "planted": neg, "distance": max_dist + 1,
+            "fired": any(v[0] == neg for v in found),
+        }
+
+    ok = report["positive"]["fired"] and not report.get("negative", {}).get("fired", False)
+    return ok, report
 
 
 # --------------------------------------------------------------------------- reporting
@@ -314,10 +368,21 @@ def main(force=False):
 
     # ---- verification -----------------------------------------------------------------
     print("\nverification")
-    fired, victim, mutated = validate_detector(df, peptide_split, CLUSTER_MAX_DIST)
-    print(f"  detector self-test: planted {mutated} (1 edit from train peptide {victim}) "
-          f"-> {'DETECTED' if fired else 'NOT DETECTED'}")
-    assert fired, "neighbour detector failed its own known-positive test"
+    ok, probe = validate_detector(df, peptide_split, CLUSTER_MAX_DIST)
+    pos = probe["positive"]
+    print(f"  detector self-test, AT the contract boundary:")
+    print(f"    positive: {pos['planted']} ({pos['distance']} edits from train peptide "
+          f"{pos['victim']}) -> {'DETECTED' if pos['fired'] else 'NOT DETECTED'}")
+    neg = probe["negative"]
+    if "skipped" in neg:
+        print(f"    negative: skipped ({neg['skipped']})")
+    else:
+        print(f"    negative: {neg['planted']} ({neg['distance']} edits, and confirmed further "
+              f"than {CLUSTER_MAX_DIST} from every train peptide) -> "
+              f"{'WRONGLY DETECTED' if neg['fired'] else 'correctly ignored'}")
+    assert pos["fired"], "detector missed a neighbour AT the contract boundary"
+    assert not neg.get("fired", False), "detector fires beyond the contract: it over-reports"
+    assert ok
 
     violations = verify_no_cross_split_neighbours(df, peptide_split, CLUSTER_MAX_DIST)
     print(f"  cross-split neighbours at Hamming<={CLUSTER_MAX_DIST}: {len(violations)}")
@@ -398,7 +463,8 @@ def main(force=False):
         "peptide_split": pep_summary,
         "allele_split": all_summary,
         "verification": {
-            "detector_self_test_passed": bool(fired),
+            "detector_self_test_passed": bool(ok),
+            "detector_probe": probe,
             "cross_split_neighbours": len(violations),
         },
     }

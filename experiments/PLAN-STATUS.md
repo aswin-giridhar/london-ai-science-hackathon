@@ -86,10 +86,13 @@ peptide at 4.1× the model's own noise, but does not track half-life (Mantel r �
 |---|---|
 | **A1** audit asserted distance ≤1 while the contract is ≤2 | ✅ fixed |
 | **M1** `peptide_lookup_score` returned 0.0 as a sentinel | ✅ fixed — returns `None` |
-| **D1** leakage probe normalised over all rows | ❌ **still open** |
-| **D4** detector plants a 1-edit positive against a 2-edit contract | ❌ **still open** |
+| **D1** leakage probe normalised over all rows | ✅ **fixed 2026-10-04** |
+| **D4** detector plants a 1-edit positive against a 2-edit contract | ✅ **fixed 2026-10-04** |
 
-D1 and D4 affect a diagnostic write-up, not the frozen split or any reported model number.
+**All four P0 defects are closed.** D1: statistics are now fitted on training rows only - the
+break still falls between distance 2 and 3, so the Hamming <= 2 threshold stands, and is now
+justified without touching evaluation labels. D4: the detector is probed at the boundary in both
+directions, and `scripts/verify_split.py` re-runs the whole contract against the frozen files.
 
 ---
 
@@ -122,7 +125,6 @@ out to carry more weight than planned items.
 
 | | cost | note |
 |---|---|---|
-| **D1 and D4** script defects | ~45 min | Documented; affect a diagnostic, not a result |
 | **Calibration rows** → prediction intervals | ~1h | Needs rows carved from *train*. B1's slope of 0.978 is a set property, not per-prediction uncertainty |
 | **L150 on test** | ~75 min, $6.59 | Omitted deliberately; the test table has no fine-tuned rung and says so |
 | **Conditioned likelihood** | needs a two-chain model | Architectural blocker, not a time one |
