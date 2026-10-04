@@ -109,6 +109,39 @@ SEEDS = (42, 43, 44)
 
 
 @app.function(gpu="A10G", timeout=7200, image=image)
+def motifs_gpu() -> dict:
+    """In-silico saturation mutagenesis on both model families, against published anchor motifs."""
+    import os
+    import subprocess
+    import sys
+
+    import torch
+
+    if not torch.cuda.is_available():
+        raise RuntimeError("no CUDA device in the container; refusing to report a GPU result")
+    out = Path("/tmp/results")
+    out.mkdir(exist_ok=True)
+    env = {**os.environ, "RESULTS_DIR": str(out)}
+    t0 = time.time()
+    r = subprocess.run([sys.executable, "-u", f"{REMOTE}/src/motif_recovery.py"], env=env)
+    f = out / "motif_recovery.json"
+    if r.returncode != 0 or not f.exists():
+        raise RuntimeError(f"motif recovery failed: rc {r.returncode}, "
+                           f"output {'missing' if not f.exists() else 'present'}")
+    return {"seconds": round(time.time() - t0, 1), "gpu": torch.cuda.get_device_name(0),
+            "payload": json.loads(f.read_text(encoding="utf-8"))}
+
+
+@app.local_entrypoint()
+def motifs():
+    res = motifs_gpu.remote()
+    dest = REPO / "results" / "motif_recovery.json"
+    dest.write_text(json.dumps(res["payload"], indent=2), encoding="utf-8")
+    print(f"gpu {res['gpu']}   remote {res['seconds']}s")
+    print(f"wrote {dest}")
+
+
+@app.function(gpu="A10G", timeout=7200, image=image)
 def allele_split_gpu() -> dict:
     """Re-run the ladder against the ALLELE split: every validation allele unseen in training."""
     import os

@@ -902,20 +902,31 @@ variation in them still carries no stability signal.**
 
 ### Finding 2: as *features*, the selection is worth nothing extra
 
-| feature set | positions | features | pooled | within |
-|---|---|---|---|---|
-| pseudosequence (reference) | 31 | 875 | **0.785** | **0.633** |
-| Boltz contacts | 97 | 2,195 | 0.782 | 0.622 |
-| random positions, matched count | 97 | 2,195 | 0.789 | 0.626 |
+| feature set | positions | features | pooled | within | fit time |
+|---|---|---|---|---|---|
+| **pseudosequence (reference)** | **31** | 875 | **0.785** | **0.633** | 109 s |
+| Boltz contacts | 97 | 2,195 | 0.782 | 0.622 | 351 s |
+| random, matched count #1 | 97 | 2,195 | 0.789 | 0.626 | 413 s |
+| random, matched count #2 | 97 | 2,195 | 0.773 | 0.592 | 373 s |
+| random, matched count #3 | 97 | 2,195 | 0.779 | 0.614 | 476 s |
+| *random mean* | 97 | | *0.780* | *0.611* | |
+| full 182-aa domain | 182 | 3,895 | **0.768** | **0.591** | 902 s |
 
-Boltz's 97 contacting positions do **not** beat 97 positions chosen at random, and neither beats
-the 31-position pseudosequence. Without the random control this would have read as "the Boltz
-selection works"; with it, the honest reading is that **the groove is informative broadly, and the
-pseudosequence's value is compression rather than discrimination** - 31 positions do the work of
-97 or of 182.
+**Boltz's selection confers no measurable advantage.** Its 97 positions score 0.782, squarely
+inside the random-97 range of 0.773-0.789. Without that control this would have read as "the Boltz
+selection works", and it does not.
 
-So structure-as-feature-selection is a real capability (Finding 1) that is already saturated by
-the existing feature set (Finding 2). There is nothing left for a folding model to add here.
+**And more positions actively hurt: 31 > 97 > 182.** The 31-position pseudosequence beats every
+97-position set and beats the full domain by **0.017 pooled and 0.042 within-allele**, while
+fitting in an eighth of the time. Handing the model all 182 groove residues is worse than handing
+it the right 31.
+
+So the pseudosequence's value is **compression, not coverage**. Structure-as-feature-selection is
+a real capability (Finding 1) that the existing feature set already saturates (Finding 2) - and
+the marginal groove positions are not neutral filler, they are noise the model has to fit around.
+
+There is nothing left for a folding model to contribute here, and that is now a measured claim
+rather than an assumption.
 
 ### What Run 17 does NOT establish
 
@@ -1008,7 +1019,7 @@ quarantine predicted it would.
 - Different pairs share different peptide sets, so the per-pair figures are not strictly
   comparable with each other.
 
-## Run 18 - what each approach cost, and what it bought - 2026-10-04 06:27 - CURRENT
+## Run 18 - what each approach cost, and what it bought - 2026-10-04 06:27
 
 `python scripts/cost_benefit.py`. Accuracy read from the result files, never retyped. Compute is
 measured wall-clock times device count. Prices are Modal's published rates fetched 2026-10-04:
@@ -1077,6 +1088,90 @@ That is itself worth reporting: the most expensive experiment bought the least.
 - **Engineering hours are not priced**, and they dominated everything here. Boltz-2 cost $0.62 of
   GPU and roughly two hours of work.
 
+## Run 19 - does either model know the biology? Motifs from in-silico mutagenesis - 2026-10-04 06:50
+
+`modal_app.py::motifs` (A10G) then `python scripts/motif_supported.py`.
+
+Every comparison so far is a correlation on held-out rows. None asks whether a model internalised
+*the right biology* - and a model can rank peptides well having learned something an immunologist
+would not call binding. Published anchor motifs give an external answer: established by elution
+and crystallography, never seen by either model, and specific enough to be falsifiable.
+
+| allele | published anchors | source |
+|---|---|---|
+| HLA-A*02:01 | P2 **L, M, I** (L dominant) · P9 **V, L, I, A** (V most frequent) | MHC Motif Atlas, NAR 2023 |
+| HLA-B*27:05 | P2 **R**, strictly (alternatives Q, K) | Biochem Soc Trans 2021 |
+
+**Method.** In-silico saturation mutagenesis: for each allele take 6 reference peptides spanning
+the half-life range, mutate each of 9 positions to each of 20 amino acids, predict, and average
+the change. That yields a position weight matrix derived from the *model*, not from the data.
+
+**10,320 sequences scored, of which 10,258 (99.4%) never appear in the dataset.** Mutants are
+absent from the embedding cache and must be re-encoded, so this is generalisation to unseen
+sequence - precisely the capability pretraining is supposed to buy, and therefore ESM-2's best
+remaining case.
+
+### Both models recover the published motifs
+
+| allele | model | P2 top-3 | P9 top-3 |
+|---|---|---|---|
+| A*02:01 | B1 | **L**, E, **M** | R, **V**, K |
+| A*02:01 | X150 | **L**, Y, **M** | R, **V**, W |
+| B*27:05 | B1 | **R**, K, P | - |
+| B*27:05 | X150 | **R**, K, V | - |
+
+Both put **L first at A*02:01 P2** and **R first at B*27:05 P2**, matching the literature exactly.
+
+### A probe that needed validating before it could be believed
+
+The raw ranking put **R first at A*02:01 P9** for both models - contradicting the published motif
+(V/L/I/A) and basic pocket chemistry, since the A*02:01 F pocket is hydrophobic and arginine is
+large and charged.
+
+Checking the training support explained it: **R appears at A*02:01 P9 in 3 of 821 rows (0.4%)**,
+and **12 of the 20 amino acids appear in under 1% of rows at that position**. For those residues
+the model is extrapolating, and ranking an extrapolation against a well-supported residue compares
+a guess to a measurement. The training distribution itself (V 38%, L 34%, I 11%, A 6%) matches the
+literature perfectly - only the extrapolation does not.
+
+Re-scored over supported residues only, at several thresholds so no conclusion rests on one cut:
+
+| support threshold | residues scored | B1 | X150 | chance |
+|---|---|---|---|---|
+| >= 0.0% (raw) | 20.0 | 3.78 | **3.69** | 10.5 |
+| >= 0.5% | 9.0 | 2.25 | **2.11** | 5.0 |
+| >= 1.0% | 7.7 | **1.94** | 2.11 | 4.3 |
+| >= 2.0% | 5.7 | **1.83** | 2.00 | 3.3 |
+| >= 5.0% | 3.3 | 1.83 | 1.83 | 2.2 |
+
+### What this establishes
+
+**1. Both models learned real immunology.** At the 1% threshold the published anchors rank 1.94
+and 2.11 out of 7.7 supported residues, against a chance expectation of 4.3. Neither model was
+shown a motif; both reconstructed one from half-life data alone.
+
+**2. ESM-2 does not know the biology better, on the task most favourable to it.** The difference
+is 0.17 rank positions at the 1% threshold - and it **flips sign across thresholds**: X150 leads
+at 0% and 0.5%, B1 leads at 1% and 2%, tied at 5%. A difference that changes direction with an
+arbitrary analysis choice is noise. This was pretraining's strongest remaining case, 99.4% unseen
+sequence, and it is a tie.
+
+**3. The probe would have reported a false finding unaltered.** "Both models rank arginine as the
+best P9 residue for HLA-A*02:01" is wrong, contradicts the literature, and is the kind of claim
+that discredits a submission. It survived only until someone counted how often R actually occurs
+there.
+
+### What Run 19 does NOT establish
+
+- **Two alleles, three anchor positions.** The motif evidence is only as broad as the alleles
+  whose motifs could be independently verified. Others were scored but have no external ground
+  truth to check against.
+- **Six reference peptides per allele.** The PWM is an average over those; a different reference
+  set would shift it.
+- **Single substitutions only.** Anchor residues interact, and no pairwise effects were probed.
+- **Additivity is assumed.** A PWM cannot represent position-position coupling, which is exactly
+  what an attention head is supposed to capture.
+
 ## Files
 
 | File | What |
@@ -1103,6 +1198,8 @@ That is itself worth reporting: the most expensive experiment bought the least.
 | `contact_features.json` | Boltz contact positions vs the pseudosequence, overlap test and feature comparison |
 | `noise_ceiling.json` | Cross-allele agreement by pseudosequence distance, the empirical ceiling |
 | `cost_benefit.json` | Accuracy against measured device-seconds and dollars, per approach |
+| `motif_recovery.json` | Per-allele position weight matrices from both models, and anchor ranks |
+| `motif_supported.json` | Anchor ranks re-scored over residues with training support |
 | `complementarity.json` | Residual correlations, ensemble combinations, and the (B1+X150) - B1 interval |
 | `learning_curve.json` | One-hot vs frozen ESM-2 at 5/10/25/50/100% of training clusters |
 | `allele_split_metrics.json` | The ladder re-run against the allele split (every val allele unseen) |
@@ -1128,6 +1225,7 @@ That is itself worth reporting: the most expensive experiment bought the least.
 | 16 | `python scripts/noise_ceiling.py` |
 | 17 | `python src/contact_features.py` |
 | 18 | `python scripts/cost_benefit.py` |
+| 19 | `python -m modal run modal_app.py::motifs` then `python scripts/motif_supported.py` |
 | audit | `python scripts/audit_results.py` - re-checks every number here against its source |
 
 `src/features.py` asserts the frozen split's sha256 before reading any label, so a run against a

@@ -237,6 +237,33 @@ backed by numbers in `results/`.
 
 ---
 
+## 6b. Status as of 2026-10-04 06:40 — what has since been done
+
+This document was written after eight runs. There are now eighteen. Marking what closed, because
+a plan that still lists completed work as pending is itself a false record.
+
+| item | status | outcome |
+|---|---|---|
+| **T1 layer sweep** | ✅ Run 11 | Depth is **within seed noise** (range 0.108 vs spread 0.157). The first attempt was confounded by unnormalised activations and nearly got published |
+| **T2 scale sweep** | ✅ Run 12 | **0.007 across 80x of parameters** — smaller than the seed. 650M's first "bigger is worse" result was a tuning failure, caught and fixed |
+| **T3 allele split** | ✅ Run 15 | B1' collapses **−0.273** as its structure predicts; the B1/X150 gap narrows 0.026 → 0.001 but does not flip |
+| **T6 shuffled-label control** | ✅ Run 10 | No leakage. The +0.104 was **epoch-selection optimism**, isolated and quantified at ~+0.08 |
+| **§2.5 cost-per-result table** | ✅ Run 18 | one-hot 0.780 for $0.00; the foundation model's entire contribution is **+0.009 for $0.11**; 84% of the GPU bill went to the rung inside seed noise |
+| **§1 noise ceiling** | ✅ Run 16 | Thought impossible (zero replicates). Solved via near-identical allele pairs: **ceiling ≥ 0.823**, so ~0.19 of headroom remains |
+| **§3 internal confidence** | ✅ Run 13 | Residual correlation +0.751; ensemble adds +0.009 pooled, nothing within-allele |
+| **learning curve** (not in the original list) | ✅ Run 14 | **No crossover at any label budget**, and the gap is *widest* at 25% |
+| **structure as feature prior** (not in the original list) | ✅ Run 17 | Boltz recovers **31/31** pseudosequence positions (p=0.0001), but as features its selection does not beat random positions of matched count |
+| **T4 other model families** | ❌ open | MINT remains the highest-information untried experiment — see `BIO-DIRECTIONS.md` |
+| **T5 equal tuning effort** | ◐ partial | Run 12 gives every model the same two learning rates; neither family got a real search |
+| **§2.1 test-set read** | ❌ open | Still zero held-out numbers. The largest remaining hole in "watertight evaluation" |
+| **§4.3 pinned environment** | ❌ open | Run 14 found B1 differs by ~0.010 between Anaconda and PyPI scikit-learn |
+| **§2.4 calibration** | ❌ open | No prediction intervals |
+| **demo** | ❌ open | 20% of the rubric, unowned |
+
+**The research question has moved.** It was "do foundation models help?" — answered no, six ways.
+Run 16 replaces it with something better: **0.19 of within-allele Spearman is demonstrably
+available and nothing we tested found it.** The remaining sections should be read against that.
+
 ## 7. If I had to pick: the ranked plan
 
 | # | Item | Cost | Why |

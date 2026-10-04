@@ -32,9 +32,15 @@ def load(name):
 
 
 def dig(obj, path):
-    """Walk a dotted path; return a sentinel rather than raising, so a bad path is visible."""
+    """Walk a path; return a sentinel rather than raising, so a bad path is visible.
+
+    A path may be a dotted string for convenience, or an explicit list of keys when a key itself
+    contains a dot -- motif_supported.json is keyed by support threshold ("0.01"), which a dotted
+    string cannot address. Splitting those silently gave four 'uncheckable' entries, which is the
+    right failure for an audit: visible, not skipped.
+    """
     cur = obj
-    for part in path.split("."):
+    for part in (path if isinstance(path, (list, tuple)) else path.split(".")):
         if cur is None:
             return "<missing>"
         if isinstance(cur, list):
@@ -143,6 +149,19 @@ CLAIMS = [
     ("L150 cost usd", "cost_benefit.json", "rows.5.usd", 6.59),
     ("project total usd", "cost_benefit.json", "project_total_usd", 7.88),
     ("project gpu seconds", "cost_benefit.json", "gpu_seconds", 14253),
+
+    # --- Run 17 contact features, completed
+    ("random 97 #2", "contact_features.json", "random_97_positions_2.pooled", 0.773),
+    ("full domain 182", "contact_features.json", "full_domain_182.pooled", 0.768),
+    ("full domain within", "contact_features.json", "full_domain_182.within", 0.591),
+
+    # --- Run 19 motifs
+    ("sequences scored", "motif_recovery.json", "n_sequences_scored", 10320),
+    ("novel sequences", "motif_recovery.json", "n_novel", 10258),
+    ("B1 anchor rank, raw", "motif_supported.json", ["0.0", "B1"], 3.78),
+    ("X150 anchor rank, raw", "motif_supported.json", ["0.0", "X150"], 3.69),
+    ("B1 anchor rank, 1% support", "motif_supported.json", ["0.01", "B1"], 1.94),
+    ("X150 anchor rank, 1% support", "motif_supported.json", ["0.01", "X150"], 2.11),
 ]
 
 
@@ -198,13 +217,13 @@ def main():
             continue
         actual = dig(cache[fname], path)
         if actual == "<missing>":
-            missing.append((label, f"{fname}:{path}"))
+            missing.append((label, f"{fname}:{path if isinstance(path, str) else '.'.join(path)}"))
             continue
         if isinstance(actual, (int, float)) and abs(float(actual) - claimed) <= max(
                 TOL, abs(claimed) * 0.004):
             ok += 1
         else:
-            bad.append((label, claimed, actual, f"{fname}:{path}"))
+            bad.append((label, claimed, actual, f"{fname}:{path if isinstance(path, str) else chr(46).join(path)}"))
 
     if bad:
         print("MISMATCHES -- the README says one thing and the data says another:")
