@@ -407,7 +407,7 @@ tied, overwhelmingly on the t-half = 0 point mass, so a naive argsort rank would
 `power_analysis.spearman` to 2.2e-16 across 200 random subsets, and the vectorised within-allele
 metric against `metrics.evaluate` - the function that produced every published number - to 1.1e-16.
 
-## Run 8 - L150: LoRA adaptation, and the completed ladder - 2026-10-04 00:38 - CURRENT
+## Run 8 - L150: LoRA adaptation, and the completed ladder - 2026-10-04 00:38
 
 `python -m modal run modal_app.py::l150`. Three seeds, **one A100 each in parallel**, 4,491 s wall.
 LoRA r=8, alpha=16, dropout 0.05 on the key and value projections of all 30 layers: **60 modules,
@@ -472,6 +472,154 @@ new arm is not a conservative choice - it is a wrong one.
   encoding of the same sequences, and adaptation does not close the gap.
 - Why is in Run 5: ESM-2's salience is orthogonal to the endpoint's.
 
+## Run 9 - Boltz-2 structures: they vary, but not with stability - 2026-10-04 01:00
+
+`modal_boltz.py::variance_main`, then `scripts/mantel.py` and `scripts/mantel_by_position.py`.
+**boltz 2.2.1** on an A100. 24 peptides on HLA-A*02:01, 2 diffusion samples each = **48 folds in
+783 s**. Cost including the install probe: **~$0.6**.
+
+**Scope: B1 only.** Structures are generated and characterised. The geometry residual (B2) is not
+attempted - underpowered by roughly an order of magnitude at any cohort foldable tonight.
+
+**Construct - a recorded deviation from the plan of record.** The plan assumed a verified full
+heavy chain plus beta-2 microglobulin. The dataset carries only the **182-aa alpha1/alpha2
+domain**. That domain is the complete peptide-binding groove (two helices over a beta-sheet floor),
+so every peptide contact is present; b2m packs under **alpha3**, which we also lack, so including
+it would leave it nothing to dock against. Groove + peptide is both what the data supports and an
+exact match for the D[9,182] spec.
+
+### Does the pose depend on the peptide at all?
+
+Two diffusion samples of the *same* peptide give the model's own noise floor for free.
+
+| | all cells | contacting cells (<8 A) |
+|---|---|---|
+| within-peptide, same sequence different seed | 0.145 A | 0.196 A |
+| across-peptide, different sequences | 0.735 A | 0.808 A |
+| **ratio** | 5.1x | **4.1x** |
+
+**Yes.** The pessimistic hypothesis - that Boltz returns one canonical pose regardless of peptide,
+having been trained on MHC complexes with no concept of an off-rate - is **false**.
+
+### Does that variation track half-life? No, and the test was powered.
+
+Mantel test: correlate the peptide-by-peptide geometry distance matrix against the half-life
+distance matrix, with significance from permuting **peptide labels** - because the 276 pairs come
+from only 24 independent peptides, and an ordinary p-value would be badly anti-conservative.
+
+| | Mantel r | p |
+|---|---|---|
+| Spearman | **-0.111** | 0.116 |
+| Pearson | -0.120 | 0.134 |
+
+**Power at n=24: 92% to detect a true r of 0.2, 100% at r >= 0.3.** Not an underpowered shrug.
+
+### Position-resolved: the null is not an averaging artefact
+
+Run 5 found the model relies on P9 >> P2 > P1 > P3, with P4-P8 contributing nothing. The test above
+averaged over all nine peptide rows, spending five ninths of its budget on positions our own
+ablation calls irrelevant. Repeated per position:
+
+| positions | Mantel r | p | signal / noise |
+|---|---|---|---|
+| anchors P2 + P9 | -0.071 | 0.283 | **6.6x** |
+| P9 alone | -0.061 | 0.302 | 5.8x |
+| **P2 alone** | **+0.002** | 0.984 | **8.2x** |
+| P1+P2+P3+P9 | -0.105 | 0.107 | 6.4x |
+| P4-P8 (negative control) | -0.095 | 0.169 | 3.6x |
+| all positions | -0.111 | 0.116 | 4.1x |
+
+**No subset survives**, and the anchor rows are the *most cleanly resolved* of all - P2's geometry
+sits 8.2x above the diffusion noise floor while its correlation with half-life is +0.002. We can
+see the anchor pocket very precisely, and it carries no stability information.
+
+Stronger than the averaged test alone: we did not dilute a signal, there is none at the positions
+the model actually uses.
+
+### What Run 9 does NOT establish
+
+- **One allele, one folding model, 24 peptides.** HLA-A*02:01 and Boltz-2 only.
+- **Raw distances only.** Anchor burial depth, buried surface area, hydrogen-bond counts, backbone
+  bulge height and interface pLDDT are untested, and are where a signal would most plausibly hide.
+- **Nothing about B2.** The residual head was never fitted.
+
+## Run 10 - negative control, and what it revealed about our protocol - 2026-10-04 04:09
+
+`python src/shuffle_control.py`, 287 s CPU, plus a follow-up discriminating test.
+
+Destroy the relationship between training features and training labels, keep validation labels
+intact, retrain. A clean pipeline must score ~0.
+
+| | pooled | within-allele |
+|---|---|---|
+| intact labels (reproduces B1) | +0.780 | +0.633 |
+| labels shuffled **within each allele** | +0.557 | **+0.046** |
+| labels shuffled **globally** | **+0.104** | +0.057 |
+
+The within-allele shuffle behaves exactly as designed: pooled lands on the 0.563 allele-median floor
+(allele identity surviving by construction, not leakage) and within-allele collapses to +0.046.
+**No peptide-level leakage.**
+
+The global shuffle gave +0.104, not 0. Rather than accept the FAIL flag, the causes were separated:
+
+| shuffled labels | pooled |
+|---|---|
+| fixed 9 epochs, **no selection** | +0.028 |
+| fixed 20 epochs, **no selection** | +0.020 |
+| **with epoch selection** | **+0.104** |
+
+Selection chose epochs **0, 4 and 6** - it grabs the luckiest early epoch before anything is learned.
+
+### What this establishes, which is worth more than a passed control
+
+**Not leakage - epoch-selection optimism, now quantified at roughly +0.08 pooled.** Every validation
+number in this file is selected on validation, so every one carries that bias. Three consequences:
+
+1. **Absolute validation figures are optimistic.** B1's 0.780 is not an estimate of held-out
+   performance. Only the test read settles that.
+2. **Paired differences between rungs remain valid**, because every rung pays the same bias under
+   the same protocol. A direct vindication of reporting paired bootstrap intervals rather than
+   comparing two independent numbers.
+3. It explains the shape of the whole table: rungs differing by less than ~0.08 should never have
+   been separated on validation alone - which is exactly what the Run 7 intervals already say.
+
+## Run 11 - layer sweep: the attack the negative result had to survive - 2026-10-04 04:28
+
+`modal_app.py::layers`, A10, 207 s. Every ESM-2 result in Runs 3-8 read `last_hidden_state` - the
+**final** layer. The obvious attack is "you read the wrong layer": a masked LM's last layer is
+specialised for the masked-token objective, and intermediate layers are widely found to transfer
+better downstream.
+
+| layer | raw pooled | raw within | **LN pooled** | **LN within** |
+|---|---|---|---|---|
+| 6 | 0.570 | 0.201 | **0.726** | **0.526** |
+| 12 | 0.553 | -0.040 | 0.682 | 0.458 |
+| 18 | 0.528 | 0.054 | 0.638 | 0.354 |
+| 24 | 0.551 | undefined | 0.627 | 0.283 |
+| 30 | 0.757 | 0.565 | 0.734 | 0.524 |
+
+### The raw columns are a preprocessing artefact that nearly got reported as a finding
+
+The first run produced only the raw columns. They say layer 30 wins by a mile while the middle
+layers sit at the no-peptide floor, one of them predicting a **constant**. That is the signature of
+a training failure, not a property of depth: ESM-2's residual stream grows in norm with depth and
+the model applies a **final LayerNorm** before `last_hidden_state`, so layer 30 arrives normalised
+and the others arrive raw at very different scales.
+
+Applying the same parameter-free `F.layer_norm` to **every** layer moves layer 6 from 0.570 to
+**0.726**. It also slightly *hurts* layer 30 (0.757 -> 0.734), which is the expected sign - layer 30
+already carries ESM-2's own LayerNorm, so a second one is redundant.
+
+### Verdict
+
+- **Range across depth 0.108 vs worst seed spread 0.157 -> depth is WITHIN seed noise.** No layer
+  can be claimed better than another on this evidence.
+- **No layer beats B1.** Best normalised: layer 30 at 0.734 pooled, layer 6 at 0.526 within-allele,
+  against B1's **0.780 / 0.633**.
+
+The headline survives the strongest attack available to it, and "we checked five depths and
+normalised them fairly" is a materially better sentence than "we used the default".
+
 ## Files
 
 | File | What |
@@ -488,6 +636,13 @@ new arm is not a conservative choice - it is a wrong one.
 | `l150_val_predictions.json` | L150 ensemble and per-seed validation predictions |
 | `l150_seed{42,43,44}.json` | Raw per-seed payloads, written as each container returned |
 | `bootstrap_l150_vs_b1.json` | The B1 - L150 interval |
+| `boltz_probe.json` | Boltz-2 install probe: version, CLI, first fold |
+| `boltz_variance.json` | 24 peptides x 2 samples, full D matrices and the contact mask |
+| `mantel.json` | Mantel r, permutation p, and the power curve at n=24 |
+| `mantel_by_position.json` | Mantel restricted to each peptide-position subset |
+| `shuffle_control.json` | Negative control, three label conditions |
+| `layer_sweep.json` | Five ESM-2 depths, raw and LayerNormed |
+| `scale_sweep.json` | ESM-2 8M to 650M with the identical head |
 
 ## How to reproduce
 
@@ -500,6 +655,10 @@ new arm is not a conservative choice - it is a wrong one.
 | 6 | `python src/hurdle.py` |
 | 7 | `python scripts/bootstrap_ci.py` (~17 min, CPU) |
 | 8 | `python -m modal run modal_app.py::l150` (3x A100, ~75 min) |
+| 9 | `python -m modal run modal_boltz.py::variance_main`, then `python scripts/mantel.py` and `python scripts/mantel_by_position.py` |
+| 10 | `python src/shuffle_control.py` |
+| 11 | `python -m modal run modal_app.py::layers` |
+| 12 | `python -m modal run modal_app.py::scale` |
 
 `src/features.py` asserts the frozen split's sha256 before reading any label, so a run against a
 changed split fails immediately rather than reporting a number against different data.

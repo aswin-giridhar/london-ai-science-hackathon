@@ -1,0 +1,39 @@
+{
+  "intact": {
+    "n": 2817,
+    "spearman_pooled": 0.7802190587503978,
+    "spearman_within_allele": 0.632849663354059,
+    "alleles_supported": 68,
+    "pearson_log": 0.791107733742048,
+    "rmse_log": 0.6657662502068254,
+    "mae_log": 0.49731585125934286,
+    "mae_hours": 3.4488104949826646
+  },
+  "shuffled_global": {
+    "n": 2817,
+    "spearman_pooled": 0.10357619170160322,
+    "spearman_within_allele": 0.05647867986674034,
+    "alleles_supported": 68,
+    "pearson_log": 0.11053723950487748,
+    "rmse_log": 1.0791070142067465,
+    "mae_log": 0.9069469949594676,
+    "mae_hours": 5.033972523434207
+  },
+  "shuffled_within_allele": {
+    "n": 2817,
+    "spearman_pooled": 0.557441167657125,
+    "spearman_within_allele": 0.04642197694169171,
+    "alleles_supported": 68,
+    "pearson_log": 0.5293703817107234,
+    "rmse_log": 0.9301915183162783,
+    "mae_log": 0.7171364559298309,
+    "mae_hours": 4.5192932018288445
+  },
+  "pass_global": false,
+  "pass_within_allele": true,
+  "seeds": [
+    42,
+    43,
+    44
+  ]
+}

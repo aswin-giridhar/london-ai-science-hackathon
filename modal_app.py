@@ -108,6 +108,93 @@ def esm_heads_gpu() -> dict:
 SEEDS = (42, 43, 44)
 
 
+@app.function(gpu="A100", timeout=7200, image=l150_image)
+def scale_gpu() -> dict:
+    """ESM-2 8M -> 650M with the identical X150 head. A100 for the 650M encode."""
+    import os
+    import subprocess
+    import sys
+
+    import torch
+
+    if not torch.cuda.is_available():
+        raise RuntimeError("no CUDA device in the container; refusing to report a GPU result")
+    print(f"scale sweep on {torch.cuda.get_device_name(0)}", flush=True)
+    out = Path("/tmp/results")
+    out.mkdir(exist_ok=True)
+    env = {**os.environ, "RESULTS_DIR": str(out)}
+    t0 = time.time()
+    r = subprocess.run([sys.executable, "-u", f"{REMOTE}/src/scale_sweep.py"], env=env)
+    f = out / "scale_sweep.json"
+    if r.returncode != 0 or not f.exists():
+        raise RuntimeError(f"scale sweep failed: rc {r.returncode}, "
+                           f"output {'missing' if not f.exists() else 'present'}")
+    return {"seconds": round(time.time() - t0, 1), "gpu": torch.cuda.get_device_name(0),
+            "payload": json.loads(f.read_text(encoding="utf-8"))}
+
+
+@app.local_entrypoint()
+def scale():
+    res = scale_gpu.remote()
+    dest = REPO / "results" / "scale_sweep.json"
+    dest.write_text(json.dumps(res["payload"]), encoding="utf-8")
+    pay = res["payload"]
+    print(f"\n{'model':<14}{'pooled':>10}{'within':>10}")
+    for mid in pay["models"]:
+        r = next(v for v in pay["results"].values() if v["model"] == mid)
+        w = r["spearman_within_allele"]
+        print(f"{r['short']:<14}{r['spearman_pooled']:>10.3f}"
+              f"{(w if w is not None else float('nan')):>10.3f}")
+    b = pay["b1_reference"]
+    print(f"{'B1 (one-hot)':<14}{b['pooled']:>10.3f}{b['within']:>10.3f}")
+    print(f"\ngpu {res['gpu']}   remote {res['seconds']}s")
+    print(f"wrote {dest}")
+
+
+
+# The layer sweep re-encodes from the model, so it needs the weights image, not the cache.
+@app.function(gpu="A10G", timeout=5400, image=l150_image)
+def layers_gpu() -> dict:
+    """Train the X150 head on five depths of ESM-2 and see whether the default was the worst."""
+    import os
+    import subprocess
+    import sys
+
+    import torch
+
+    if not torch.cuda.is_available():
+        raise RuntimeError("no CUDA device in the container; refusing to report a GPU result")
+    print(f"layer sweep on {torch.cuda.get_device_name(0)}", flush=True)
+    out = Path("/tmp/results")
+    out.mkdir(exist_ok=True)
+    env = {**os.environ, "RESULTS_DIR": str(out)}
+    t0 = time.time()
+    r = subprocess.run([sys.executable, "-u", f"{REMOTE}/src/layer_sweep.py"], env=env)
+    f = out / "layer_sweep.json"
+    if r.returncode != 0 or not f.exists():
+        raise RuntimeError(f"layer sweep failed: rc {r.returncode}, "
+                           f"output {'missing' if not f.exists() else 'present'}")
+    return {"seconds": round(time.time() - t0, 1), "gpu": torch.cuda.get_device_name(0),
+            "payload": json.loads(f.read_text(encoding="utf-8"))}
+
+
+@app.local_entrypoint()
+def layers():
+    res = layers_gpu.remote()
+    dest = REPO / "results" / "layer_sweep.json"
+    dest.write_text(json.dumps(res["payload"]), encoding="utf-8")
+    pay = res["payload"]
+    print(f"\n{pay['model']}, {pay['n_transformer_layers']} layers, swept {pay['layers']}")
+    print(f"{'layer':<8}{'pooled':>10}{'within':>10}")
+    for l in pay["layers"]:
+        r = pay["results"][f"layer_{l}"]
+        w = r["spearman_within_allele"]
+        print(f"{l:<8}{r['spearman_pooled']:>10.3f}{(w if w is not None else float('nan')):>10.3f}")
+    print(f"\ngpu    {res['gpu']}   remote {res['seconds']}s")
+    print(f"wrote  {dest}")
+
+
+
 # anchors needs the embedding cache (probe A) and the MLM head (probe B), so it gets the
 # cache-carrying image, not the L150 one.
 @app.function(gpu="A10G", timeout=3600, image=image)
