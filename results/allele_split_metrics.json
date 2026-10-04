@@ -1,0 +1,55 @@
+{
+  "allele_split_sha256": "2ead421471903adfeb3adb40b67a2623cb38af6b0a7882fe98dcb4b6efa2d1d4",
+  "n_train_alleles": 64,
+  "n_val_alleles": 5,
+  "B0b_global_median_fallback": {
+    "n": 3068,
+    "spearman_pooled": null,
+    "spearman_within_allele": null,
+    "alleles_supported": 0,
+    "pearson_log": null,
+    "rmse_log": 1.2107246134749294,
+    "mae_log": 0.910297946956583,
+    "mae_hours": 5.626665580182529
+  },
+  "B1_peptide_pseudoseq_allele": {
+    "n": 3068,
+    "spearman_pooled": 0.6421917785325179,
+    "spearman_within_allele": 0.5387663515694836,
+    "alleles_supported": 5,
+    "pearson_log": 0.6697973675050041,
+    "rmse_log": 0.8833654675096335,
+    "mae_log": 0.6903683091463817,
+    "mae_hours": 4.491398632701284
+  },
+  "B1prime_peptide_allele_only": {
+    "n": 3068,
+    "spearman_pooled": 0.47521365590908177,
+    "spearman_within_allele": 0.3154386798665942,
+    "alleles_supported": 5,
+    "pearson_log": 0.4939738691758556,
+    "rmse_log": 1.034773565575559,
+    "mae_log": 0.8689444424339224,
+    "mae_hours": 5.461519674474259
+  },
+  "F150_pooled_head": {
+    "n": 3068,
+    "spearman_pooled": 0.4494568712555801,
+    "spearman_within_allele": 0.19431431567261087,
+    "alleles_supported": 5,
+    "pearson_log": 0.40085388482546525,
+    "rmse_log": 1.116568614430777,
+    "mae_log": 0.979438429071919,
+    "mae_hours": 5.801672594145408
+  },
+  "X150_interaction_head": {
+    "n": 3068,
+    "spearman_pooled": 0.6408661636161012,
+    "spearman_within_allele": 0.37979934149051453,
+    "alleles_supported": 5,
+    "pearson_log": 0.6302851513826166,
+    "rmse_log": 0.9688222292092633,
+    "mae_log": 0.8023527659672169,
+    "mae_hours": 5.065615298555772
+  }
+}

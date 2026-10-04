@@ -41,7 +41,7 @@ def _bake_weights():
 
 base = (
     modal.Image.debian_slim(python_version="3.11")
-    .pip_install("torch", "numpy", "pandas", "transformers", "scipy")
+    .pip_install("torch", "numpy", "pandas", "transformers", "scipy", "scikit-learn")
     .run_function(_bake_weights)
 )
 
@@ -106,6 +106,80 @@ def esm_heads_gpu() -> dict:
 
 
 SEEDS = (42, 43, 44)
+
+
+@app.function(gpu="A10G", timeout=7200, image=image)
+def allele_split_gpu() -> dict:
+    """Re-run the ladder against the ALLELE split: every validation allele unseen in training."""
+    import os
+    import subprocess
+    import sys
+
+    import torch
+
+    if not torch.cuda.is_available():
+        raise RuntimeError("no CUDA device in the container; refusing to report a GPU result")
+    out = Path("/tmp/results")
+    out.mkdir(exist_ok=True)
+    env = {**os.environ, "RESULTS_DIR": str(out)}
+    t0 = time.time()
+    r = subprocess.run([sys.executable, "-u", f"{REMOTE}/src/allele_split_run.py"], env=env)
+    f = out / "allele_split_metrics.json"
+    if r.returncode != 0 or not f.exists():
+        raise RuntimeError(f"allele split failed: rc {r.returncode}, "
+                           f"output {'missing' if not f.exists() else 'present'}")
+    return {"seconds": round(time.time() - t0, 1), "gpu": torch.cuda.get_device_name(0),
+            "payload": json.loads(f.read_text(encoding="utf-8"))}
+
+
+@app.local_entrypoint()
+def allele_split():
+    res = allele_split_gpu.remote()
+    dest = REPO / "results" / "allele_split_metrics.json"
+    dest.write_text(json.dumps(res["payload"], indent=2), encoding="utf-8")
+    print(f"gpu {res['gpu']}   remote {res['seconds']}s")
+    print(f"wrote {dest}")
+
+
+@app.function(gpu="A10G", timeout=7200, image=image)
+def curve_gpu() -> dict:
+    """Learning curves for one-hot vs frozen ESM-2, subsampled by peptide cluster."""
+    import os
+    import subprocess
+    import sys
+
+    import torch
+
+    if not torch.cuda.is_available():
+        raise RuntimeError("no CUDA device in the container; refusing to report a GPU result")
+    print(f"learning curve on {torch.cuda.get_device_name(0)}", flush=True)
+    out = Path("/tmp/results")
+    out.mkdir(exist_ok=True)
+    env = {**os.environ, "RESULTS_DIR": str(out)}
+    t0 = time.time()
+    r = subprocess.run([sys.executable, "-u", f"{REMOTE}/src/learning_curve.py"], env=env)
+    f = out / "learning_curve.json"
+    if r.returncode != 0 or not f.exists():
+        raise RuntimeError(f"learning curve failed: rc {r.returncode}, "
+                           f"output {'missing' if not f.exists() else 'present'}")
+    return {"seconds": round(time.time() - t0, 1), "gpu": torch.cuda.get_device_name(0),
+            "payload": json.loads(f.read_text(encoding="utf-8"))}
+
+
+@app.local_entrypoint()
+def curve():
+    res = curve_gpu.remote()
+    dest = REPO / "results" / "learning_curve.json"
+    dest.write_text(json.dumps(res["payload"]), encoding="utf-8")
+    print(f"{'rows':>9}{'B1':>9}{'X150':>9}{'delta':>9}")
+    for k in sorted(res["payload"], key=float):
+        r = res["payload"][k]
+        n = sum(r["n_rows"]) / len(r["n_rows"])
+        print(f"{n:>9,.0f}{r['B1']['pooled']:>9.3f}{r['X150']['pooled']:>9.3f}"
+              f"{r['X150']['pooled'] - r['B1']['pooled']:>+9.3f}")
+    print(f"gpu {res['gpu']}   remote {res['seconds']}s")
+    print(f"wrote {dest}")
+
 
 
 @app.function(gpu="A100", timeout=7200, image=l150_image)

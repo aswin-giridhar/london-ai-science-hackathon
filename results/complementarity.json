@@ -1,0 +1,79 @@
+{
+  "residual_correlation_B1_X150": 0.751229966296337,
+  "combos": {
+    "B1 alone": {
+      "pooled": 0.7802190587503978,
+      "within": 0.632849663354059,
+      "delta_vs_B1": 0.0,
+      "members": [
+        "B1_onehot"
+      ]
+    },
+    "X150 alone": {
+      "pooled": 0.7537633127709604,
+      "within": 0.5583888390775487,
+      "delta_vs_B1": -0.02645574597943734,
+      "members": [
+        "X150_esm_frozen"
+      ]
+    },
+    "B1 + X150": {
+      "pooled": 0.7889913658562986,
+      "within": 0.6394096050383155,
+      "delta_vs_B1": 0.008772307105900823,
+      "members": [
+        "B1_onehot",
+        "X150_esm_frozen"
+      ]
+    },
+    "B1 + F150": {
+      "pooled": 0.7356186272264347,
+      "within": 0.552871134971054,
+      "delta_vs_B1": -0.04460043152396309,
+      "members": [
+        "B1_onehot",
+        "F150_esm_pooled"
+      ]
+    },
+    "B1 + L150": {
+      "pooled": 0.7903268660047272,
+      "within": 0.6475634662289367,
+      "delta_vs_B1": 0.01010780725432947,
+      "members": [
+        "B1_onehot",
+        "L150_esm_lora"
+      ]
+    },
+    "B1 + X150 + L150": {
+      "pooled": 0.790814998342964,
+      "within": 0.6445999317685002,
+      "delta_vs_B1": 0.010595939592566217,
+      "members": [
+        "B1_onehot",
+        "X150_esm_frozen",
+        "L150_esm_lora"
+      ]
+    },
+    "B1 + B1' (control)": {
+      "pooled": 0.7804091865489196,
+      "within": 0.619180188812547,
+      "delta_vs_B1": 0.00019012779852178863,
+      "members": [
+        "B1_onehot",
+        "B1prime_onehot_alleleid"
+      ]
+    }
+  },
+  "ensemble_minus_B1_pooled": {
+    "mean": 0.008866285865454494,
+    "lo": 0.000786722249246824,
+    "hi": 0.01713939753879711,
+    "spans_zero": false
+  },
+  "ensemble_minus_B1_within": {
+    "mean": 0.0069059598386768265,
+    "lo": -0.011374666493486502,
+    "hi": 0.02496774293746909,
+    "spans_zero": true
+  }
+}

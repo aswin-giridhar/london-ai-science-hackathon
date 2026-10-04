@@ -620,6 +620,257 @@ already carries ESM-2's own LayerNorm, so a second one is redundant.
 The headline survives the strongest attack available to it, and "we checked five depths and
 normalised them fairly" is a materially better sentence than "we used the default".
 
+## Run 12 - scale sweep: 80x the parameters, 0.007 of Spearman - 2026-10-04 04:36
+
+`modal_app.py::scale`, A100, 320 s. The identical X150 head on four ESM-2 sizes, same split, same
+seeds, same budget, same selection rule, same LayerNorm on the inputs. Only the encoder changes.
+
+| model | params | hidden | lr chosen | rho pooled | spread | rho within | spread |
+|---|---|---|---|---|---|---|---|
+| ESM-2 8M | 8M | 320 | 3e-4 | 0.764 | 0.007 | 0.572 | 0.015 |
+| ESM-2 35M | 34M | 480 | 1e-3 | 0.769 | 0.029 | 0.579 | 0.035 |
+| ESM-2 150M | 148M | 640 | 3e-4 | **0.771** | 0.024 | **0.585** | 0.033 |
+| ESM-2 650M | 651M | 1280 | 3e-4 | 0.764 | 0.036 | 0.581 | 0.089 |
+| **B1 one-hot** | - | - | - | **0.780** | - | **0.633** | - |
+
+### Scale does not help, and the effect is smaller than the seed
+
+**Range across an 80x parameter increase: 0.007 pooled, against a worst seed spread of 0.036.**
+Changing the encoder from 8M to 650M moves the result five times less than changing the random
+seed does. The published 0.574 that motivated this endpoint used 650M; here 650M is
+indistinguishable from 8M.
+
+**And no size beats B1.** The best ESM-2 rung is 150M at 0.771 / 0.585 against one-hot's
+0.780 / 0.633.
+
+### A tuning failure that was nearly reported as a finding
+
+The first version of this sweep gave every model the same learning rate (1e-3). ESM-2 650M scored
+**0.526 pooled - below the 0.563 no-peptide floor** - with a within-allele seed spread of 0.185,
+four times any other model's. A model cannot do worse than knowing nothing about the peptide unless
+its head failed to converge.
+
+Publishing that as "bigger is worse" would have been a confident, memorable and false claim, and
+the same mistake as Run 11's raw layer columns: reporting preprocessing as science.
+
+The fix had to be fair in both directions. Giving only the large model a smaller learning rate
+would have been tuning one arm and not the others. So **every** model was given both 1e-3 and
+3e-4 and kept its own best, selected on validation like everything else. 650M recovered from 0.526
+to **0.764**, confirming the first result was the optimiser and not the encoder.
+
+### Together with Runs 8 and 11, this closes the question
+
+The three knobs anyone would reach for to make a protein language model work here:
+
+| knob | result | interval or spread |
+|---|---|---|
+| **depth** (Run 11) | range 0.108 across five layers | worst seed spread 0.157 - **within noise** |
+| **scale** (Run 12) | range 0.007 across 80x parameters | worst seed spread 0.036 - **within noise** |
+| **fine-tuning** (Run 8) | +0.003 pooled | CI [-0.012, +0.018] - **spans zero** |
+
+None of them closes the gap to a one-hot MLP. This is no longer one unlucky configuration; it is
+a negative result that survives the obvious attacks on it.
+
+### What Run 12 does NOT establish
+
+- **Two learning rates is not a hyper-parameter search.** A thorough search could move any of
+  these. The defence is that every model got the same budget, so the *comparison* is fair even if
+  no model is at its ceiling.
+- **One architecture family.** ESM-2 only. ESM-C, ProtT5, SaProt and in particular **MINT** - an
+  interaction-aware encoder with cross-chain attention, which is the literature's named fix for
+  precisely the single-chain limitation these results diagnose - are untested. See
+  `../experiments/BIO-DIRECTIONS.md`.
+- **Final layer throughout**, which Run 11 shows is defensible but not optimal-by-search.
+- **650M remains the least stable rung** (within-allele seed spread 0.089, 2-6x the others), so its
+  point estimate deserves the least confidence of the four.
+- Validation rows; the test split is still unread.
+
+## Run 13 - complementarity: is ESM-2 useless, or merely worse? - 2026-10-04 04:44
+
+`python scripts/complementarity.py`, CPU, no new training -- it reuses saved predictions.
+
+"Worse alone" and "carries nothing the baseline lacks" are different claims, and only the second
+justifies saying a foundation model is not useful here. This separates them.
+
+### Do the models make the same mistakes?
+
+Residual = rank(prediction) - rank(truth). Correlation of those residuals:
+
+| | B1 | B1' | X150 | F150 | L150 |
+|---|---|---|---|---|---|
+| **B1** one-hot | 1.000 | 0.817 | **0.751** | 0.578 | 0.747 |
+| **B1'** one-hot + allele id | 0.817 | 1.000 | 0.714 | 0.603 | 0.730 |
+| **X150** ESM-2 frozen | 0.751 | 0.714 | 1.000 | 0.705 | 0.820 |
+| **F150** ESM-2 pooled | 0.578 | 0.603 | 0.705 | 1.000 | 0.703 |
+| **L150** ESM-2 LoRA | 0.747 | 0.730 | 0.820 | 0.703 | 1.000 |
+
+**B1 vs X150: +0.751.** Neither redundant (1.0) nor complementary (0.0). The two make substantially
+overlapping errors, but not identical ones.
+
+### Does combining them beat either alone?
+
+Predictions are z-scored before averaging, since they sit on different scales.
+
+| combination | pooled | within-allele | vs B1 pooled |
+|---|---|---|---|
+| B1 alone | 0.780 | 0.633 | - |
+| X150 alone | 0.754 | 0.558 | -0.026 |
+| **B1 + X150** | **0.789** | 0.639 | **+0.009** |
+| B1 + L150 | 0.790 | 0.648 | +0.010 |
+| B1 + X150 + L150 | **0.791** | 0.645 | +0.011 |
+| B1 + F150 | 0.736 | 0.553 | **-0.045** |
+| B1 + B1' *(control)* | 0.780 | 0.619 | +0.000 |
+
+Paired cluster bootstrap, 2,000 draws, seed 2026:
+
+```
+(B1 + X150) - B1   pooled +0.009 [+0.001, +0.017]   excludes zero
+                   within +0.007 [-0.011, +0.025]   SPANS ZERO
+```
+
+### What this establishes - the most precise statement we can make
+
+**ESM-2 is not redundant. It is nearly worthless.**
+
+- Pooled, it adds **+0.009** on top of one-hot, and the interval **excludes zero** -- a real,
+  measurable, reproducible contribution.
+- Within-allele, which is the clinically relevant metric, it adds **+0.007 with an interval
+  spanning zero** -- nothing detectable.
+
+So the defensible claim is not "foundation models are useless for this problem". It is: *on this
+endpoint, a frozen ESM-2 contributes about one hundredth of a Spearman point on top of a one-hot
+encoding of the same sequences, and nothing measurable on the metric that matters clinically.*
+Against 150M-650M parameters and GPU-hours, that is the cost-benefit answer the brief asks for,
+stated as a number rather than a verdict.
+
+Two supporting details:
+
+**The control behaves.** Averaging B1 with B1' -- which share almost all their features -- gives
+exactly **+0.000**. So the +0.009 is not an artefact of ensembling any two models together.
+
+**F150 actively harms the ensemble** (-0.045). Mean-pooling does not merely discard positional
+information; the resulting predictor injects enough error to drag a better model down. That
+sharpens Run 4: the problem with mean-pooling is not just that it is weak, it is that it is wrong.
+
+### What Run 13 does NOT establish
+
+- **A simple average is not the best possible combination.** A stacked or weighted ensemble,
+  fitted on calibration rows, could extract more. We did not fit one, because doing so on
+  validation would add another selection surface to a protocol that Run 10 already shows is
+  optimistic by ~0.08.
+- **Validation rows only**, with the Run 10 optimism applying to every number above equally.
+
+## Run 14 - learning curve: the data-efficiency defence fails, and runs backwards - 2026-10-04 05:21
+
+`modal_app.py::curve`, A10G. One-hot (B1) and frozen ESM-2 (X150) trained on 5 / 10 / 25 / 50 /
+100% of the training set, three seeds each, **validation always the full split** so every point is
+measured against the same rows.
+
+Subsampling is by **peptide cluster**, never by row. Row subsampling would leave near-duplicates
+of the retained peptides in training and quietly inflate the small-data points -- the same leakage
+the frozen split exists to prevent, reintroduced through the back door.
+
+| train rows | clusters | B1 pooled | X150 pooled | delta | B1 within | X150 within | delta |
+|---|---|---|---|---|---|---|---|
+| 1,131 (5%) | 228 | 0.589 | 0.522 | -0.067 | 0.252 | 0.149 | -0.104 |
+| 2,256 (10%) | 444 | 0.647 | 0.564 | -0.083 | 0.345 | 0.186 | -0.159 |
+| 5,641 (25%) | 1,128 | 0.728 | 0.610 | **-0.118** | 0.513 | 0.273 | **-0.240** |
+| 11,267 (50%) | 2,193 | 0.772 | 0.676 | -0.096 | 0.600 | 0.404 | -0.197 |
+| 22,532 (100%) | 4,330 | 0.790 | 0.771 | **-0.019** | 0.649 | 0.580 | -0.069 |
+
+### The result, and why it is the sharpest answer to the brief's question
+
+**No crossover, at any label budget tested - and the gap runs the wrong way.**
+
+The standard defence of a pretrained encoder is data efficiency: it should win when labels are
+scarce, because pretraining substitutes for supervision. On this endpoint the opposite holds.
+ESM-2 is **relatively worst at 25% of the data** (-0.118 pooled, -0.240 within-allele) and
+**closest at 100%** (-0.019). Scarcity makes the foundation model *more* disadvantaged, not less.
+
+A coherent mechanism: the X150 head has 561k parameters and must learn **how to read** the
+embedding, while one-hot features are directly consumable by a small MLP. Pretraining does not
+help if extracting its signal is itself a learning problem carrying its own sample complexity.
+
+This closes the last easy defence of the negative result. "Use it when you have few labels" is the
+natural rejoinder to "it loses at full data", and it does not hold here.
+
+### A reproducibility caveat worth recording
+
+**B1 reads 0.790 at 100% here, against the canonical 0.780 of Run 2.** Investigated rather than
+ignored: locally the pipeline reproduces Run 2 **exactly** - saved predictions versus a fresh fit
+give a maximum per-row difference of **0.0** and pooled 0.7802 both times. The difference is
+therefore environmental: the Modal image installs scikit-learn from PyPI while the local runs use
+Anaconda's build, and `MLPRegressor` differs between them by about 0.010 Spearman.
+
+Consequences, stated rather than buried:
+
+- **Within this experiment the comparison is sound** - B1 and X150 ran in the same container at
+  every fraction, so the deltas are untouched.
+- **Absolute values should not be mixed across environments.** Run 2's 0.780 and this table's
+  0.790 are the same model measured in two places.
+- A pinned environment is a real gap in this repository and is listed in
+  `../experiments/IMPROVEMENTS.md`.
+
+### What Run 14 does NOT establish
+
+- **Five fractions, one architecture pair.** A different head on the embeddings could have a
+  different sample complexity.
+- **No intervals on the deltas.** The gaps at 10-50% are large relative to the ~0.03 seed spreads
+  seen elsewhere, but no bootstrap was run per fraction.
+- **Below 5% is untested**, and that is where a pretrained encoder would have its best remaining
+  case - 1,131 rows is still a reasonable supervised dataset.
+
+## Run 15 - the allele split: generalising to an HLA never seen in training - 2026-10-04 05:25
+
+`modal_app.py::allele_split`. `splits/allele_split.csv` (sha `2ead421471903adf`), **64 train / 5
+val / 6 test alleles**, 3,068 validation rows. Every validation allele is absent from training -
+asserted in code, not assumed. The frozen peptide split and its sha guard are untouched; this is a
+declared second experiment on a second, pre-existing split file.
+
+This asks the clinically realistic question. The primary split holds out peptides while every
+allele is seen in training; here the model meets an HLA type it has never encountered, which with
+20,000+ known class I alleles is the common case rather than the exotic one.
+
+| rung | peptide split | allele split | change |
+|---|---|---|---|
+| B0b per-allele median | 0.563 | **undefined** | no training median exists for an unseen allele |
+| **B1** one-hot + pseudoseq + allele | 0.780 | **0.642** | -0.138 |
+| **X150** frozen ESM-2 | 0.754 | **0.641** | **-0.113** |
+| **B1'** one-hot + **allele identity** | 0.748 | **0.475** | **-0.273** |
+| F150 ESM-2 mean-pooled | 0.593 | 0.449 | -0.144 |
+
+Within-allele: B1 **0.539**, X150 0.380, B1' 0.315, F150 0.194.
+
+### A structural prediction, made in advance, that held
+
+B1' encodes allele identity as a one-hot over the 75 **training** alleles. For an unseen allele
+every one of those features is zero - it is *structurally incapable* of telling two novel alleles
+apart and must predict the same value for both. The allele block of its validation feature matrix
+sums to exactly **0**, asserted in the run.
+
+It duly falls furthest: **-0.273**, twice the drop of any sequence-based rung. The prediction was
+falsifiable and it survived.
+
+### The gap narrows, but does not flip
+
+Pooled, B1 and X150 are now **0.642 vs 0.641** - a gap of 0.001, down from 0.026 on the peptide
+split. ESM-2 degrades least of all the rungs. That is the first evidence in this project that a
+learned sequence representation buys something a one-hot encoding cannot: the ability to place an
+unfamiliar allele relative to familiar ones.
+
+**But it is not a reversal.** B1 still ties pooled and leads clearly within-allele, **0.539 vs
+0.380**. The useful conclusion is directional, not yet earned: the case for embeddings is
+strongest exactly where one-hot is structurally blind, and that is where a follow-up should look.
+
+### What Run 15 does NOT establish
+
+- **Five validation alleles.** Within-allele is a mean over five groups; the pooled figure rests on
+  3,068 rows from five HLA types. This is the smallest evidence base of any run here.
+- **No confidence intervals.** The 0.001 pooled gap is far inside any plausible interval; treat B1
+  and X150 as tied, not as B1 marginally ahead.
+- **No L150 or scale sweep on this split.** Only the frozen rungs were re-run.
+- The test split (6 alleles) remains unread.
+
 ## Files
 
 | File | What |
@@ -643,6 +894,9 @@ normalised them fairly" is a materially better sentence than "we used the defaul
 | `shuffle_control.json` | Negative control, three label conditions |
 | `layer_sweep.json` | Five ESM-2 depths, raw and LayerNormed |
 | `scale_sweep.json` | ESM-2 8M to 650M with the identical head |
+| `complementarity.json` | Residual correlations, ensemble combinations, and the (B1+X150) - B1 interval |
+| `learning_curve.json` | One-hot vs frozen ESM-2 at 5/10/25/50/100% of training clusters |
+| `allele_split_metrics.json` | The ladder re-run against the allele split (every val allele unseen) |
 
 ## How to reproduce
 
@@ -659,6 +913,9 @@ normalised them fairly" is a materially better sentence than "we used the defaul
 | 10 | `python src/shuffle_control.py` |
 | 11 | `python -m modal run modal_app.py::layers` |
 | 12 | `python -m modal run modal_app.py::scale` |
+| 13 | `python scripts/complementarity.py` |
+| 14 | `python -m modal run modal_app.py::curve` |
+| 15 | `python -m modal run modal_app.py::allele_split` |
 
 `src/features.py` asserts the frozen split's sha256 before reading any label, so a run against a
 changed split fails immediately rather than reporting a number against different data.

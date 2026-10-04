@@ -41,13 +41,41 @@ cross-attention is worth **+0.161 pooled and +0.280 within-allele**, against see
 and 0.039. Mean-pooling a 9-mer averages away position, and position is where the P2/P9 anchor
 residues live.
 
-**3. No ESM-2 rung beats one-hot encoding, and fine-tuning does not change that.** X150 and B1'
-are statistically indistinguishable (pooled difference -0.005, interval [-0.026, +0.014] - a
-*bounded* null, ruling out any PLM advantage above ~0.026). LoRA adaptation adds +0.003 pooled,
-interval [-0.012, +0.018], also spanning zero. And B1 beats the adapted model outright:
-**+0.023 [+0.007, +0.039] pooled and +0.060 [+0.027, +0.094] within-allele**, both excluding zero.
+**3. No ESM-2 configuration beats one-hot, and none of the three obvious fixes changes that.**
+X150 and B1' are statistically indistinguishable (pooled difference -0.005, interval
+[-0.026, +0.014] - a *bounded* null, ruling out any PLM advantage above ~0.026). B1 beats the
+LoRA-adapted model outright: **+0.023 [+0.007, +0.039] pooled, +0.060 [+0.027, +0.094]
+within-allele**, both excluding zero. And each knob one would reach for lands inside noise:
 
-**4. We also know why.** Ablating each peptide position in the trained model gives a sharply peaked
+| knob tried | result | against |
+|---|---|---|
+| **fine-tuning** - LoRA r=8 on K/V, 614,400 params | +0.003 pooled | CI [-0.012, +0.018], **spans zero** |
+| **depth** - five ESM-2 layers, fairly normalised | 0.108 range | worst seed spread 0.157, **within noise** |
+| **scale** - ESM-2 8M to 650M, 80x parameters | **0.007 range** | worst seed spread 0.036, **within noise** |
+
+**4. It is not redundant - it is nearly worthless, which is a number not a verdict.** Residual
+correlation between B1 and X150 is +0.751, so the two do not make identical errors. Ensembling
+them gives **+0.009 pooled, interval [+0.001, +0.017]** - real and reproducible - and **+0.007
+within-allele with an interval spanning zero**. So a frozen ESM-2 contributes about one hundredth
+of a Spearman point on top of a one-hot encoding of the same sequences, and nothing measurable on
+the metric that matters clinically. A control confirms the method: averaging B1 with B1', which
+share almost all their features, adds exactly +0.000.
+
+**5. The data-efficiency defence fails, and runs backwards.** A pretrained encoder is supposed to
+win when labels are scarce. Trained on 5 / 10 / 25 / 50 / 100% of the training clusters, one-hot
+leads at **every** budget, and the gap is **widest at 25%** (-0.118 pooled, -0.240 within-allele)
+and narrowest at 100% (-0.019). Scarcity makes the foundation model more disadvantaged, not less -
+plausibly because the interaction head must learn how to *read* the embedding, which carries its
+own sample complexity.
+
+**6. Where one-hot is structurally blind, the gap closes.** On a second split holding out whole
+**alleles** (64 train / 5 val / 6 test), B1' - which encodes allele identity as a one-hot over
+training alleles and therefore cannot represent an unseen one at all - falls furthest, **-0.273**.
+B1 and X150 converge to **0.642 vs 0.641** pooled, from a 0.026 gap on the peptide split. That is
+the first evidence here that a learned sequence representation buys something one-hot cannot,
+though B1 still leads within-allele (0.539 vs 0.380), so it is a direction rather than a reversal.
+
+**7. We also know why the embeddings underperform.** Ablating each peptide position in the trained model gives a sharply peaked
 profile - P9 > P2 > P1 > P3, with P4-P8 contributing nothing - which is the textbook
 B-pocket/F-pocket anchor picture recovered from data alone, and it holds in every seed
 independently. ESM-2's own masked-position likelihood profile over the same peptides is **flat**,
