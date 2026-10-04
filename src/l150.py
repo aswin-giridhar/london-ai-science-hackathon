@@ -201,7 +201,7 @@ def main():
     print(f"token tensors: peptides {tuple(PEP_IDS.shape)}, hla {tuple(HLA_IDS.shape)}")
 
     split = {}
-    for name in ("train", "val"):
+    for name in ("train", "val", "test"):
         sub = m[m.split == name].reset_index(drop=True)
         split[name] = {
             "pi": torch.tensor(sub.peptide.map(pep_ix).to_numpy(), device=device),
@@ -245,7 +245,7 @@ def main():
                          HLA_IDS[uniq], HLA_MASK[uniq], back)
 
         n = len(split["train"]["y"])
-        best = {"rho": -np.inf, "epoch": -1, "pred": None}
+        best = {"rho": -np.inf, "epoch": -1, "pred": None, "state": None}
         stale = 0
         for epoch in range(MAX_EPOCHS):
             model.train()
@@ -281,12 +281,31 @@ def main():
                     print("  [projection] WARNING: that exceeds the container timeout. "
                           "Expect this to be cut short.", flush=True)
             if rho is not None and rho > best["rho"] + 1e-5:
-                best = {"rho": rho, "epoch": epoch, "pred": pv}
+                # Keep the weights, not a test prediction. Test is scored ONCE after
+                # training, from the val-selected checkpoint, so nothing about the test split
+                # can reach the selection decision even by accident.
+                best = {"rho": rho, "epoch": epoch, "pred": pv,
+                        "state": {k: v.detach().clone() for k, v in model.state_dict().items()}}
                 stale = 0
             else:
                 stale += 1
                 if stale >= PATIENCE:
                     break
+
+        # --- score TEST from the validation-selected checkpoint
+        te = split["test"]
+        y_te = te["y"].cpu().numpy()
+        model.load_state_dict(best["state"])
+        model.eval()
+        with torch.no_grad(), torch.autocast("cuda", dtype=scaler_dtype):
+            tp = []
+            for i in range(0, len(y_te), EVAL_BATCH):
+                idx = torch.arange(i, min(i + EVAL_BATCH, len(y_te)), device=device)
+                tp.append(run_batch(te, idx).float())
+            test_pred = torch.cat(tp).cpu().numpy()
+        test_res = metrics.evaluate(y_te, test_pred, te["allele"])
+        print(f"  seed {seed} TEST pooled {test_res['spearman_pooled']:.3f} "
+              f"within {test_res['spearman_within_allele']}", flush=True)
 
         res = metrics.evaluate(y_val, best["pred"], va["allele"])
         print(f"  seed {seed} best epoch {best['epoch']}, "
@@ -306,6 +325,11 @@ def main():
         "patience": PATIENCE,
         "metrics": res,
         "prediction": best["pred"].tolist(),
+        "test_prediction": test_pred.tolist(),
+        "test_metrics": test_res,
+        "test_y_true_log": y_te.tolist(),
+        "test_allele": te["allele"].tolist(),
+        "test_peptide": te["meta"].peptide.tolist(),
         "y_true_log": y_val.tolist(),
         "allele": va["allele"].tolist(),
         "peptide": va["meta"].peptide.tolist(),

@@ -41,7 +41,10 @@ def _bake_weights():
 
 base = (
     modal.Image.debian_slim(python_version="3.11")
-    .pip_install("torch", "numpy", "pandas", "transformers", "scipy", "scikit-learn")
+    .pip_install("torch", "numpy", "pandas", "transformers", "scipy", "scikit-learn",
+                 # ProtT5 and ProtBERT tokenizers need these; without them
+                 # AutoTokenizer.from_pretrained raises rather than falling back
+                 "sentencepiece", "protobuf")
     .run_function(_bake_weights)
 )
 
@@ -109,6 +112,81 @@ def esm_heads_gpu() -> dict:
 
 
 SEEDS = (42, 43, 44)
+
+
+@app.function(gpu="A100", timeout=7200, image=image)
+def families_gpu() -> dict:
+    """ProtBERT and ProtT5 with the identical X150 head: is the negative about ESM-2 or PLMs?"""
+    import os
+    import subprocess
+    import sys
+
+    import torch
+
+    if not torch.cuda.is_available():
+        raise RuntimeError("no CUDA device in the container; refusing to report a GPU result")
+    out = Path("/tmp/results")
+    out.mkdir(exist_ok=True)
+    env = {**os.environ, "RESULTS_DIR": str(out)}
+    t0 = time.time()
+    r = subprocess.run([sys.executable, "-u", f"{REMOTE}/src/family_sweep.py"], env=env)
+    f = out / "family_sweep.json"
+    if r.returncode != 0 or not f.exists():
+        raise RuntimeError(f"family sweep failed: rc {r.returncode}, "
+                           f"output {'missing' if not f.exists() else 'present'}")
+    return {"seconds": round(time.time() - t0, 1), "gpu": torch.cuda.get_device_name(0),
+            "payload": json.loads(f.read_text(encoding="utf-8"))}
+
+
+@app.local_entrypoint()
+def families():
+    res = families_gpu.remote()
+    dest = REPO / "results" / "family_sweep.json"
+    dest.write_text(json.dumps(res["payload"], indent=2), encoding="utf-8")
+    for k, v in res["payload"]["results"].items():
+        print(f"{k:<20}{v['spearman_pooled']:>9.3f}{(v['spearman_within_allele'] or 0):>9.3f}")
+    b = res["payload"]["b1_reference"]
+    print(f"{'B1 one-hot':<20}{b['pooled']:>9.3f}{b['within']:>9.3f}")
+    print(f"gpu {res['gpu']}   remote {res['seconds']}s")
+    print(f"wrote {dest}")
+
+
+
+@app.function(gpu="A100", timeout=7200, image=image)
+def condlik_gpu() -> dict:
+    """Peptide pseudo-log-likelihood alone, in the groove, and the difference."""
+    import os
+    import subprocess
+    import sys
+
+    import torch
+
+    if not torch.cuda.is_available():
+        raise RuntimeError("no CUDA device in the container; refusing to report a GPU result")
+    out = Path("/tmp/results")
+    out.mkdir(exist_ok=True)
+    env = {**os.environ, "RESULTS_DIR": str(out)}
+    t0 = time.time()
+    r = subprocess.run([sys.executable, "-u", f"{REMOTE}/src/conditioned_likelihood.py"], env=env)
+    f = out / "conditioned_likelihood.json"
+    if r.returncode != 0 or not f.exists():
+        raise RuntimeError(f"conditioned likelihood failed: rc {r.returncode}, "
+                           f"output {'missing' if not f.exists() else 'present'}")
+    return {"seconds": round(time.time() - t0, 1), "gpu": torch.cuda.get_device_name(0),
+            "payload": json.loads(f.read_text(encoding="utf-8"))}
+
+
+@app.local_entrypoint()
+def condlik():
+    res = condlik_gpu.remote()
+    dest = REPO / "results" / "conditioned_likelihood.json"
+    dest.write_text(json.dumps(res["payload"], indent=2), encoding="utf-8")
+    for k, v in res["payload"]["scores"].items():
+        if isinstance(v, dict):
+            print(f"{k:<34}{v['pooled']:>9.3f}")
+    print(f"gpu {res['gpu']}   remote {res['seconds']}s")
+    print(f"wrote {dest}")
+
 
 
 @app.function(gpu="A10G", timeout=7200, image=image)
@@ -547,6 +625,27 @@ def l150():
         "L150_lora_kv": ens.tolist(),
         **{f"L150_seed_{r['seed']}": r["payload"]["prediction"] for r in runs},
     }), encoding="utf-8")
+
+    # --- TEST, scored from each seed's validation-selected checkpoint
+    if "test_prediction" in first:
+        y_te = np.array(first["test_y_true_log"])
+        allele_te = np.array(first["test_allele"])
+        te_per_seed = [metrics.evaluate(y_te, np.array(r["payload"]["test_prediction"]), allele_te)
+                       for r in runs]
+        te_ens = np.mean([r["payload"]["test_prediction"] for r in runs], axis=0)
+        te_out = metrics.evaluate(y_te, te_ens, allele_te)
+        for k in ("spearman_pooled", "spearman_within_allele"):
+            vals = [p[k] for p in te_per_seed if p[k] is not None]
+            te_out[f"{k}_per_seed"] = [round(v, 4) for v in vals]
+            te_out[f"{k}_seed_spread"] = round(max(vals) - min(vals), 4) if vals else None
+        print("\nTEST (from the validation-selected checkpoint of each seed)")
+        print(metrics.fmt("L150_lora_kv", te_out))
+        (REPO / "results" / "l150_test_metrics.json").write_text(json.dumps({
+            "L150_lora_kv": te_out, "prediction": te_ens.tolist(),
+            "y_true_log": first["test_y_true_log"], "allele": first["test_allele"],
+            "peptide": first["test_peptide"],
+        }, indent=2, default=float), encoding="utf-8")
+        print("wrote     l150_test_metrics.json")
     print(f"\ngpu       {runs[0]['gpu']}")
     print(f"wall      {time.time() - t0:.0f}s for {len(runs)} seeds in parallel")
     print("wrote     l150_val_metrics.json, l150_val_predictions.json")

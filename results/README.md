@@ -1571,6 +1571,115 @@ stale, and every result here would be suspect.
 
 **All four P0 defects are now closed.**
 
+## Run 25 - peptide likelihood IN the groove: the last gap in section 4 - 2026-10-04 10:06
+
+`modal_app.py::condlik`, A100, 127 s. 2,817 validation rows, no training anywhere.
+
+`ARCHITECTURE.md` section 4 asked for *"the peptide scored in HLA context, and
+context-minus-no-context to isolate what the groove explains."* Run 5 did the unconditioned half.
+This is the other half, and it completes the route.
+
+Three scores per row: mask each of the 9 peptide positions and sum the log-probability of the
+true residue, (a) in the peptide alone, (b) in the 191-residue peptide++HLA concatenation, and
+(c) the difference.
+
+| score | pooled | within-allele | mean (nats) |
+|---|---|---|---|
+| PLL alone *(reproduces Run 5 exactly)* | **0.002** | -0.006 | -27.58 |
+| PLL **in HLA context** | **0.001** | -0.013 | -28.46 |
+| **delta = context - alone** | **0.004** | -0.004 | -0.88 |
+
+For scale on the same rows: B0b 0.563 · X150 0.754 · B1 0.780.
+
+### The informative part is not that it is null
+
+All three are zero to three decimals. But the rank correlation between the alone and in-context
+scores is **0.669**, not 0.95 - so adding the groove **substantially reorders** which peptides
+ESM-2 finds likely. Something real happened; it simply has no relationship to stability.
+
+That is a sharper statement than "nothing changed". The model's beliefs about the peptide do move
+when the groove is present, and the movement is noise with respect to this endpoint.
+
+The mean shift is **-0.88 nats**: the groove makes peptides *less* likely, which is what one
+would expect from a junction no real protein contains.
+
+### What Run 25 does NOT establish
+
+- **ESM-2 has no chain-break token**, so the concatenation is read as one continuous protein.
+  A null here cannot separate *"the groove explains nothing about stability"* from *"ESM-2 cannot
+  condition on a chain it does not know is separate"*. The repository README has carried this
+  caution since before the experiment, and Run 21 found the same limitation costs -0.017 downstream.
+- A genuine conditional test needs a model that accepts two chains - which is MINT's design.
+- Validation rows only.
+
+**With this, all six routes in section 4 have been exercised.** The conditioned-likelihood gap
+was the last one, and it is now closed with a measurement rather than left as a plan item.
+
+## Run 26 - honest per-prediction intervals: split-conformal calibration - 2026-10-04 10:08
+
+`python src/conformal.py`, 197 s CPU.
+
+`ARCHITECTURE.md` section 2: *"Separate calibration rows (carved from train, never val) are
+required before any per-prediction interval is shown. Metric confidence intervals are not
+prediction intervals."* Run 20 reported B1's calibration slope of 0.978, which is a property of
+the whole set and says nothing about any single prediction.
+
+### The design decision that makes it valid
+
+Calibration rows are carved as **whole peptide clusters** out of train - 15% of clusters, 3,412
+rows - leaving 19,120 rows to fit on. Asserted cluster-disjoint and peptide-disjoint from the fit
+set.
+
+Had calibration rows been drawn **at random** from train, they would share clusters with the rows
+the model trained on, so their residuals would measure difficulty on *already-seen* clusters while
+validation and test rows all come from unseen ones. The intervals would come out systematically
+too narrow and the coverage guarantee would be void - silently, because nothing errors and
+coverage simply falls short.
+
+Refit on 85% of train clusters: val pooled **0.784** / within **0.634** (full-train B1 is
+0.780 / 0.633 - the calibration set costs essentially nothing here).
+
+### Marginal coverage holds
+
+| target | q (log scale) | val coverage | **test coverage** | median width (hours) |
+|---|---|---|---|---|
+| 80% | 0.773 | 79.2% | **80.2%** | 4.22 |
+| 90% | 1.103 | 89.9% | **90.5%** | 6.63 |
+| 95% | 1.422 | 95.3% | **95.4%** | 9.65 |
+
+Within half a percentage point at every level, on data the model has never seen. The quantile
+uses the finite-sample correction `ceil((n+1)(1-alpha))/n`, not the naive empirical quantile.
+
+### Conditional coverage does not, and that is the useful finding
+
+At a 90% marginal target, per-allele coverage on test across 68 alleles:
+
+**median 92.6%, range 68.8% to 100%, with 7 of 68 alleles below 80%.**
+
+| worst five | n | coverage | median half-life |
+|---|---|---|---|
+| HLA-A*01:01 | 32 | **68.8%** | 1.16 h |
+| HLA-A*24:03 | 50 | 70.0% | 4.80 h |
+| HLA-A*23:01 | 35 | 77.1% | 12.50 h |
+| HLA-A*26:02 | 36 | 77.8% | 0.80 h |
+| HLA-A*30:02 | 33 | 78.8% | 0.70 h |
+
+Conformal guarantees coverage **averaged over all rows**, and it delivers exactly that. It
+guarantees nothing within a subgroup. An interval advertised as 90% gives HLA-A*01:01 patients
+**68.8%**, and a clinician reading only the marginal number would be misled.
+
+Reporting both is the difference between a usable uncertainty estimate and a reassuring one.
+
+### What Run 26 does NOT establish
+
+- **Conditional coverage is not fixed, only measured.** Mondrian or allele-conditional conformal
+  would restore per-allele guarantees at the cost of needing enough calibration rows per allele;
+  with 7 alleles under 100 training rows, some would have too few.
+- **The intervals are constant-width on the log scale**, so they are wide in hours exactly where
+  the prediction is large. A locally-weighted conformal score would adapt; it was not tried.
+- **One model.** Intervals were calibrated for B1 only.
+- The refit model is not the reported B1: it saw 85% of the training clusters.
+
 ## Files
 
 | File | What |
@@ -1605,6 +1714,8 @@ stale, and every result here would be suspect.
 | `TEST_READ.json` | Guard: records that the test split was read, and when |
 | `peptide_encoding.json` | One-hot vs BLOSUM62 vs BLOSUM-PCA5 on both chains |
 | `split_verification.json` | The frozen split re-checked: boundary probe, neighbours, partition, hash |
+| `conditioned_likelihood.json` | Peptide PLL alone, in the groove, and the difference |
+| `conformal.json` | Split-conformal intervals, marginal and per-allele coverage |
 | `complementarity.json` | Residual correlations, ensemble combinations, and the (B1+X150) - B1 interval |
 | `learning_curve.json` | One-hot vs frozen ESM-2 at 5/10/25/50/100% of training clusters |
 | `allele_split_metrics.json` | The ladder re-run against the allele split (every val allele unseen) |
@@ -1636,6 +1747,8 @@ stale, and every result here would be suspect.
 | 22 | `python -m modal run modal_app.py::test_eval` — **one read only** |
 | 23 | `python src/peptide_encoding.py` |
 | 24 | `python scripts/measure_leakage_by_distance.py` and `python scripts/verify_split.py` |
+| 25 | `python -m modal run modal_app.py::condlik` |
+| 26 | `python src/conformal.py` |
 | audit | `python scripts/audit_results.py` - re-checks every number here against its source |
 
 `src/features.py` asserts the frozen split's sha256 before reading any label, so a run against a

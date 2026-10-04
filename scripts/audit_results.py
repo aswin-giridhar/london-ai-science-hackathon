@@ -213,6 +213,25 @@ CLAIMS = [
     ("one-hot pep + BLOSUM HLA", "peptide_encoding.json",
      "one-hot pep + BLOSUM HLA.pooled", 0.753),
     ("pca5 variance retained", "peptide_encoding.json", "pca5_variance_retained", 0.81),
+
+    # --- Run 25 conditioned likelihood
+    ("PLL alone pooled", "conditioned_likelihood.json",
+     ["scores", "PLL_alone (Run 5, reproduced)", "pooled"], 0.002),
+    ("PLL in context pooled", "conditioned_likelihood.json",
+     ["scores", "PLL_in_HLA_context", "pooled"], 0.001),
+    ("PLL delta pooled", "conditioned_likelihood.json",
+     ["scores", "delta = context - alone", "pooled"], 0.004),
+    ("alone vs context rank corr", "conditioned_likelihood.json",
+     ["scores", "rank_corr_alone_vs_context"], 0.669),
+    ("mean shift nats", "conditioned_likelihood.json", ["scores", "mean_shift_nats"], -0.88),
+
+    # --- Run 26 conformal
+    ("conformal n_cal", "conformal.json", "n_cal", 3412),
+    ("conformal refit val pooled", "conformal.json", "val_pooled_refit", 0.784),
+    ("coverage 90 test", "conformal.json", ["alphas", "0.1", "test_coverage"], 0.905),
+    ("coverage 95 test", "conformal.json", ["alphas", "0.05", "test_coverage"], 0.954),
+    ("coverage 80 test", "conformal.json", ["alphas", "0.2", "test_coverage"], 0.802),
+    ("width 90 hours", "conformal.json", ["alphas", "0.1", "test_median_width_hours"], 6.63),
 ]
 
 
