@@ -1889,6 +1889,74 @@ forward pass to remove entirely, rather than a paragraph of hedging.
 - The alpha-3 sequence is the HLA-A*02:01 consensus, used as a constant for every allele; it is a
   length control, not a per-allele reconstruction.
 
+## Run 30 - MINT behind our head: the cross-study inference, replaced by a measurement - 2026-10-04 12:16
+
+`modal_app.py::minthead`, A100, 665 s (641 s of it encoding 25,349 pairs). Validation only.
+
+### The claim this was built to test
+
+`FINDINGS.md` section 4 argued: *"the interaction has to be modelled by something trained to
+model it; self-attention handed the opportunity does not discover an interface."* The evidence
+was Run 21 (ESM-2 allowed to attend across both chains: -0.017, within noise) set beside
+SPEARMINT's reported +0.158 for MINT's cross-chain pretraining. **That is an inference across two
+studies with different splits**, and it was the weakest load-bearing claim in the document.
+
+MINT's representation, behind our head, on our split, tests it directly. Everything is held fixed
+from Run 12 and Run 27 - split, three seeds, two-learning-rate choice, early-stopping budget,
+normalisation - and only the encoder changes.
+
+### The representation, and why the extraction is checkable
+
+Rather than guess module names, the projection head's first Linear is located by **shape
+signature** (`in_features == 1280`, `out_features == 512`) and the match asserted unique; a
+forward hook captures its *input*, which is the mean-pooled joint pMHC representation the model
+uses for its own prediction. A wrong architecture fails the assertion instead of silently
+returning the wrong tensor.
+
+### Result
+
+| rung | encoder | pooled | within-allele |
+|---|---|---|---|
+| F150 | ESM-2 150M, **mean-pooled** | 0.593 | 0.278 |
+| **MINT Stage-1** | **814M cross-chain, mean-pooled** | **0.749** | **0.528** |
+| X150 | ESM-2 150M, residue cross-attention | 0.754 | 0.558 |
+| **B1** | **one-hot + pseudosequence + allele** | **0.780** | **0.633** |
+
+Per-seed pooled [0.746, 0.736, 0.740], spread 0.010. lr 3e-4.
+
+### Three things it establishes
+
+**1. Cross-chain pretraining is worth a great deal.** Against F150 - ESM-2, *also* mean-pooled,
+the architecturally matched comparator - MINT gains **+0.156 pooled and +0.250 within-allele**.
+That is the second-largest effect measured anywhere in this project.
+
+**2. It buys the same thing our head buys, and no more.** The cross-attention head on frozen
+ESM-2 was worth **+0.161 pooled, +0.276 within-allele** (Run 4). MINT's interaction pretraining is
+worth **+0.156 / +0.250**. Two entirely unrelated routes to modelling the interaction - 96M real
+protein-protein interactions, or 561,793 trainable parameters - agree to within 0.005 pooled. And
+MINT-pooled (0.749) lands on X150 (0.754), -0.005, well inside seed spread.
+
+**Section 4's claim is now measured rather than inferred.** The interaction has to be modelled by
+something trained to model it. MINT was trained to, and arrives. Our head was trained to, and
+arrives at the same place. ESM-2 merely *permitted* to attend across chains (Run 21) does not move.
+
+**3. The ceiling is real and one-hot is above it.** Two independent routes converge at ~0.75 while
+one-hot sits at 0.780 pooled and 0.633 within-allele. MINT loses by **-0.031 pooled and -0.105
+within-allele** despite 814M parameters, cross-chain pretraining on 96M interactions, and
+supervised fine-tuning on 126K affinity measurements.
+
+### What Run 30 does NOT establish
+
+- **Mean-pooled only.** MINT's *per-residue* states behind a residue cross-attention head were not
+  tried; that is the configuration that might exceed 0.75, and it is the obvious next experiment.
+- **Frozen.** No fine-tuning of MINT, and no LoRA.
+- **The +0.156 is not purely pretraining.** MINT Stage-1 is also supervised on 126K affinity
+  measurements, so interaction pretraining and affinity supervision are confounded in this number.
+  Separating them needs base MINT, which is not published on the Hub.
+- **Peptide overlap unverified**, as in Run 29: NetMHCpan 4.1 affinity data likely shares peptides
+  with our split. The labels it saw were affinities, never half-lives.
+- Validation rows only. Revision pinned to `8bf8e51906cf63336706d6cfc4f85e95a8109c86`.
+
 ## Files
 
 | File | What |
@@ -1928,6 +1996,7 @@ forward pass to remove entirely, rather than a paragraph of hedging.
 | `family_sweep.json` | ProtBERT and ProtT5 through the X150 head |
 | `l150_test_metrics.json` | L150's seed ensemble on the test split |
 | `mint_affinity.json` | MINT Stage-1 affinity, zero-shot, two MHC lengths |
+| `mint_head.json` | MINT's joint representation behind the X150-budget head |
 | `complementarity.json` | Residual correlations, ensemble combinations, and the (B1+X150) - B1 interval |
 | `learning_curve.json` | One-hot vs frozen ESM-2 at 5/10/25/50/100% of training clusters |
 | `allele_split_metrics.json` | The ladder re-run against the allele split (every val allele unseen) |
@@ -1964,6 +2033,7 @@ forward pass to remove entirely, rather than a paragraph of hedging.
 | 27 | `python -m modal run modal_app.py::families` |
 | 28 | `python -m modal run modal_app.py::l150` |
 | 29 | `python -m modal run modal_app.py::mint` |
+| 30 | `python -m modal run modal_app.py::minthead` |
 | audit | `python scripts/audit_results.py` - re-checks every number here against its source |
 
 `src/features.py` asserts the frozen split's sha256 before reading any label, so a run against a

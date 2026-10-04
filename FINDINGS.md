@@ -5,9 +5,9 @@ and how much signal is still on the table.**
 
 Serova Protein Engineering Track · London AI × Science Hackathon · 3–4 October 2026
 
-Every number below is reproducible from `results/README.md`, which logs 29 runs with the
+Every number below is reproducible from `results/README.md`, which logs 30 runs with the
 command that produced each one. `scripts/audit_results.py` re-checks every figure quoted anywhere
-in this repository against the file that produced it; it currently passes **121/121**.
+in this repository against the file that produced it; it currently passes **125/125**.
 
 ---
 
@@ -23,6 +23,7 @@ in this repository against the file that produced it; it currently passes **121/
 | The data-efficiency defence fails, and runs **backwards** | Run 14 |
 | We know **why**: ESM-2's salience is orthogonal to the endpoint | Runs 5, 19, 25 |
 | A **published** pMHC model, zero-shot, scores 0.421 within-allele and *below the floor* pooled | Run 29 |
+| Cross-chain **pretraining** and our **head** buy the same +0.16, and both stop below one-hot | Run 30 |
 | Roughly **0.19 of Spearman is still available** | Run 16 |
 
 The useful claim is not "foundation models don't work". It is **"a frozen single-chain protein
@@ -142,13 +143,23 @@ reaches 0.754. The head is worth **+0.161 pooled, +0.276 within-allele**, both f
 the largest effect measured anywhere in this project, and larger than the choice to use a
 foundation model at all.
 
-**And it is the modelling, not the encoder, that matters.** SPEARMINT attributes **+0.158** to
-MINT's cross-chain *pretraining* (650M parameters, 96M protein–protein interactions). Our
-cross-attention *head* — 561,793 parameters on unmodified ESM-2 150M — is worth **+0.161**. The
-deltas agree to 0.003. Meanwhile, simply letting ESM-2 attend across both chains without such
-pretraining changes nothing (−0.017, within noise). **The interaction has to be modelled by
+**And it is the modelling, not the encoder, that matters — now measured on our own split.**
+Run 30 put MINT's representation behind our head: 814M parameters, cross-chain attention
+pretrained on 96M protein–protein interactions. Against F150, which is ESM-2 *also* mean-pooled
+and so the architecturally matched comparator, MINT gains **+0.156 pooled and +0.250
+within-allele**. Our cross-attention *head* — 561,793 parameters on unmodified ESM-2 150M — is
+worth **+0.161 and +0.276**.
+
+**Two unrelated routes to the interaction agree to within 0.005.** Ninety-six million real
+protein pairs, or half a million trainable parameters, buy the same thing; MINT-pooled lands at
+0.749 and X150 at 0.754. Meanwhile ESM-2 merely *permitted* to attend across both chains, without
+such pretraining, moves nothing (−0.017, within noise). **The interaction has to be modelled by
 something trained to model it; self-attention handed the opportunity does not discover an
-interface.**
+interface.** This was previously an inference across two studies with different splits; it is now
+a measurement on ours.
+
+**And both routes stop below the baseline.** They converge at ≈0.75 while one-hot sits at 0.780
+pooled and 0.633 within-allele.
 
 ---
 
@@ -246,9 +257,14 @@ structures are right, and their variation still carries no stability information
 | best single ESM-2 | 0.764 — *still below* | A100 | $6.70 |
 | one-hot + ESM-2 ensemble | 0.789 / 0.639 | A10 | $0.11 for **+0.009** |
 
-**L150 is the sharpest illustration: $6.59 and 11,307 A100-seconds to land 0.023 pooled *below* the
-free baseline.** Whole project: **4.0 GPU-hours, $7.88** — and **84% of the GPU bill went to the
-one rung whose result landed inside seed noise.**
+**L150 is the sharpest illustration.** It was trained twice: $6.59 and 11,307 A100-seconds the
+first time, then $6.69 and 11,479 more to score it on test (Run 28). **$13.28 and 6.3 GPU-hours
+on the one model that lands 0.023 pooled below the free baseline on validation and 0.048
+below it on test.**
+
+Whole project: **7.5 GPU-hours, $15.26** — against a one-hot baseline that costs 127 CPU-seconds
+on a laptop and beats everything. **88% of the GPU bill went to rungs whose results land inside
+seed noise or below the baseline.**
 
 Where the ESM models *do* win is worth stating: on **median** absolute error (L150 0.87 h vs B1
 0.99 h) and on unstable complexes below 2 h (0.78 vs 0.95 h). B1 leads on the 141 stable rows above

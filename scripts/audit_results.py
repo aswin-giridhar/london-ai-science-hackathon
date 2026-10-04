@@ -267,6 +267,13 @@ CLAIMS = [
      ["results", "groove_plus_alpha3", "spearman_within_allele"], 0.421),
     ("MINT truncation delta", "mint_affinity.json", "truncation_delta_pooled", 0.0012),
     ("MINT params", "mint_affinity.json", "params_millions", 814.0),
+
+    # --- Run 30 MINT representation behind our head
+    ("MINT head pooled", "mint_head.json", ["result", "spearman_pooled"], 0.749),
+    ("MINT head within", "mint_head.json", ["result", "spearman_within_allele"], 0.528),
+    ("MINT head seed spread", "mint_head.json",
+     ["result", "spearman_pooled_seed_spread"], 0.0104),
+    ("MINT head encode s", "mint_head.json", ["result", "encode_seconds"], 640.9),
 ]
 
 
