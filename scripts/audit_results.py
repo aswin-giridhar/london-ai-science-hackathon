@@ -293,6 +293,21 @@ PROSE = [
     ("README.md", "| **B1 one-hot peptide + HLA pseudosequence + allele** | **0.780 [0.756, 0.802]** | **0.633 [0.588, 0.654]** |"),
     ("README.md", "| L150 **LoRA-adapted** ESM-2 150M, same head | 0.757 [0.732, 0.780] | 0.572 [0.524, 0.599] |"),
     ("ARCHITECTURE.md", "| B1 one-hot + pseudoseq + allele | **0.780 [0.756, 0.802]** | **0.633 [0.588, 0.654]** |"),
+
+    # The LaTeX report quotes the same figures in a fourth place, and it SAYS it is
+    # covered by this audit -- so it had better be. It is also the newest file here,
+    # which is exactly where a guard goes missing: README.md drifted to "Eight logged
+    # runs" while FINDINGS.md was guarded.
+    ("latex_report/main.tex", '\\textbf{B1 one-hot + pseudosequence + allele} & \\textbf{0.780'),
+    ("latex_report/main.tex", 'MINT Stage-1, 814M, mean-pooled & 0.749'),
+    ("latex_report/main.tex", 'MINT cross-chain pretraining & 96M protein--protein interactions & $+0.156$ & $+0.250$'),
+    ("latex_report/main.tex", 'Cross-attention head on frozen ESM-2 & $561{,}793$ trainable parameters & $+0.161$ & $+0.276$'),
+    ("latex_report/main.tex", 'MINT Stage-1, zero-shot & \\textbf{0.523} & \\textbf{0.421}'),
+    ("latex_report/main.tex", '\\textbf{B1 one-hot + pseudosequence + allele} & \\textbf{0.806} & \\textbf{0.645}'),
+    ("latex_report/main.tex", '90\\% & 1.103 & 89.9\\% & \\textbf{90.5\\%} & 6.63'),
+    ("latex_report/main.tex", '\\textbf{7.5 GPU-hours} & \\textbf{\\$15.26}'),
+    ("latex_report/main.tex", 'logs 30 runs'),
+    ("latex_report/main.tex", 're-checks 125 quoted figures'),
 ]
 
 
