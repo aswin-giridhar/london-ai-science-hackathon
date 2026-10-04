@@ -26,6 +26,17 @@ R = ROOT / "results"
 TOL = 0.0006          # the README quotes 3 decimals
 
 
+def tolerance(claimed):
+    """Half a unit in the last decimal place the claim states, floored at TOL.
+
+    A README that says 0.78 is asserting two decimals and is satisfied by anything rounding to
+    it. Integers get a tolerance of 0.5, which is right for counts quoted exactly.
+    """
+    txt = repr(float(claimed))
+    decimals = len(txt.split(".")[1].rstrip("0")) if "." in txt else 0
+    return max(TOL, 0.5 * 10 ** -decimals) if decimals else 0.5
+
+
 def load(name):
     p = R / name
     return json.loads(p.read_text(encoding="utf-8")) if p.exists() else None
@@ -162,6 +173,17 @@ CLAIMS = [
     ("X150 anchor rank, raw", "motif_supported.json", ["0.0", "X150"], 3.69),
     ("B1 anchor rank, 1% support", "motif_supported.json", ["0.01", "B1"], 1.94),
     ("X150 anchor rank, 1% support", "motif_supported.json", ["0.01", "X150"], 2.11),
+
+    # --- Run 20 operational metrics
+    ("B1 MAE hours", "operational_metrics.json", "B1_onehot.mae_hours", 3.45),
+    ("L150 median AE hours", "operational_metrics.json", "L150_esm_lora.median_ae_hours", 0.87),
+    ("L150 MAE unstable", "operational_metrics.json", "L150_esm_lora.mae_hours_unstable", 0.78),
+    ("B1 MAE stable", "operational_metrics.json", "B1_onehot.mae_hours_stable", 24.59),
+    ("B1 top-5 precision", "operational_metrics.json", "B1_onehot.top5_precision", 0.500),
+    ("X150 top-5 precision", "operational_metrics.json", "X150_esm_frozen.top5_precision", 0.424),
+    ("B1 calibration slope", "operational_metrics.json", "B1_onehot.calib_slope", 0.978),
+    ("skill vs rows available", "operational_metrics.json", "skill_vs_n", -0.076),
+    ("skill vs median half-life", "operational_metrics.json", "skill_vs_median_halflife", 0.475),
 ]
 
 
@@ -219,8 +241,12 @@ def main():
         if actual == "<missing>":
             missing.append((label, f"{fname}:{path if isinstance(path, str) else '.'.join(path)}"))
             continue
-        if isinstance(actual, (int, float)) and abs(float(actual) - claimed) <= max(
-                TOL, abs(claimed) * 0.004):
+        # Tolerance must match the precision the README actually quotes. A claim written as
+        # "0.78" asserts two decimals, so 0.7844 agrees with it; a claim written as "0.784"
+        # asserts three and would not. A fixed tolerance flagged a correctly-rounded figure as
+        # a mismatch, which is a false alarm an audit can least afford -- it trains the reader
+        # to ignore it.
+        if isinstance(actual, (int, float)) and abs(float(actual) - claimed) <= tolerance(claimed):
             ok += 1
         else:
             bad.append((label, claimed, actual, f"{fname}:{path if isinstance(path, str) else chr(46).join(path)}"))

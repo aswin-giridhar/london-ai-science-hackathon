@@ -1,0 +1,674 @@
+{
+  "B0b_per_allele_median": {
+    "mae_hours": 4.430166939479009,
+    "median_ae_hours": 1.0999999999999992,
+    "mae_log": 0.6824242889860446,
+    "mae_hours_unstable": 1.0418489035782048,
+    "mae_hours_stable": 38.9631310558613,
+    "top5_precision": 0.17352941176470588,
+    "top5_n_alleles": 68,
+    "top10_precision": 0.3102941176470589,
+    "top10_n_alleles": 68,
+    "calib_slope": 0.7733617757665568,
+    "calib_intercept": 0.41474191077832373,
+    "bias_hours": -3.0529399727203375
+  },
+  "B1_onehot": {
+    "mae_hours": 3.451361426149854,
+    "median_ae_hours": 0.9948242037945574,
+    "mae_log": 0.49731585125934286,
+    "mae_hours_unstable": 0.9477430847067466,
+    "mae_hours_stable": 24.58870920956599,
+    "top5_precision": 0.4999999999999999,
+    "top5_n_alleles": 68,
+    "top10_precision": 0.6205882352941176,
+    "top10_n_alleles": 68,
+    "calib_slope": 0.9783395041444427,
+    "calib_intercept": -0.02303956220478249,
+    "bias_hours": -1.0349415946056095
+  },
+  "X150_esm_frozen": {
+    "mae_hours": 3.5388004726572775,
+    "median_ae_hours": 0.9601293963716763,
+    "mae_log": 0.5237847237296857,
+    "mae_hours_unstable": 0.8299902143299668,
+    "mae_hours_stable": 28.381215704478727,
+    "top5_precision": 0.4235294117647058,
+    "top5_n_alleles": 68,
+    "top10_precision": 0.5441176470588236,
+    "top10_n_alleles": 68,
+    "calib_slope": 1.0892366426212148,
+    "calib_intercept": -0.031789742651035666,
+    "bias_hours": -2.1415738350300293
+  },
+  "L150_esm_lora": {
+    "mae_hours": 3.472565943724614,
+    "median_ae_hours": 0.8719604580738771,
+    "mae_log": 0.5093029783054573,
+    "mae_hours_unstable": 0.7844086870201868,
+    "mae_hours_stable": 27.85931560018512,
+    "top5_precision": 0.45588235294117646,
+    "top5_n_alleles": 68,
+    "top10_precision": 0.5808823529411764,
+    "top10_n_alleles": 68,
+    "calib_slope": 1.030556728451501,
+    "calib_intercept": 0.05503484471441414,
+    "bias_hours": -2.0745724354444555
+  },
+  "per_allele": [
+    {
+      "allele": "HLA-A*24:19",
+      "n": 35,
+      "median_h": 0.20000000000000004,
+      "B0b_per_allele_median": NaN,
+      "B1_onehot": 0.2850629067462559,
+      "X150_esm_frozen": 0.08237666917890811,
+      "L150_esm_lora": 0.3327621120955549
+    },
+    {
+      "allele": "HLA-B*40:01",
+      "n": 27,
+      "median_h": 1.2000000000000002,
+      "B0b_per_allele_median": NaN,
+      "B1_onehot": 0.30202048878990145,
+      "X150_esm_frozen": -0.02570387138637459,
+      "L150_esm_lora": 0.15514122372490377
+    },
+    {
+      "allele": "HLA-B*39:06(C67S)",
+      "n": 35,
+      "median_h": 0.0,
+      "B0b_per_allele_median": NaN,
+      "B1_onehot": 0.31813992386372936,
+      "X150_esm_frozen": 0.19840235952114413,
+      "L150_esm_lora": 0.2944708704471718
+    },
+    {
+      "allele": "HLA-A*25:01",
+      "n": 46,
+      "median_h": 0.5,
+      "B0b_per_allele_median": NaN,
+      "B1_onehot": 0.36507936864395435,
+      "X150_esm_frozen": 0.40534964597236567,
+      "L150_esm_lora": 0.48796988631281524
+    },
+    {
+      "allele": "HLA-B*14:01(C67S)",
+      "n": 37,
+      "median_h": 0.0,
+      "B0b_per_allele_median": NaN,
+      "B1_onehot": 0.38106561177067444,
+      "X150_esm_frozen": 0.3151352122738435,
+      "L150_esm_lora": 0.293964900508806
+    },
+    {
+      "allele": "HLA-A*01:01",
+      "n": 22,
+      "median_h": 1.4,
+      "B0b_per_allele_median": NaN,
+      "B1_onehot": 0.4181327276234755,
+      "X150_esm_frozen": 0.5172834421683375,
+      "L150_esm_lora": 0.49348727067757064
+    },
+    {
+      "allele": "HLA-B*55:01",
+      "n": 44,
+      "median_h": 0.0,
+      "B0b_per_allele_median": NaN,
+      "B1_onehot": 0.4250352479889533,
+      "X150_esm_frozen": 0.5896255426556226,
+      "L150_esm_lora": 0.4980348812711652
+    },
+    {
+      "allele": "HLA-B*15:17",
+      "n": 31,
+      "median_h": 1.6,
+      "B0b_per_allele_median": NaN,
+      "B1_onehot": 0.4272315217970435,
+      "X150_esm_frozen": 0.3130610584650668,
+      "L150_esm_lora": 0.5090285716809442
+    },
+    {
+      "allele": "HLA-A*66:01",
+      "n": 44,
+      "median_h": 0.20000000000000004,
+      "B0b_per_allele_median": NaN,
+      "B1_onehot": 0.43942079916783433,
+      "X150_esm_frozen": 0.45012568752516274,
+      "L150_esm_lora": 0.4797094471154061
+    },
+    {
+      "allele": "HLA-A*68:23",
+      "n": 46,
+      "median_h": 0.45000000000000007,
+      "B0b_per_allele_median": NaN,
+      "B1_onehot": 0.47347542734297715,
+      "X150_esm_frozen": 0.6007804127138809,
+      "L150_esm_lora": 0.358292499880294
+    },
+    {
+      "allele": "HLA-B*15:02",
+      "n": 38,
+      "median_h": 1.0,
+      "B0b_per_allele_median": NaN,
+      "B1_onehot": 0.4811071133755693,
+      "X150_esm_frozen": 0.5730510484248875,
+      "L150_esm_lora": 0.38587695466304867
+    },
+    {
+      "allele": "HLA-B*39:01",
+      "n": 70,
+      "median_h": 0.20000000000000004,
+      "B0b_per_allele_median": NaN,
+      "B1_onehot": 0.4831862780472159,
+      "X150_esm_frozen": 0.2731775226241045,
+      "L150_esm_lora": 0.3743972644492914
+    },
+    {
+      "allele": "HLA-A*26:02",
+      "n": 40,
+      "median_h": 1.45,
+      "B0b_per_allele_median": NaN,
+      "B1_onehot": 0.4942977406628051,
+      "X150_esm_frozen": 0.4682968910305231,
+      "L150_esm_lora": 0.4348806366294675
+    },
+    {
+      "allele": "HLA-A*02:03",
+      "n": 30,
+      "median_h": 4.15,
+      "B0b_per_allele_median": NaN,
+      "B1_onehot": 0.4962171907451838,
+      "X150_esm_frozen": 0.37405430387562955,
+      "L150_esm_lora": 0.3753894173933296
+    },
+    {
+      "allele": "HLA-A*26:01",
+      "n": 37,
+      "median_h": 0.6000000000000001,
+      "B0b_per_allele_median": NaN,
+      "B1_onehot": 0.5326381868431378,
+      "X150_esm_frozen": 0.46807958517889137,
+      "L150_esm_lora": 0.3984916735069954
+    },
+    {
+      "allele": "HLA-B*56:01",
+      "n": 44,
+      "median_h": 0.0,
+      "B0b_per_allele_median": NaN,
+      "B1_onehot": 0.5371568582421647,
+      "X150_esm_frozen": 0.6493799531357043,
+      "L150_esm_lora": 0.6234922793422375
+    },
+    {
+      "allele": "HLA-B*08:03",
+      "n": 34,
+      "median_h": 0.4000000000000001,
+      "B0b_per_allele_median": NaN,
+      "B1_onehot": 0.5422015875284543,
+      "X150_esm_frozen": 0.29236518647522974,
+      "L150_esm_lora": 0.3887207492610165
+    },
+    {
+      "allele": "HLA-B*57:01",
+      "n": 31,
+      "median_h": 8.1,
+      "B0b_per_allele_median": NaN,
+      "B1_onehot": 0.5491580366229095,
+      "X150_esm_frozen": 0.6153070766568113,
+      "L150_esm_lora": 0.7500252435551232
+    },
+    {
+      "allele": "HLA-B*41:01",
+      "n": 34,
+      "median_h": 0.0,
+      "B0b_per_allele_median": NaN,
+      "B1_onehot": 0.5601887294786838,
+      "X150_esm_frozen": 0.7300117879625434,
+      "L150_esm_lora": 0.6503093433862043
+    },
+    {
+      "allele": "HLA-B*35:03",
+      "n": 43,
+      "median_h": 3.0,
+      "B0b_per_allele_median": NaN,
+      "B1_onehot": 0.5812206993732784,
+      "X150_esm_frozen": 0.5781222663119984,
+      "L150_esm_lora": 0.699792442620798
+    },
+    {
+      "allele": "HLA-B*08:01",
+      "n": 56,
+      "median_h": 0.35,
+      "B0b_per_allele_median": NaN,
+      "B1_onehot": 0.5909467882792799,
+      "X150_esm_frozen": 0.2955252649443927,
+      "L150_esm_lora": 0.5401237992531366
+    },
+    {
+      "allele": "HLA-B*15:10",
+      "n": 33,
+      "median_h": 0.2999999999999999,
+      "B0b_per_allele_median": NaN,
+      "B1_onehot": 0.5939704328972851,
+      "X150_esm_frozen": 0.5161142004361965,
+      "L150_esm_lora": 0.5463447115219554
+    },
+    {
+      "allele": "HLA-A*29:02",
+      "n": 42,
+      "median_h": 1.2000000000000002,
+      "B0b_per_allele_median": NaN,
+      "B1_onehot": 0.5966076319819014,
+      "X150_esm_frozen": 0.548710162548057,
+      "L150_esm_lora": 0.45354246562364536
+    },
+    {
+      "allele": "HLA-B*51:01",
+      "n": 43,
+      "median_h": 0.0,
+      "B0b_per_allele_median": NaN,
+      "B1_onehot": 0.6022545161032394,
+      "X150_esm_frozen": 0.6937972025509319,
+      "L150_esm_lora": 0.6098138486501905
+    },
+    {
+      "allele": "HLA-A*26:03",
+      "n": 43,
+      "median_h": 0.4000000000000001,
+      "B0b_per_allele_median": NaN,
+      "B1_onehot": 0.6040828788127157,
+      "X150_esm_frozen": 0.4554483172699845,
+      "L150_esm_lora": 0.4664730450091257
+    },
+    {
+      "allele": "HLA-A*30:02",
+      "n": 40,
+      "median_h": 0.75,
+      "B0b_per_allele_median": NaN,
+      "B1_onehot": 0.6060497444010464,
+      "X150_esm_frozen": 0.525268160367429,
+      "L150_esm_lora": 0.32445660394861836
+    },
+    {
+      "allele": "HLA-B*46:01",
+      "n": 43,
+      "median_h": 0.6000000000000001,
+      "B0b_per_allele_median": NaN,
+      "B1_onehot": 0.6061934362792677,
+      "X150_esm_frozen": 0.38200604832366325,
+      "L150_esm_lora": 0.42560230911457825
+    },
+    {
+      "allele": "HLA-B*81:01",
+      "n": 43,
+      "median_h": 0.8,
+      "B0b_per_allele_median": NaN,
+      "B1_onehot": 0.606298037752933,
+      "X150_esm_frozen": 0.38403934531509315,
+      "L150_esm_lora": 0.5249920601592875
+    },
+    {
+      "allele": "HLA-B*27:20",
+      "n": 36,
+      "median_h": 0.6000000000000001,
+      "B0b_per_allele_median": NaN,
+      "B1_onehot": 0.6094245787350765,
+      "X150_esm_frozen": 0.636472367714099,
+      "L150_esm_lora": 0.7782445949712941
+    },
+    {
+      "allele": "HLA-A*43:01",
+      "n": 39,
+      "median_h": 0.2999999999999999,
+      "B0b_per_allele_median": NaN,
+      "B1_onehot": 0.6151684231466492,
+      "X150_esm_frozen": 0.29411783813130843,
+      "L150_esm_lora": 0.40705174267912614
+    },
+    {
+      "allele": "HLA-B*45:01",
+      "n": 33,
+      "median_h": 0.0,
+      "B0b_per_allele_median": NaN,
+      "B1_onehot": 0.6210636869473315,
+      "X150_esm_frozen": 0.4083324433104649,
+      "L150_esm_lora": 0.4079340701950401
+    },
+    {
+      "allele": "HLA-A*32:07",
+      "n": 34,
+      "median_h": 0.35,
+      "B0b_per_allele_median": NaN,
+      "B1_onehot": 0.6217767409615595,
+      "X150_esm_frozen": 0.6195169085696951,
+      "L150_esm_lora": 0.6262964057452884
+    },
+    {
+      "allele": "HLA-B*44:05",
+      "n": 32,
+      "median_h": 2.9499999999999997,
+      "B0b_per_allele_median": NaN,
+      "B1_onehot": 0.6262608686615965,
+      "X150_esm_frozen": 0.5233817040000575,
+      "L150_esm_lora": 0.43205581451441327
+    },
+    {
+      "allele": "HLA-B*18:01",
+      "n": 34,
+      "median_h": 1.3,
+      "B0b_per_allele_median": NaN,
+      "B1_onehot": 0.6269985005603327,
+      "X150_esm_frozen": 0.5329257809105145,
+      "L150_esm_lora": 0.581568260339201
+    },
+    {
+      "allele": "HLA-B*14:02(C67S)",
+      "n": 39,
+      "median_h": 0.0,
+      "B0b_per_allele_median": NaN,
+      "B1_onehot": 0.6324394798220678,
+      "X150_esm_frozen": 0.49756066532054133,
+      "L150_esm_lora": 0.5793894576659405
+    },
+    {
+      "allele": "HLA-A*03:01",
+      "n": 80,
+      "median_h": 1.2,
+      "B0b_per_allele_median": NaN,
+      "B1_onehot": 0.6350454797045642,
+      "X150_esm_frozen": 0.6261412690665387,
+      "L150_esm_lora": 0.6206554572006089
+    },
+    {
+      "allele": "HLA-A*02:10",
+      "n": 28,
+      "median_h": 1.7499999999999998,
+      "B0b_per_allele_median": NaN,
+      "B1_onehot": 0.6353303093841959,
+      "X150_esm_frozen": 0.7257785415225845,
+      "L150_esm_lora": 0.657347108668857
+    },
+    {
+      "allele": "HLA-A*30:01",
+      "n": 34,
+      "median_h": 0.6,
+      "B0b_per_allele_median": NaN,
+      "B1_onehot": 0.6359562871394798,
+      "X150_esm_frozen": 0.6396572936601752,
+      "L150_esm_lora": 0.7266309468965153
+    },
+    {
+      "allele": "HLA-A*02:16",
+      "n": 30,
+      "median_h": 10.5,
+      "B0b_per_allele_median": NaN,
+      "B1_onehot": 0.6443430899811596,
+      "X150_esm_frozen": 0.6345533469013355,
+      "L150_esm_lora": 0.6483479848774514
+    },
+    {
+      "allele": "HLA-A*02:01",
+      "n": 102,
+      "median_h": 2.9499999999999997,
+      "B0b_per_allele_median": NaN,
+      "B1_onehot": 0.6757206584709952,
+      "X150_esm_frozen": 0.5882506323321772,
+      "L150_esm_lora": 0.5023134932153804
+    },
+    {
+      "allele": "HLA-A*02:50",
+      "n": 30,
+      "median_h": 6.9,
+      "B0b_per_allele_median": NaN,
+      "B1_onehot": 0.6789052237504734,
+      "X150_esm_frozen": 0.5834446072349201,
+      "L150_esm_lora": 0.5772140774856532
+    },
+    {
+      "allele": "HLA-B*35:01",
+      "n": 68,
+      "median_h": 1.9000000000000001,
+      "B0b_per_allele_median": NaN,
+      "B1_onehot": 0.689536817368889,
+      "X150_esm_frozen": 0.7046455049738417,
+      "L150_esm_lora": 0.7086876901346147
+    },
+    {
+      "allele": "HLA-A*74:01",
+      "n": 32,
+      "median_h": 4.050000000000001,
+      "B0b_per_allele_median": NaN,
+      "B1_onehot": 0.706559108263928,
+      "X150_esm_frozen": 0.6878386282181104,
+      "L150_esm_lora": 0.6550914871110197
+    },
+    {
+      "allele": "HLA-B*54:01",
+      "n": 42,
+      "median_h": 0.20000000000000004,
+      "B0b_per_allele_median": NaN,
+      "B1_onehot": 0.7116737262764394,
+      "X150_esm_frozen": 0.5716216918759632,
+      "L150_esm_lora": 0.5429590818944933
+    },
+    {
+      "allele": "HLA-A*24:03",
+      "n": 43,
+      "median_h": 3.9000000000000004,
+      "B0b_per_allele_median": NaN,
+      "B1_onehot": 0.7189908579564698,
+      "X150_esm_frozen": 0.6055295983798131,
+      "L150_esm_lora": 0.6712495023955862
+    },
+    {
+      "allele": "HLA-B*57:02",
+      "n": 35,
+      "median_h": 1.1,
+      "B0b_per_allele_median": NaN,
+      "B1_onehot": 0.7319643423973061,
+      "X150_esm_frozen": 0.7124733378775311,
+      "L150_esm_lora": 0.6827460504085217
+    },
+    {
+      "allele": "HLA-B*27:05",
+      "n": 39,
+      "median_h": 0.4000000000000001,
+      "B0b_per_allele_median": NaN,
+      "B1_onehot": 0.732508402115556,
+      "X150_esm_frozen": 0.6991007721365868,
+      "L150_esm_lora": 0.6774780423035731
+    },
+    {
+      "allele": "HLA-B*15:01",
+      "n": 120,
+      "median_h": 6.1,
+      "B0b_per_allele_median": NaN,
+      "B1_onehot": 0.7343505033023309,
+      "X150_esm_frozen": 0.6446980728624249,
+      "L150_esm_lora": 0.644029478418393
+    },
+    {
+      "allele": "HLA-B*07:02",
+      "n": 69,
+      "median_h": 4.3,
+      "B0b_per_allele_median": NaN,
+      "B1_onehot": 0.736953679460864,
+      "X150_esm_frozen": 0.6976684862931347,
+      "L150_esm_lora": 0.5704314256327712
+    },
+    {
+      "allele": "HLA-B*57:03",
+      "n": 35,
+      "median_h": 4.8,
+      "B0b_per_allele_median": NaN,
+      "B1_onehot": 0.7380736004412711,
+      "X150_esm_frozen": 0.6935201826469802,
+      "L150_esm_lora": 0.6258932570259126
+    },
+    {
+      "allele": "HLA-A*24:07",
+      "n": 34,
+      "median_h": 4.7,
+      "B0b_per_allele_median": NaN,
+      "B1_onehot": 0.7428312915786475,
+      "X150_esm_frozen": 0.5489029247427971,
+      "L150_esm_lora": 0.5857615496698002
+    },
+    {
+      "allele": "HLA-B*39:02",
+      "n": 35,
+      "median_h": 0.4000000000000001,
+      "B0b_per_allele_median": NaN,
+      "B1_onehot": 0.7614535347774803,
+      "X150_esm_frozen": 0.5630277847309721,
+      "L150_esm_lora": 0.742160186476294
+    },
+    {
+      "allele": "HLA-A*68:01",
+      "n": 31,
+      "median_h": 1.6,
+      "B0b_per_allele_median": NaN,
+      "B1_onehot": 0.7626870886447997,
+      "X150_esm_frozen": 0.6612110964635939,
+      "L150_esm_lora": 0.7630913754662387
+    },
+    {
+      "allele": "HLA-B*42:01",
+      "n": 40,
+      "median_h": 12.499999999999998,
+      "B0b_per_allele_median": NaN,
+      "B1_onehot": 0.7644602974798,
+      "X150_esm_frozen": 0.6973776866921151,
+      "L150_esm_lora": 0.6208304018092061
+    },
+    {
+      "allele": "HLA-A*23:01",
+      "n": 35,
+      "median_h": 6.7,
+      "B0b_per_allele_median": NaN,
+      "B1_onehot": 0.7664612236978398,
+      "X150_esm_frozen": 0.6601289135558802,
+      "L150_esm_lora": 0.7363407405877985
+    },
+    {
+      "allele": "HLA-B*58:01",
+      "n": 31,
+      "median_h": 5.1,
+      "B0b_per_allele_median": NaN,
+      "B1_onehot": 0.7696038650584807,
+      "X150_esm_frozen": 0.6535476829423972,
+      "L150_esm_lora": 0.7625395757122843
+    },
+    {
+      "allele": "HLA-A*02:19",
+      "n": 27,
+      "median_h": 3.7,
+      "B0b_per_allele_median": NaN,
+      "B1_onehot": 0.784241951271107,
+      "X150_esm_frozen": 0.5811574895906996,
+      "L150_esm_lora": 0.6220797720947215
+    },
+    {
+      "allele": "HLA-A*11:01",
+      "n": 55,
+      "median_h": 3.8,
+      "B0b_per_allele_median": NaN,
+      "B1_onehot": 0.7918938324284417,
+      "X150_esm_frozen": 0.7883568197317556,
+      "L150_esm_lora": 0.7140099151480693
+    },
+    {
+      "allele": "HLA-A*24:02",
+      "n": 55,
+      "median_h": 2.4,
+      "B0b_per_allele_median": NaN,
+      "B1_onehot": 0.7967712928970015,
+      "X150_esm_frozen": 0.6454869761425633,
+      "L150_esm_lora": 0.7076190260035073
+    },
+    {
+      "allele": "HLA-B*27:02",
+      "n": 31,
+      "median_h": 0.6000000000000001,
+      "B0b_per_allele_median": NaN,
+      "B1_onehot": 0.8017721635663584,
+      "X150_esm_frozen": 0.8354085155471106,
+      "L150_esm_lora": 0.8923152997158046
+    },
+    {
+      "allele": "HLA-A*33:03",
+      "n": 31,
+      "median_h": 1.0,
+      "B0b_per_allele_median": NaN,
+      "B1_onehot": 0.8040943105009908,
+      "X150_esm_frozen": 0.7290373052361698,
+      "L150_esm_lora": 0.6718217192556097
+    },
+    {
+      "allele": "HLA-B*27:03",
+      "n": 36,
+      "median_h": 0.24999999999999994,
+      "B0b_per_allele_median": NaN,
+      "B1_onehot": 0.8129093062405258,
+      "X150_esm_frozen": 0.7443093647856291,
+      "L150_esm_lora": 0.8206927611363699
+    },
+    {
+      "allele": "HLA-A*80:01",
+      "n": 39,
+      "median_h": 0.0,
+      "B0b_per_allele_median": NaN,
+      "B1_onehot": 0.8183479995433259,
+      "X150_esm_frozen": 0.5012507285083659,
+      "L150_esm_lora": 0.4084472253493332
+    },
+    {
+      "allele": "HLA-A*02:12",
+      "n": 30,
+      "median_h": 8.349999999999998,
+      "B0b_per_allele_median": NaN,
+      "B1_onehot": 0.824301815149339,
+      "X150_esm_frozen": 0.6934461274312473,
+      "L150_esm_lora": 0.6553527872090862
+    },
+    {
+      "allele": "HLA-A*02:11",
+      "n": 29,
+      "median_h": 6.999999999999998,
+      "B0b_per_allele_median": NaN,
+      "B1_onehot": 0.8334565416771915,
+      "X150_esm_frozen": 0.7363882953216452,
+      "L150_esm_lora": 0.8029071443470196
+    },
+    {
+      "allele": "HLA-B*42:02",
+      "n": 45,
+      "median_h": 1.4,
+      "B0b_per_allele_median": NaN,
+      "B1_onehot": 0.8351638801986925,
+      "X150_esm_frozen": 0.7417816901827933,
+      "L150_esm_lora": 0.648861135287029
+    },
+    {
+      "allele": "HLA-A*31:01",
+      "n": 32,
+      "median_h": 3.4000000000000004,
+      "B0b_per_allele_median": NaN,
+      "B1_onehot": 0.8523148274892599,
+      "X150_esm_frozen": 0.8315445933925839,
+      "L150_esm_lora": 0.7804257609099597
+    },
+    {
+      "allele": "HLA-B*39:10",
+      "n": 45,
+      "median_h": 8.3,
+      "B0b_per_allele_median": NaN,
+      "B1_onehot": 0.8535276098663256,
+      "X150_esm_frozen": 0.7616569058161629,
+      "L150_esm_lora": 0.7871878292924913
+    }
+  ],
+  "skill_vs_n": -0.07626579048279687,
+  "skill_vs_median_halflife": 0.47523254081236344
+}

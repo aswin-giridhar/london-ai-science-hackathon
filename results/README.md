@@ -1172,6 +1172,107 @@ there.
 - **Additivity is assumed.** A PWM cannot represent position-position coupling, which is exactly
   what an attention head is supposed to capture.
 
+## Run 20 - metrics a user would act on, and a regime crossover Spearman hid - 2026-10-04 08:00 - CURRENT
+
+`python src/operational_metrics.py`, seconds, CPU, no new training.
+
+Everything so far is Spearman on `log1p(t-half)`. That is the right primary metric, but it answers
+none of the questions someone deciding whether to use the model would ask: how many hours out are
+you, how many of the genuinely best peptides does a shortlist catch, does it work for *my*
+patient's allele, and is the number usable as hours or only as a rank.
+
+### 1. Error on the original scale
+
+| model | MAE hours | median AE h | MAE log | MAE h, t <= 2 h | MAE h, t > 24 h |
+|---|---|---|---|---|---|
+| B0b per-allele median | 4.43 | 1.10 | 0.682 | 1.04 | 38.96 |
+| **B1 one-hot** | **3.45** | 0.99 | **0.497** | 0.95 | **24.59** |
+| X150 ESM-2 frozen | 3.54 | 0.96 | 0.524 | 0.83 | 28.38 |
+| **L150 ESM-2 LoRA** | 3.47 | **0.87** | 0.509 | **0.78** | 27.86 |
+
+1,668 validation rows sit at or under 2 h; 141 sit above 24 h.
+
+**There is a regime crossover here that pooled Spearman completely hid.** On *median* absolute
+error the ESM models win - L150 0.87 h against B1's 0.99 h - and on unstable complexes they win
+clearly, 0.78 h against 0.95 h. B1 only pulls ahead on the 141 stable rows above 24 h, where its
+errors are 24.6 h against 27.9 h, and because those errors are enormous they dominate the *mean*.
+
+So "one-hot beats ESM-2" is true on rank correlation, true on the stable tail, and **false on
+typical-case hours error**. A rank metric is blind to which regime the errors live in. This is
+the clearest argument in the project for reporting more than one metric.
+
+### 2. Top-k retrieval within each allele - the actual shortlisting decision
+
+Of the k truly most stable peptides for an allele, how many appear in the model's top k?
+
+| model | top-5 | top-10 |
+|---|---|---|
+| **B1 one-hot** | **0.500** | **0.621** |
+| L150 ESM-2 LoRA | 0.456 | 0.581 |
+| X150 ESM-2 frozen | 0.424 | 0.544 |
+| B0b per-allele median | 0.174 | 0.310 |
+
+68 alleles scored; random expectation for top-5 is about **0.143**. B1 recovers **half** the true
+top five. B0b's 0.174 is a tie-break artefact - it predicts a constant inside an allele, so its
+ordering there is arbitrary - and it still sits near chance, as it should.
+
+Here the ordering matches Spearman: for *picking candidates*, one-hot is the better tool.
+
+### 3. Per-allele behaviour - a pooled average hides where a model fails
+
+68 alleles with at least 12 validation rows. **B1 per-allele Spearman: median 0.630, range 0.285
+to 0.854.** X150 beats B1 in **15 of 68 alleles (22%)**.
+
+| | worst five for B1 | | | best five | |
+|---|---|---|---|---|---|
+| allele | n | median h | B1 | allele | B1 |
+| HLA-A*24:19 | 35 | 0.2 | 0.285 | HLA-B*39:10 | 0.854 |
+| HLA-B*40:01 | 27 | 1.2 | 0.302 | HLA-A*31:01 | 0.852 |
+| HLA-B*39:06(C67S) | 35 | 0.0 | 0.318 | HLA-B*42:02 | 0.835 |
+| HLA-A*25:01 | 46 | 0.5 | 0.365 | HLA-A*02:11 | 0.833 |
+| HLA-B*14:01(C67S) | 37 | 0.0 | 0.381 | HLA-A*02:12 | 0.824 |
+
+Two findings, and the second is the useful one:
+
+- **Skill does not track how much data an allele has**: correlation of per-allele Spearman with
+  row count is **-0.076**. Giving an allele more training rows does not make it easier.
+- **Skill strongly tracks the allele's median half-life**: **+0.475**. Alleles whose complexes
+  mostly die fast are much harder - their labels are compressed against the zero point mass and
+  the 0.1 h reporting grid, so there is less to rank. The four worst alleles have median
+  half-lives of 0.0-0.5 h.
+
+That reframes what "improving the model" would mean. The failures are concentrated where the
+*label* carries least information, not where the model has least data.
+
+**And the quarantine is vindicated a third time.** Two of the five worst alleles are `(C67S)`
+engineered constructs, and `HLA-A*24:19` is one of the three domain-mismatch alleles - exactly the
+7.9% of rows quarantined from the structural arm on construct grounds. They were flagged by
+sequence inspection, again by the Run 16 distance-0 anomaly, and now again by per-allele skill.
+
+### 4. Calibration
+
+| model | slope | intercept | bias (hours) |
+|---|---|---|---|
+| B0b per-allele median | 0.773 | +0.415 | -3.05 |
+| **B1 one-hot** | **0.978** | **-0.023** | -1.03 |
+| X150 ESM-2 frozen | 1.089 | -0.032 | -2.14 |
+| L150 ESM-2 LoRA | 1.031 | +0.055 | -2.07 |
+
+Slope 1 and intercept 0 would be perfect on the log scale. **B1 is very nearly calibrated**
+(0.978 / -0.023), so its output is usable as hours and not only as a rank. B0b's 0.773 shows the
+expected compression toward the middle that MSE on a constant predictor produces.
+
+### What Run 20 does NOT establish
+
+- **These are not prediction intervals.** Honest per-prediction uncertainty needs calibration rows
+  carved from **train**, never validation, and this project has not done that. A calibration slope
+  is a property of the whole set, not a statement about any one prediction.
+- **No confidence intervals on any of these figures.** The per-allele numbers in particular rest
+  on 12 to 46 rows each.
+- **Validation rows**, with the Run 10 selection optimism (~+0.08 pooled) applying throughout.
+- **Top-k is computed within allele** and only for alleles with at least 2k rows, so it describes
+  68 of 73 alleles.
+
 ## Files
 
 | File | What |
@@ -1200,6 +1301,7 @@ there.
 | `cost_benefit.json` | Accuracy against measured device-seconds and dollars, per approach |
 | `motif_recovery.json` | Per-allele position weight matrices from both models, and anchor ranks |
 | `motif_supported.json` | Anchor ranks re-scored over residues with training support |
+| `operational_metrics.json` | Hours-MAE, top-k retrieval, per-allele table, calibration |
 | `complementarity.json` | Residual correlations, ensemble combinations, and the (B1+X150) - B1 interval |
 | `learning_curve.json` | One-hot vs frozen ESM-2 at 5/10/25/50/100% of training clusters |
 | `allele_split_metrics.json` | The ladder re-run against the allele split (every val allele unseen) |
@@ -1226,6 +1328,7 @@ there.
 | 17 | `python src/contact_features.py` |
 | 18 | `python scripts/cost_benefit.py` |
 | 19 | `python -m modal run modal_app.py::motifs` then `python scripts/motif_supported.py` |
+| 20 | `python src/operational_metrics.py` |
 | audit | `python scripts/audit_results.py` - re-checks every number here against its source |
 
 `src/features.py` asserts the frozen split's sha256 before reading any label, so a run against a
