@@ -138,6 +138,20 @@ An **allele** is a particular genetic variant. In `HLA-A*02:01`, `HLA-A` identif
 
 Peptide positions are numbered **P1–P9**. Side chains at certain positions fit into pockets and act as **anchors**. P2 and the final residue are common examples, but anchor preferences vary by allele, including P3-dominant cases. The structural experiment therefore retains features for all nine positions.
 
+
+### Why do we need to be able to predict stability rather than affinity
+
+Cancer prevention, as opposed to treatment, is the new frontier on which progress in fighting cancer is made: Oncotherapies are extremely costly in terms of money and time, and are typically very disruptive for those impacted and their lives. Prevention is the key to avoiding the challenges associated with traditional approaches such as immunotherapy, radiotherapy and chemotherapy, and the quest for advances in this domain has led to a reapplication of a century-old advance in medicine: vaccines. The ability to prepare our immune system to disease before we ever suffer from them was perhaps one of the most important medical advances in human history, and essentially allows us to engineer resistance to various invaders by mastering our own internal defense mechanisms.
+
+The cells of jawed vertebrates constantly exhibit a portion of their proteome at their surface as peptides shredded by the proteasome, displayed on MHC (in humans, HLA) receptors. These peptides essentially allow cells to display their health: Mutated/cancerous or virally infected cells expose mutated peptides, called neoantigens, to the external environment. These are recognised by CD8 T-cells as ‘non-self’, allowing the immune system to selectively destroy diseased individuals.
+
+Designing cancer vaccines therefore revolves around training the immune system to recognise and target cells displaying neoantigens. The challenge lies in determining which neoantigens actually provoke an immune response, as giving the immune system this ability requires performing a biopsy, sequencing it, working out which neoantigens a patient’s HLA alleles can physically bind to and present, and manufacturing something that can work against them (be it peptide or mRNA vaccines or T-cells expanded against them in a dish). 
+
+The stability of these interactions has proved itself to be the dominant signal in provoking an immune response over binding affinity: Whilst binding affinity is a stronger correlate of eluted ligand data (what we actually find on a cell via mass spectrophotometry), stability is a stronger correlate of actual CD8 T-cell response. This shifts the barrier to progress towards data quantity: Whilst affinity data presents a relatively low financial and time cost, stability data requires monitoring assays to evaluate the half-life of pHLA bonds, an inherently time-consuming process. This leads to the field’s current situation, where the training corpus for stability models is two orders of magnitude smaller than the one affinity models enjoy.
+
+To be able to improve our capacity to predict neoantigen half lives, we therefore need to steer away from narrow models, which rely solely on the aforementioned time-consuming stability data, towards foundation models, which can improve with much wider and easily created data, pushing the boundary for training even further.
+
+
 ### Stability is a kinetic property
 
 The target is the measured **dissociation half-life**, `thalf_hours`: the time required for half of an initially assembled population of complexes to dissociate under the assay conditions.
