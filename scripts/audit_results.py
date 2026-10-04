@@ -122,6 +122,46 @@ CLAIMS = [
 ]
 
 
+# Numbers quoted in the experiment write-ups and the repo front door. These restate results/
+# figures in prose, which is exactly where a stale number survives longest -- a run gets repeated,
+# results/README.md is updated, and the summary three files away keeps the old value.
+# (file, substring that must appear verbatim)
+PROSE = [
+    ("experiments/000-supervised-baseline.md", "| B0b per-allele median | **0.563** |"),
+    ("experiments/000-supervised-baseline.md", "| B1 one-hot + pseudoseq + allele | **0.780** | **0.633** |"),
+    ("experiments/001-esm2-embeddings-head.md", "| **X150** same embeddings, **residue cross-attention** | 0.754 | 0.558 |"),
+    ("experiments/001-esm2-embeddings-head.md", "**+0.161 pooled and +0.280 within-allele**"),
+    ("experiments/002-likelihood-scoring.md", "**+0.002 pooled, -0.006 within-allele**"),
+    ("experiments/002-likelihood-scoring.md", "rank-correlate at **-0.03**"),
+    ("experiments/003-hurdle-model.md", "| all 2,817 rows, ρ pooled | **0.780** | 0.779 | −0.001 |"),
+    ("experiments/003-hurdle-model.md", "**AUC 0.886**"),
+    ("README.md", "| **B1 one-hot peptide + HLA pseudosequence + allele** | **0.780 [0.756, 0.802]** | **0.633 [0.588, 0.654]** |"),
+    ("README.md", "| L150 **LoRA-adapted** ESM-2 150M, same head | 0.757 [0.732, 0.780] | 0.572 [0.524, 0.599] |"),
+    ("ARCHITECTURE.md", "| B1 one-hot + pseudoseq + allele | **0.780 [0.756, 0.802]** | **0.633 [0.588, 0.654]** |"),
+]
+
+
+def check_prose():
+    """Confirm the figures restated in prose still match the ones in results/."""
+    print("\nChecking figures restated in the write-ups and the front door.")
+    bad = []
+    for rel, needle in PROSE:
+        p = ROOT / rel
+        if not p.exists():
+            bad.append((rel, "FILE MISSING", needle))
+            continue
+        if needle not in p.read_text(encoding="utf-8"):
+            bad.append((rel, "not found", needle))
+    if bad:
+        print("  STALE OR CHANGED -- these quoted figures are no longer present:")
+        for rel, why, needle in bad:
+            print(f"    {rel}  [{why}]")
+            print(f"      expected: {needle[:88]}")
+    else:
+        print(f"  all {len(PROSE)} restated figures still present and matching")
+    return bad
+
+
 def main():
     cache, ok, bad, missing = {}, 0, [], []
     print(f"Auditing {len(CLAIMS)} numbers quoted in results/README.md "
@@ -153,8 +193,13 @@ def main():
             print(f"  {label:<32} {where}")
         print()
     print(f"verified {ok} / {len(CLAIMS)}   mismatched {len(bad)}   uncheckable {len(missing)}")
-    if not bad and not missing:
-        print("\nEvery audited number in results/README.md matches its source file.")
+    stale = check_prose()
+    print()
+    if not bad and not missing and not stale:
+        print("CLEAN: every audited number matches its source, and every figure restated in the")
+        print("write-ups is still present. Nothing has drifted.")
+    else:
+        print("ATTENTION: see above. A number somewhere says something the data does not.")
 
 
 if __name__ == "__main__":
